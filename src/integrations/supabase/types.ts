@@ -135,6 +135,45 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean | null
+          target_id: string | null
+          target_type: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          target_id?: string | null
+          target_type?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          target_id?: string | null
+          target_type?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_media: {
         Row: {
           alt_text: string | null
@@ -352,6 +391,15 @@ export type Database = {
       account_privacy: "public" | "private"
       app_role: "admin" | "moderator" | "user"
       follow_status: "pending" | "accepted" | "blocked"
+      notification_type:
+        | "follow"
+        | "follow_request"
+        | "follow_accepted"
+        | "star"
+        | "mention"
+        | "message"
+        | "comment"
+        | "system"
       post_visibility: "public" | "followers" | "private"
     }
     CompositeTypes: {
@@ -483,6 +531,16 @@ export const Constants = {
       account_privacy: ["public", "private"],
       app_role: ["admin", "moderator", "user"],
       follow_status: ["pending", "accepted", "blocked"],
+      notification_type: [
+        "follow",
+        "follow_request",
+        "follow_accepted",
+        "star",
+        "mention",
+        "message",
+        "comment",
+        "system",
+      ],
       post_visibility: ["public", "followers", "private"],
     },
   },

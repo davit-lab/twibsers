@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,10 +90,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </Button>
 
             {user && (
-              <Button className="btn-gradient rounded-full gap-2 hidden sm:flex">
-                <Plus className="h-4 w-4" />
-                Create
-              </Button>
+              <>
+                <NotificationDropdown className="hidden md:flex" />
+                <Button className="btn-gradient rounded-full gap-2 hidden sm:flex">
+                  <Plus className="h-4 w-4" />
+                  Create
+                </Button>
+              </>
             )}
 
             {user ? (
