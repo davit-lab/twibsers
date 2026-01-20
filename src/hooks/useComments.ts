@@ -38,10 +38,7 @@ export function useComments(postId: string) {
       // Fetch all comments for the post
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!comments_user_id_fkey(username, display_name, avatar_url, is_verified)
-        `)
+        .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
@@ -63,14 +60,31 @@ export function useComments(postId: string) {
         }
       }
 
+      // Fetch profiles for comment authors
+      const userIds = [...new Set(commentsData?.map((c: any) => c.user_id) || [])];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, username, display_name, avatar_url, is_verified')
+        .in('user_id', userIds);
+
+      const profilesMap = new Map(
+        profilesData?.map((p) => [p.user_id, p]) || []
+      );
+
       // Build threaded structure
       const commentMap = new Map<string, Comment>();
       const rootComments: Comment[] = [];
 
       commentsData?.forEach((comment: any) => {
+        const profile = profilesMap.get(comment.user_id);
         const formattedComment: Comment = {
           ...comment,
-          profiles: comment.profiles,
+          profiles: profile || {
+            username: 'unknown',
+            display_name: 'Unknown User',
+            avatar_url: null,
+            is_verified: false,
+          },
           user_vote: userVotes[comment.id] || null,
           replies: [],
         };
@@ -137,10 +151,7 @@ export function useComments(postId: string) {
           parent_id: parentId || null,
           content,
         })
-        .select(`
-          *,
-          profiles!comments_user_id_fkey(username, display_name, avatar_url, is_verified)
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
