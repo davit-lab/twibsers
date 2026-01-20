@@ -11,7 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
+import CommentSection from '@/components/comments/CommentSection';
 import { 
   Star, 
   MessageCircle, 
@@ -74,8 +80,10 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
   
   const [isStarred, setIsStarred] = useState(post.user_has_starred || false);
   const [starCount, setStarCount] = useState(post.star_count);
+  const [commentCount, setCommentCount] = useState(post.comment_count);
   const [isStarring, setIsStarring] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const isOwnPost = currentUserProfile?.user_id === post.user_id;
 
@@ -320,9 +328,15 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
             <span className="group-hover:text-star">{starCount > 0 && starCount}</span>
           </button>
 
-          <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-            <MessageCircle className="h-5 w-5" />
-            <span>{post.comment_count > 0 && post.comment_count}</span>
+          <button 
+            onClick={() => setShowComments(!showComments)}
+            className={cn(
+              "flex items-center gap-1.5 text-sm transition-colors",
+              showComments ? "text-primary" : "text-muted-foreground hover:text-primary"
+            )}
+          >
+            <MessageCircle className={cn("h-5 w-5", showComments && "fill-primary/20")} />
+            <span>{commentCount > 0 && commentCount}</span>
           </button>
 
           <button 
@@ -332,6 +346,13 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
             <Share2 className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Comments Section */}
+        <Collapsible open={showComments} onOpenChange={setShowComments}>
+          <CollapsibleContent>
+            <CommentSection postId={post.id} />
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </article>
   );
