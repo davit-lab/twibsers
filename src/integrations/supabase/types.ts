@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      post_media: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          height: number | null
+          id: string
+          position: number | null
+          post_id: string
+          type: string
+          url: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          position?: number | null
+          post_id: string
+          type: string
+          url: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          position?: number | null
+          post_id?: string
+          type?: string
+          url?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          comment_count: number | null
+          content: string
+          created_at: string
+          id: string
+          is_pinned: boolean | null
+          star_count: number | null
+          updated_at: string
+          user_id: string
+          visibility: Database["public"]["Enums"]["post_visibility"] | null
+        }
+        Insert: {
+          comment_count?: number | null
+          content: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          star_count?: number | null
+          updated_at?: string
+          user_id: string
+          visibility?: Database["public"]["Enums"]["post_visibility"] | null
+        }
+        Update: {
+          comment_count?: number | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          star_count?: number | null
+          updated_at?: string
+          user_id?: string
+          visibility?: Database["public"]["Enums"]["post_visibility"] | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -68,6 +148,35 @@ export type Database = {
         }
         Relationships: []
       }
+      stars: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stars_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -103,10 +212,15 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_moderator: { Args: never; Returns: boolean }
+      is_post_visible: {
+        Args: { post_row: Database["public"]["Tables"]["posts"]["Row"] }
+        Returns: boolean
+      }
     }
     Enums: {
       account_privacy: "public" | "private"
       app_role: "admin" | "moderator" | "user"
+      post_visibility: "public" | "followers" | "private"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -236,6 +350,7 @@ export const Constants = {
     Enums: {
       account_privacy: ["public", "private"],
       app_role: ["admin", "moderator", "user"],
+      post_visibility: ["public", "followers", "private"],
     },
   },
 } as const
