@@ -11,6 +11,10 @@ import Settings from "./pages/Settings";
 import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
+import Library from "./pages/Library";
+import BookDetail from "./pages/BookDetail";
+import BookEditor from "./pages/BookEditor";
+import ChapterReader from "./pages/ChapterReader";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +34,10 @@ const App = () => (
             <Route path="/explore" element={<Explore />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/library/book/:bookId" element={<BookDetail />} />
+            <Route path="/library/book/:bookId/edit" element={<BookEditor />} />
+            <Route path="/library/book/:bookId/read/:chapterId" element={<ChapterReader />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

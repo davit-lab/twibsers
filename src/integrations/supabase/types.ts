@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      books: {
+        Row: {
+          author_id: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          genre: string | null
+          id: string
+          published_at: string | null
+          status: Database["public"]["Enums"]["book_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string
+          view_count: number | null
+        }
+        Insert: {
+          author_id: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          published_at?: string | null
+          status?: Database["public"]["Enums"]["book_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          view_count?: number | null
+        }
+        Update: {
+          author_id?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          genre?: string | null
+          id?: string
+          published_at?: string | null
+          status?: Database["public"]["Enums"]["book_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
+      chapters: {
+        Row: {
+          book_id: string
+          content: string
+          created_at: string
+          id: string
+          is_published: boolean | null
+          position: number
+          title: string
+          updated_at: string
+          word_count: number | null
+        }
+        Insert: {
+          book_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean | null
+          position?: number
+          title: string
+          updated_at?: string
+          word_count?: number | null
+        }
+        Update: {
+          book_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean | null
+          position?: number
+          title?: string
+          updated_at?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_votes: {
         Row: {
           comment_id: string
@@ -394,6 +483,54 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_progress: {
+        Row: {
+          book_id: string
+          completed_chapters: string[] | null
+          created_at: string
+          current_chapter_id: string | null
+          id: string
+          last_read_at: string | null
+          scroll_position: number | null
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          completed_chapters?: string[] | null
+          created_at?: string
+          current_chapter_id?: string | null
+          id?: string
+          last_read_at?: string | null
+          scroll_position?: number | null
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          completed_chapters?: string[] | null
+          created_at?: string
+          current_chapter_id?: string | null
+          id?: string
+          last_read_at?: string | null
+          scroll_position?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_progress_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_progress_current_chapter_id_fkey"
+            columns: ["current_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stars: {
         Row: {
           created_at: string
@@ -419,6 +556,35 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_library: {
+        Row: {
+          added_at: string
+          book_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          book_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          book_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_library_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
             referencedColumns: ["id"]
           },
         ]
@@ -472,10 +638,12 @@ export type Database = {
         Args: { post_row: Database["public"]["Tables"]["posts"]["Row"] }
         Returns: boolean
       }
+      is_verified_author: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       account_privacy: "public" | "private"
       app_role: "admin" | "moderator" | "user"
+      book_status: "draft" | "published" | "archived"
       follow_status: "pending" | "accepted" | "blocked"
       notification_type:
         | "follow"
@@ -616,6 +784,7 @@ export const Constants = {
     Enums: {
       account_privacy: ["public", "private"],
       app_role: ["admin", "moderator", "user"],
+      book_status: ["draft", "published", "archived"],
       follow_status: ["pending", "accepted", "blocked"],
       notification_type: [
         "follow",
