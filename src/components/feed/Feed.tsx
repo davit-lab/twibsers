@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import PostCard from './PostCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
 interface PostProfile {
@@ -34,9 +35,11 @@ interface Post {
   user_has_starred?: boolean;
 }
 
+type FeedType = 'all' | 'following';
+
 interface FeedProps {
-  userId?: string; // If provided, only show posts from this user
-  refreshTrigger?: number; // Increment to trigger refresh
+  userId?: string;
+  refreshTrigger?: number;
 }
 
 export default function Feed({ userId, refreshTrigger }: FeedProps) {
@@ -46,8 +49,10 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedType, setFeedType] = useState<FeedType>('all');
   
   const PAGE_SIZE = 10;
+  const showFeedTabs = !userId && user;
 
   const fetchPosts = useCallback(async (loadMore = false) => {
     if (loadMore) {
@@ -87,6 +92,25 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
 
       if (userId) {
         query = query.eq('user_id', userId);
+      } else if (feedType === 'following' && user) {
+        // Get posts from followed users
+        const { data: followedUsers } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id)
+          .eq('status', 'accepted');
+
+        const followedIds = followedUsers?.map(f => f.following_id) || [];
+        
+        if (followedIds.length === 0) {
+          setPosts([]);
+          setHasMore(false);
+          setLoading(false);
+          setLoadingMore(false);
+          return;
+        }
+        
+        query = query.in('user_id', followedIds);
       }
 
       if (loadMore && posts.length > 0) {
@@ -97,7 +121,6 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
 
       if (fetchError) throw fetchError;
 
-      // Transform the data to match our interface
       const transformedPosts = (data || []).map(post => ({
         ...post,
         profiles: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles,
@@ -133,12 +156,12 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [userId, user, posts.length]);
+  }, [userId, user, feedType, posts.length]);
 
-  // Initial load
+  // Initial load and when dependencies change
   useEffect(() => {
     fetchPosts();
-  }, [userId, refreshTrigger]);
+  }, [userId, refreshTrigger, feedType]);
 
   // Set up realtime subscription
   useEffect(() => {
@@ -152,7 +175,6 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
           table: 'posts',
         },
         () => {
-          // Refresh feed when new post is created
           fetchPosts();
         }
       )
@@ -164,7 +186,6 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
           table: 'posts',
         },
         (payload) => {
-          // Remove deleted post from state
           setPosts(prev => prev.filter(p => p.id !== payload.old.id));
         }
       )
@@ -173,20 +194,25 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchPosts]);
+  }, []);
 
-  const handlePostDeleted = () => {
-    // Post will be removed by realtime subscription
-  };
+  const handlePostDeleted = () => {};
 
   const handleStarChange = () => {
-    // Refresh to get updated star counts
     fetchPosts();
   };
 
   if (loading) {
     return (
       <div className="space-y-4">
+        {showFeedTabs && (
+          <Tabs value={feedType} className="mb-4">
+            <TabsList>
+              <TabsTrigger value="all" disabled>For You</TabsTrigger>
+              <TabsTrigger value="following" disabled>Following</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
         {[1, 2, 3].map((i) => (
           <div key={i} className="p-4 bg-card rounded-xl border border-border">
             <div className="flex items-start gap-3">
@@ -218,27 +244,44 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
     );
   }
 
-  if (posts.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p className="font-medium">No posts yet</p>
-        <p className="text-sm mt-1">Be the first to post something!</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          onPostDeleted={handlePostDeleted}
-          onStarChange={handleStarChange}
-        />
-      ))}
+      {showFeedTabs && (
+        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as FeedType)}>
+          <TabsList>
+            <TabsTrigger value="all">For You</TabsTrigger>
+            <TabsTrigger value="following">Following</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
-      {hasMore && (
+      {posts.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="font-medium">
+            {feedType === 'following' 
+              ? 'No posts from people you follow'
+              : 'No posts yet'
+            }
+          </p>
+          <p className="text-sm mt-1">
+            {feedType === 'following'
+              ? 'Follow some people to see their posts here!'
+              : 'Be the first to post something!'
+            }
+          </p>
+        </div>
+      ) : (
+        posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            onPostDeleted={handlePostDeleted}
+            onStarChange={handleStarChange}
+          />
+        ))
+      )}
+
+      {hasMore && posts.length > 0 && (
         <div className="text-center py-4">
           <Button
             variant="outline"
