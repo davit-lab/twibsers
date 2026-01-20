@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import Feed from '@/components/feed/Feed';
 import FollowButton from '@/components/social/FollowButton';
+import ReadingStreakCard from '@/components/library/ReadingStreakCard';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,6 +19,7 @@ import {
   Settings,
   Lock,
   MessageCircle,
+  Flame,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -236,6 +238,11 @@ export default function Profile() {
                 </span>{' '}
                 <span className="text-muted-foreground">Followers</span>
               </button>
+            </div>
+
+            {/* Reading Streak */}
+            <div className="pt-2">
+              <ReadingStreakCard userId={profileData.user_id} compact />
             </div>
           </div>
 

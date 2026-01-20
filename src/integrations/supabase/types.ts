@@ -483,6 +483,57 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_badges: {
+        Row: {
+          badge_name: string
+          badge_type: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_name: string
+          badge_type: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_name?: string
+          badge_type?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reading_logs: {
+        Row: {
+          chapters_read: number
+          created_at: string
+          id: string
+          minutes_read: number
+          read_date: string
+          user_id: string
+        }
+        Insert: {
+          chapters_read?: number
+          created_at?: string
+          id?: string
+          minutes_read?: number
+          read_date?: string
+          user_id: string
+        }
+        Update: {
+          chapters_read?: number
+          created_at?: string
+          id?: string
+          minutes_read?: number
+          read_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reading_progress: {
         Row: {
           book_id: string
@@ -530,6 +581,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reading_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_read_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_read_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_read_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       stars: {
         Row: {
