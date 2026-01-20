@@ -254,6 +254,129 @@ export function useMyBooks() {
   return { books, isLoading, refetch: fetchMyBooks };
 }
 
+export interface LibraryBookWithProgress extends Book {
+  progress?: ReadingProgress;
+  current_chapter_title?: string;
+  total_chapters: number;
+  completed_count: number;
+}
+
+export function useUserLibrary() {
+  const { user } = useAuth();
+  const [books, setBooks] = useState<LibraryBookWithProgress[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchLibrary = useCallback(async () => {
+    if (!user) {
+      setBooks([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Fetch user's library entries
+      const { data: libraryData, error: libraryError } = await supabase
+        .from('user_library')
+        .select('book_id, added_at')
+        .eq('user_id', user.id)
+        .order('added_at', { ascending: false });
+
+      if (libraryError) throw libraryError;
+      if (!libraryData || libraryData.length === 0) {
+        setBooks([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const bookIds = libraryData.map((l) => l.book_id);
+
+      // Fetch books
+      const { data: booksData, error: booksError } = await supabase
+        .from('books')
+        .select('*')
+        .in('id', bookIds);
+
+      if (booksError) throw booksError;
+
+      // Fetch author profiles
+      const authorIds = [...new Set(booksData?.map((b) => b.author_id) || [])];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, username, display_name, avatar_url, is_verified')
+        .in('user_id', authorIds);
+
+      const profilesMap = new Map(
+        profilesData?.map((p) => [p.user_id, p]) || []
+      );
+
+      // Fetch reading progress
+      const { data: progressData } = await supabase
+        .from('reading_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('book_id', bookIds);
+
+      const progressMap = new Map(
+        progressData?.map((p) => [p.book_id, p]) || []
+      );
+
+      // Fetch chapters for all books
+      const { data: chaptersData } = await supabase
+        .from('chapters')
+        .select('id, book_id, title, position')
+        .in('book_id', bookIds)
+        .order('position', { ascending: true });
+
+      // Build chapter maps
+      const chapterCountMap = new Map<string, number>();
+      const chapterTitleMap = new Map<string, string>();
+      
+      chaptersData?.forEach((c) => {
+        chapterCountMap.set(c.book_id, (chapterCountMap.get(c.book_id) || 0) + 1);
+        chapterTitleMap.set(c.id, c.title);
+      });
+
+      // Build enriched books with progress
+      const enrichedBooks: LibraryBookWithProgress[] = (booksData || []).map((book) => {
+        const progress = progressMap.get(book.id);
+        const currentChapterTitle = progress?.current_chapter_id 
+          ? chapterTitleMap.get(progress.current_chapter_id)
+          : undefined;
+
+        return {
+          ...book,
+          author: profilesMap.get(book.author_id),
+          chapter_count: chapterCountMap.get(book.id) || 0,
+          progress: progress || undefined,
+          current_chapter_title: currentChapterTitle,
+          total_chapters: chapterCountMap.get(book.id) || 0,
+          completed_count: progress?.completed_chapters?.length || 0,
+        };
+      });
+
+      // Sort by last read (most recent first), then by added date
+      enrichedBooks.sort((a, b) => {
+        const aLastRead = a.progress?.last_read_at ? new Date(a.progress.last_read_at).getTime() : 0;
+        const bLastRead = b.progress?.last_read_at ? new Date(b.progress.last_read_at).getTime() : 0;
+        return bLastRead - aLastRead;
+      });
+
+      setBooks(enrichedBooks);
+    } catch (error) {
+      console.error('Error fetching user library:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchLibrary();
+  }, [fetchLibrary]);
+
+  return { books, isLoading, refetch: fetchLibrary };
+}
+
 export function useBookActions() {
   const { user } = useAuth();
   const { toast } = useToast();

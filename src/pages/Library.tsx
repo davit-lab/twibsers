@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { useBooks, useMyBooks } from '@/hooks/useBooks';
+import { useBooks, useMyBooks, useUserLibrary } from '@/hooks/useBooks';
 import { useAuth } from '@/contexts/AuthContext';
 import BookCard from '@/components/library/BookCard';
+import LibraryBookCard from '@/components/library/LibraryBookCard';
 import CreateBookDialog from '@/components/library/CreateBookDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, Search, Library as LibraryIcon, PenTool } from 'lucide-react';
+import { BookOpen, Search, Library as LibraryIcon, PenTool, Heart } from 'lucide-react';
 
 export default function Library() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { books: publishedBooks, isLoading: loadingPublished } = useBooks({ status: 'published' });
   const { books: myBooks, isLoading: loadingMyBooks, refetch: refetchMyBooks } = useMyBooks();
+  const { books: libraryBooks, isLoading: loadingLibrary, refetch: refetchLibrary } = useUserLibrary();
   const [searchQuery, setSearchQuery] = useState('');
 
   const isVerified = profile?.is_verified;
@@ -25,6 +27,26 @@ export default function Library() {
 
   const filteredMyBooks = myBooks.filter((book) =>
     book.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredLibrary = libraryBooks.filter((book) =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.author?.display_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Books currently being read (have progress but not complete)
+  const currentlyReading = filteredLibrary.filter(
+    (book) => book.progress && book.completed_count < book.total_chapters
+  );
+
+  // Completed books
+  const completedBooks = filteredLibrary.filter(
+    (book) => book.completed_count === book.total_chapters && book.total_chapters > 0
+  );
+
+  // Books not started yet
+  const notStarted = filteredLibrary.filter(
+    (book) => !book.progress || book.completed_count === 0
   );
 
   return (
@@ -58,8 +80,19 @@ export default function Library() {
           />
         </div>
 
-        <Tabs defaultValue="browse" className="space-y-6">
+        <Tabs defaultValue={user ? "my-library" : "browse"} className="space-y-6">
           <TabsList>
+            {user && (
+              <TabsTrigger value="my-library" className="gap-2">
+                <Heart className="h-4 w-4" />
+                My Library
+                {libraryBooks.length > 0 && (
+                  <span className="ml-1 text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
+                    {libraryBooks.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="browse" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Browse
@@ -71,6 +104,80 @@ export default function Library() {
               </TabsTrigger>
             )}
           </TabsList>
+
+          {/* My Library - Saved Books with Progress */}
+          {user && (
+            <TabsContent value="my-library">
+              {loadingLibrary ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4 p-4 bg-card rounded-xl border">
+                      <Skeleton className="w-24 aspect-[3/4] rounded-lg" />
+                      <div className="flex-1 space-y-3">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-2 w-full" />
+                        <Skeleton className="h-8 w-32" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredLibrary.length === 0 ? (
+                <div className="text-center py-16">
+                  <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-medium text-lg mb-1">Your library is empty</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Browse books and add them to your library to track your reading progress.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Currently Reading */}
+                  {currentlyReading.length > 0 && (
+                    <section>
+                      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        Continue Reading
+                      </h2>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {currentlyReading.map((book) => (
+                          <LibraryBookCard key={book.id} book={book} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Not Started */}
+                  {notStarted.length > 0 && (
+                    <section>
+                      <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
+                        Not Started Yet
+                      </h2>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {notStarted.map((book) => (
+                          <LibraryBookCard key={book.id} book={book} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Completed */}
+                  {completedBooks.length > 0 && (
+                    <section>
+                      <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
+                        Completed
+                      </h2>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {completedBooks.map((book) => (
+                          <LibraryBookCard key={book.id} book={book} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          )}
 
           {/* Browse Published Books */}
           <TabsContent value="browse">
