@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
+import Feed from '@/components/feed/Feed';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +15,6 @@ import {
   Calendar,
   Settings,
   UserPlus,
-  Users,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -252,11 +252,7 @@ export default function Profile() {
             </TabsList>
 
             <TabsContent value="posts" className="mt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">No posts yet</p>
-                <p className="text-sm">When {isOwnProfile ? 'you post' : `@${profileData.username} posts`}, they'll appear here.</p>
-              </div>
+              <Feed userId={profileData.user_id} />
             </TabsContent>
 
             <TabsContent value="replies" className="mt-6">
