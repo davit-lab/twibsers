@@ -836,6 +836,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_moderator: { Args: never; Returns: boolean }
+      is_conversation_participant: {
+        Args: { _conversation_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_following: {
         Args: { _follower_id: string; _following_id: string }
         Returns: boolean
