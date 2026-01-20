@@ -17,6 +17,7 @@ import {
   Calendar,
   Settings,
   Lock,
+  MessageCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -176,7 +177,12 @@ export default function Profile() {
                     isPrivateAccount={profileData.privacy === 'private'}
                     onFollowChange={handleFollowChange}
                   />
-                  <Button variant="outline">Message</Button>
+                  <Button variant="outline" asChild>
+                    <Link to={`/messages?new=${profileData.user_id}`}>
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Message
+                    </Link>
+                  </Button>
                 </>
               ) : (
                 <Button className="btn-gradient" asChild>
