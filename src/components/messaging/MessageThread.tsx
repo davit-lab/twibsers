@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Loader2, ArrowLeft, Check, CheckCheck } from 'lucide-react';
+import { Send, Loader2, ArrowLeft, Check, CheckCheck, Maximize2, Minimize2 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,7 @@ export default function MessageThread({
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isExtended, setIsExtended] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -133,10 +134,13 @@ export default function MessageThread({
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={cn(
+      "flex flex-col h-full transition-all duration-300",
+      isExtended && "fixed inset-0 z-50 bg-background"
+    )}>
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center gap-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {onBack && (
+        {onBack && !isExtended && (
           <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -147,10 +151,22 @@ export default function MessageThread({
             {getInitials(otherUser.display_name)}
           </AvatarFallback>
         </Avatar>
-        <div>
+        <div className="flex-1">
           <h3 className="font-medium">{otherUser.display_name}</h3>
           <p className="text-sm text-muted-foreground">@{otherUser.username}</p>
         </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setIsExtended(!isExtended)}
+          title={isExtended ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isExtended ? (
+            <Minimize2 className="h-5 w-5" />
+          ) : (
+            <Maximize2 className="h-5 w-5" />
+          )}
+        </Button>
       </div>
 
       {/* Messages */}
