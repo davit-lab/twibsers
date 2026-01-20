@@ -5,10 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import BookCard from '@/components/library/BookCard';
 import LibraryBookCard from '@/components/library/LibraryBookCard';
 import CreateBookDialog from '@/components/library/CreateBookDialog';
+import ReadingStreakCard from '@/components/library/ReadingStreakCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, Search, Library as LibraryIcon, PenTool, Heart } from 'lucide-react';
+import { BookOpen, Search, Library as LibraryIcon, PenTool, Heart, Flame } from 'lucide-react';
 
 export default function Library() {
   const { user, profile } = useAuth();
@@ -97,6 +98,12 @@ export default function Library() {
               <BookOpen className="h-4 w-4" />
               Browse
             </TabsTrigger>
+            {user && (
+              <TabsTrigger value="streak" className="gap-2">
+                <Flame className="h-4 w-4" />
+                Streak
+              </TabsTrigger>
+            )}
             {isVerified && (
               <TabsTrigger value="my-books" className="gap-2">
                 <PenTool className="h-4 w-4" />
@@ -176,6 +183,15 @@ export default function Library() {
                   )}
                 </div>
               )}
+            </TabsContent>
+          )}
+
+          {/* Reading Streak Tab */}
+          {user && (
+            <TabsContent value="streak">
+              <div className="max-w-md">
+                <ReadingStreakCard />
+              </div>
             </TabsContent>
           )}
 

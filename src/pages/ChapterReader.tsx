@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useBook, useBookActions } from '@/hooks/useBooks';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLogReading } from '@/hooks/useReadingStreak';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -28,7 +29,9 @@ export default function ChapterReader() {
   const { user } = useAuth();
   const { book, chapters, progress } = useBook(bookId);
   const { updateProgress } = useBookActions();
+  const logReading = useLogReading();
   const [tocOpen, setTocOpen] = useState(false);
+  const hasLoggedReading = useRef(false);
 
   const currentChapter = chapters.find((c) => c.id === chapterId);
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
@@ -41,17 +44,30 @@ export default function ChapterReader() {
     ? ((currentIndex + 1) / chapters.length) * 100 
     : 0;
 
-  // Update reading progress
+  // Update reading progress and log reading activity
   useEffect(() => {
     if (user && bookId && chapterId) {
       updateProgress(bookId, chapterId);
+      
+      // Log reading activity for streak tracking (once per chapter visit)
+      if (!hasLoggedReading.current) {
+        hasLoggedReading.current = true;
+        logReading.mutate({ minutesRead: 1, chaptersRead: 0 });
+      }
     }
   }, [user, bookId, chapterId, updateProgress]);
+  
+  // Reset the ref when chapter changes
+  useEffect(() => {
+    hasLoggedReading.current = false;
+  }, [chapterId]);
 
   const handleMarkComplete = useCallback(async () => {
     if (!bookId || !chapterId) return;
     await updateProgress(bookId, chapterId, undefined, chapterId);
-  }, [bookId, chapterId, updateProgress]);
+    // Log completing a chapter
+    logReading.mutate({ minutesRead: 0, chaptersRead: 1 });
+  }, [bookId, chapterId, updateProgress, logReading]);
 
   const handleNavigate = (chapter: typeof prevChapter) => {
     if (!chapter) return;
