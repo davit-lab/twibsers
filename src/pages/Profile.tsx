@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import Feed from '@/components/feed/Feed';
+import FollowButton from '@/components/social/FollowButton';
+import { useFollowStats } from '@/hooks/useFollowStats';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +16,7 @@ import {
   Link as LinkIcon,
   Calendar,
   Settings,
-  UserPlus,
+  Lock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -41,8 +43,10 @@ export default function Profile() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const isOwnProfile = currentUserProfile?.username === username;
+  const { stats, loading: statsLoading } = useFollowStats(profileData?.user_id);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -56,9 +60,9 @@ export default function Profile() {
         .from('profiles')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (fetchError) {
+      if (fetchError || !data) {
         setError('Profile not found');
       } else {
         setProfileData(data as ProfileData);
@@ -78,15 +82,16 @@ export default function Profile() {
       .slice(0, 2);
   };
 
+  const handleFollowChange = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   if (loading) {
     return (
       <MainLayout>
         <div className="container max-w-4xl py-0 px-0">
-          {/* Cover skeleton */}
           <Skeleton className="h-48 md:h-64 w-full" />
-          
           <div className="px-4 pb-8">
-            {/* Avatar and info skeleton */}
             <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20">
               <Skeleton className="h-32 w-32 md:h-40 md:w-40 rounded-full border-4 border-background" />
               <div className="flex-1 space-y-2">
@@ -126,14 +131,12 @@ export default function Profile() {
               className="w-full h-full object-cover"
             />
           )}
-          {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
         </div>
 
         <div className="px-4">
           {/* Profile Header */}
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20 relative z-10">
-            {/* Avatar */}
             <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-background shadow-xl">
               <AvatarImage src={profileData.avatar_url || undefined} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl">
@@ -141,7 +144,6 @@ export default function Profile() {
               </AvatarFallback>
             </Avatar>
 
-            {/* User Info */}
             <div className="flex-1 pb-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl md:text-3xl font-display font-bold">
@@ -149,6 +151,9 @@ export default function Profile() {
                 </h1>
                 {profileData.is_verified && (
                   <BadgeCheck className="h-6 w-6 text-verified" />
+                )}
+                {profileData.privacy === 'private' && (
+                  <Lock className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
               <p className="text-muted-foreground">@{profileData.username}</p>
@@ -165,10 +170,12 @@ export default function Profile() {
                 </Button>
               ) : user ? (
                 <>
-                  <Button className="btn-gradient">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Follow
-                  </Button>
+                  <FollowButton
+                    targetUserId={profileData.user_id}
+                    targetUsername={profileData.username}
+                    isPrivateAccount={profileData.privacy === 'private'}
+                    onFollowChange={handleFollowChange}
+                  />
                   <Button variant="outline">Message</Button>
                 </>
               ) : (
@@ -212,11 +219,15 @@ export default function Profile() {
             {/* Stats */}
             <div className="flex gap-6">
               <button className="hover:underline">
-                <span className="font-bold">0</span>{' '}
+                <span className="font-bold">
+                  {statsLoading ? '–' : stats.following}
+                </span>{' '}
                 <span className="text-muted-foreground">Following</span>
               </button>
               <button className="hover:underline">
-                <span className="font-bold">0</span>{' '}
+                <span className="font-bold">
+                  {statsLoading ? '–' : stats.followers}
+                </span>{' '}
                 <span className="text-muted-foreground">Followers</span>
               </button>
             </div>
@@ -252,7 +263,7 @@ export default function Profile() {
             </TabsList>
 
             <TabsContent value="posts" className="mt-6">
-              <Feed userId={profileData.user_id} />
+              <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
             </TabsContent>
 
             <TabsContent value="replies" className="mt-6">

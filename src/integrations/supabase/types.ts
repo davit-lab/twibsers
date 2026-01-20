@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+          status: Database["public"]["Enums"]["follow_status"] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["follow_status"] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["follow_status"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       post_media: {
         Row: {
           alt_text: string | null
@@ -203,6 +230,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_follower_count: { Args: { _user_id: string }; Returns: number }
+      get_following_count: { Args: { _user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -212,6 +241,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_moderator: { Args: never; Returns: boolean }
+      is_following: {
+        Args: { _follower_id: string; _following_id: string }
+        Returns: boolean
+      }
       is_post_visible: {
         Args: { post_row: Database["public"]["Tables"]["posts"]["Row"] }
         Returns: boolean
@@ -220,6 +253,7 @@ export type Database = {
     Enums: {
       account_privacy: "public" | "private"
       app_role: "admin" | "moderator" | "user"
+      follow_status: "pending" | "accepted" | "blocked"
       post_visibility: "public" | "followers" | "private"
     }
     CompositeTypes: {
@@ -350,6 +384,7 @@ export const Constants = {
     Enums: {
       account_privacy: ["public", "private"],
       app_role: ["admin", "moderator", "user"],
+      follow_status: ["pending", "accepted", "blocked"],
       post_visibility: ["public", "followers", "private"],
     },
   },
