@@ -27,6 +27,7 @@ import {
   Plus,
   Shield,
   BadgeCheck,
+  Crown,
 } from 'lucide-react';
 
 interface MainLayoutProps {
@@ -134,6 +135,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     <Link to="/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/pricing" className="cursor-pointer">
+                      <Crown className="mr-2 h-4 w-4" />
+                      Upgrade Plan
                     </Link>
                   </DropdownMenuItem>
                   {(isAdmin || isModerator) && (
