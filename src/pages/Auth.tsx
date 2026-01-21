@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Zap, Users, BookOpen, MessageCircle } from 'lucide-react';
+import { Loader2, Sparkles, Users, BookOpen, MessageCircle } from 'lucide-react';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -129,7 +129,7 @@ export default function Auth() {
         <div className="relative z-10">
           <h1 className="text-4xl font-display font-bold text-white flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" />
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
             Twibsers
           </h1>
@@ -179,7 +179,7 @@ export default function Auth() {
           {/* Mobile logo */}
           <div className="lg:hidden mb-8 text-center">
             <h1 className="text-3xl font-display font-bold gradient-text flex items-center justify-center gap-2">
-              <Zap className="w-8 h-8 text-primary" />
+              <Sparkles className="w-8 h-8 text-primary" />
               Twibsers
             </h1>
           </div>

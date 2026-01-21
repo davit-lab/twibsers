@@ -5,9 +5,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Loader2, ArrowLeft, Check, CheckCheck, Maximize2, Minimize2 } from 'lucide-react';
+import { 
+  Send, 
+  Loader2, 
+  ArrowLeft, 
+  Check, 
+  CheckCheck, 
+  Maximize2, 
+  Minimize2,
+  Phone,
+  Video,
+  MoreVertical,
+  Smile,
+  Paperclip,
+  Mic,
+  X
+} from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import CallOverlay from './CallOverlay';
 
 interface MessageThreadProps {
   conversationId: string;
@@ -32,15 +48,14 @@ export default function MessageThread({
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
+  const [callType, setCallType] = useState<'audio' | 'video' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
-  // Mark as read when viewing
   useEffect(() => {
     markAsRead();
   }, [conversationId]);
@@ -113,11 +128,19 @@ export default function MessageThread({
     return new Date(message.created_at) <= new Date(lastReadAt);
   };
 
+  const startCall = (type: 'audio' | 'video') => {
+    setCallType(type);
+  };
+
+  const endCall = () => {
+    setCallType(null);
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex flex-col h-full glass-premium">
+        <div className="p-4 border-b border-border/30 flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-full" />
           <Skeleton className="h-5 w-32" />
         </div>
         <div className="flex-1 p-4 space-y-4">
@@ -134,147 +157,242 @@ export default function MessageThread({
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className={cn(
-      "flex flex-col h-full transition-all duration-300",
-      isExtended && "fixed inset-0 z-50 bg-background"
-    )}>
-      {/* Header */}
-      <div className="p-4 border-b border-border flex items-center gap-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {onBack && !isExtended && (
-          <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={otherUser.avatar_url || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-            {getInitials(otherUser.display_name)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <h3 className="font-medium">{otherUser.display_name}</h3>
-          <p className="text-sm text-muted-foreground">@{otherUser.username}</p>
-        </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setIsExtended(!isExtended)}
-          title={isExtended ? "Exit fullscreen" : "Fullscreen"}
-        >
-          {isExtended ? (
-            <Minimize2 className="h-5 w-5" />
-          ) : (
-            <Maximize2 className="h-5 w-5" />
+    <>
+      {callType && (
+        <CallOverlay 
+          type={callType} 
+          user={otherUser} 
+          onEnd={endCall} 
+        />
+      )}
+      
+      <div className={cn(
+        "flex flex-col h-full transition-all duration-400",
+        isExtended && "fixed inset-0 z-50"
+      )}>
+        {/* Glass background */}
+        <div className={cn(
+          "absolute inset-0 -z-10",
+          isExtended ? "bg-background" : "glass-premium"
+        )} />
+
+        {/* Header */}
+        <div className="relative p-4 border-b border-border/30 flex items-center gap-3">
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+          
+          {onBack && !isExtended && (
+            <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden rounded-full">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
           )}
-        </Button>
-      </div>
+          
+          <div className="relative">
+            <Avatar className="h-12 w-12 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+              <AvatarImage src={otherUser.avatar_url || undefined} />
+              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium">
+                {getInitials(otherUser.display_name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-online rounded-full border-2 border-background" />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display font-semibold text-lg truncate">{otherUser.display_name}</h3>
+            <p className="text-sm text-muted-foreground">Active now</p>
+          </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messageGroups.map((group) => (
-          <div key={group.date}>
-            <div className="flex items-center gap-4 my-4">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground font-medium">{group.date}</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
+          {/* Call buttons */}
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+              onClick={() => startCall('audio')}
+            >
+              <Phone className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+              onClick={() => startCall('video')}
+            >
+              <Video className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsExtended(!isExtended)}
+              className="rounded-full hover:bg-primary/10 transition-colors"
+            >
+              {isExtended ? (
+                <Minimize2 className="h-5 w-5" />
+              ) : (
+                <Maximize2 className="h-5 w-5" />
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted transition-colors">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              {group.messages.map((message, idx) => {
-                const isOwn = message.sender_id === user?.id;
-                const showAvatar =
-                  !isOwn &&
-                  (idx === 0 || group.messages[idx - 1].sender_id !== message.sender_id);
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+          {messageGroups.map((group) => (
+            <div key={group.date} className="animate-fade-in">
+              <div className="flex items-center gap-4 my-6">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                <span className="text-xs text-muted-foreground font-medium px-3 py-1 rounded-full bg-muted/50">
+                  {group.date}
+                </span>
+                <div className="flex-1 h-px bg-gradient-to-r from-border via-transparent to-transparent" />
+              </div>
 
-                return (
-                  <div
-                    key={message.id}
-                    className={cn('flex gap-2', isOwn && 'justify-end')}
-                  >
-                    {!isOwn && (
-                      <div className="w-8">
-                        {showAvatar && (
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={otherUser.avatar_url || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-xs">
-                              {getInitials(otherUser.display_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                      </div>
-                    )}
+              <div className="space-y-3">
+                {group.messages.map((message, idx) => {
+                  const isOwn = message.sender_id === user?.id;
+                  const showAvatar =
+                    !isOwn &&
+                    (idx === 0 || group.messages[idx - 1].sender_id !== message.sender_id);
+
+                  return (
                     <div
+                      key={message.id}
                       className={cn(
-                        'max-w-[70%] px-4 py-2 rounded-2xl',
-                        isOwn
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-muted rounded-bl-md'
+                        'flex gap-2 animate-fade-in',
+                        isOwn && 'justify-end'
                       )}
                     >
-                      <p className="break-words">{message.content}</p>
-                      <div className={cn(
-                        'flex items-center gap-1 mt-1',
-                        isOwn ? 'justify-end' : 'justify-start'
-                      )}>
-                        <span className={cn(
-                          'text-xs opacity-70',
-                          isOwn ? 'text-primary-foreground' : 'text-muted-foreground'
-                        )}>
-                          {formatMessageTime(message.created_at)}
-                        </span>
-                        {isOwn && (
-                          isMessageRead(message) ? (
-                            <CheckCheck className="h-3 w-3 text-primary-foreground opacity-70" />
-                          ) : (
-                            <Check className="h-3 w-3 text-primary-foreground opacity-70" />
-                          )
+                      {!isOwn && (
+                        <div className="w-8 flex-shrink-0">
+                          {showAvatar && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={otherUser.avatar_url || undefined} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-xs">
+                                {getInitials(otherUser.display_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      )}
+                      <div
+                        className={cn(
+                          'max-w-[70%] px-4 py-3 rounded-2xl transition-all',
+                          isOwn
+                            ? 'message-own text-white rounded-br-md'
+                            : 'message-other rounded-bl-md'
                         )}
+                      >
+                        <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
+                        <div className={cn(
+                          'flex items-center gap-1.5 mt-1.5',
+                          isOwn ? 'justify-end' : 'justify-start'
+                        )}>
+                          <span className={cn(
+                            'text-[11px]',
+                            isOwn ? 'text-white/70' : 'text-muted-foreground'
+                          )}>
+                            {formatMessageTime(message.created_at)}
+                          </span>
+                          {isOwn && (
+                            isMessageRead(message) ? (
+                              <CheckCheck className="h-3.5 w-3.5 text-white/70" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5 text-white/70" />
+                            )
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Typing indicator */}
-        {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="flex space-x-1">
-              <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          {/* Typing indicator */}
+          {typingUsers.length > 0 && (
+            <div className="flex items-center gap-3 text-muted-foreground animate-fade-in">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={otherUser.avatar_url || undefined} />
+                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-xs">
+                  {getInitials(otherUser.display_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="message-other px-4 py-3 rounded-2xl rounded-bl-md">
+                <div className="flex space-x-1.5">
+                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
             </div>
-            <span className="text-sm">
-              {typingUsers.map(u => u.display_name).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-            </span>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <form onSubmit={handleSend} className="p-4 border-t border-border">
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            value={newMessage}
-            onChange={handleInputChange}
-            placeholder="Type a message..."
-            disabled={sending}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={!newMessage.trim() || sending} className="btn-gradient">
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+          <div ref={messagesEndRef} />
         </div>
-      </form>
-    </div>
+
+        {/* Input */}
+        <div className="relative p-4 border-t border-border/30">
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
+          
+          <form onSubmit={handleSend} className="relative flex items-center gap-2">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full flex-shrink-0 hover:bg-primary/10 transition-colors"
+            >
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
+            </Button>
+            
+            <div className="relative flex-1">
+              <Input
+                ref={inputRef}
+                value={newMessage}
+                onChange={handleInputChange}
+                placeholder="Type a message..."
+                disabled={sending}
+                className="pr-12 rounded-full border-border/50 bg-muted/30 focus:bg-background input-focus h-12 text-[15px]"
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full h-8 w-8"
+              >
+                <Smile className="h-5 w-5 text-muted-foreground" />
+              </Button>
+            </div>
+
+            {newMessage.trim() ? (
+              <Button 
+                type="submit" 
+                disabled={sending} 
+                size="icon"
+                className="btn-gradient rounded-full h-12 w-12 flex-shrink-0"
+              >
+                {sending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            ) : (
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon"
+                className="rounded-full h-12 w-12 flex-shrink-0 hover:bg-primary/10 transition-colors"
+              >
+                <Mic className="h-5 w-5 text-muted-foreground" />
+              </Button>
+            )}
+          </form>
+        </div>
+      </div>
+    </>
   );
 }
