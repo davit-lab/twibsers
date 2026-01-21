@@ -2,135 +2,125 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Twibsers Design System - Ultra Modern Glassmorphic Purple
-   Premium fashion-forward design with depth and dimension
+/* Twibsers Design System - Clean Dark Premium
+   Inspired by Instagram/TikTok with minimal, refined aesthetics
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Core background - deep purple gradient base */
-    --background: 270 30% 98%;
-    --foreground: 270 25% 10%;
+    /* Clean light mode */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
-    /* Glass cards with purple tint */
-    --card: 270 40% 99%;
-    --card-foreground: 270 25% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
 
-    --popover: 270 40% 99%;
-    --popover-foreground: 270 25% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
 
-    /* Primary - Vibrant purple */
-    --primary: 270 70% 55%;
+    /* Primary - Clean blue */
+    --primary: 210 100% 52%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 270 100% 65%;
+    --primary-glow: 210 100% 60%;
 
-    /* Secondary - Soft violet */
-    --secondary: 270 40% 94%;
-    --secondary-foreground: 270 50% 30%;
+    /* Secondary */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
 
-    /* Muted - Cool gray with purple undertone */
-    --muted: 270 15% 93%;
-    --muted-foreground: 270 10% 45%;
+    /* Muted */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Accent - Electric pink/magenta */
-    --accent: 320 85% 55%;
+    /* Accent - Pink/Rose */
+    --accent: 340 82% 52%;
     --accent-foreground: 0 0% 100%;
 
-    /* Success - Teal */
-    --success: 175 70% 45%;
+    /* Success */
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
-    /* Destructive - Coral red */
-    --destructive: 0 75% 55%;
+    /* Destructive */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border and inputs - glass effect */
-    --border: 270 30% 88%;
-    --input: 270 25% 94%;
-    --ring: 270 70% 55%;
+    /* Border and inputs */
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 210 100% 52%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
-    /* Sidebar - frosted glass */
-    --sidebar-background: 270 35% 97%;
-    --sidebar-foreground: 270 25% 15%;
-    --sidebar-primary: 270 70% 55%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 210 100% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 35% 92%;
-    --sidebar-accent-foreground: 270 50% 30%;
-    --sidebar-border: 270 25% 90%;
-    --sidebar-ring: 270 70% 55%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 210 100% 52%;
 
-    /* Custom Twibsers tokens */
-    --star: 45 100% 55%;
-    --verified: 270 80% 60%;
-    --online: 160 70% 45%;
-    --premium: 45 100% 50%;
-    --call-active: 160 80% 50%;
-    --call-end: 0 75% 55%;
-
-    /* Glass effect variables */
-    --glass-bg: 270 50% 100% / 0.7;
-    --glass-border: 270 50% 100% / 0.3;
-    --glass-shadow: 270 60% 40% / 0.1;
+    /* Custom tokens */
+    --star: 45 100% 51%;
+    --verified: 210 100% 52%;
+    --online: 142 76% 36%;
+    --premium: 45 100% 51%;
+    --call-active: 142 76% 36%;
+    --call-end: 0 84% 60%;
   }
 
   .dark {
-    /* Dark mode - deep cosmic purple */
-    --background: 270 35% 6%;
-    --foreground: 270 10% 95%;
+    /* Dark mode - True black like Instagram */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
 
-    --card: 270 35% 10%;
-    --card-foreground: 270 10% 95%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 270 35% 10%;
-    --popover-foreground: 270 10% 95%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Primary - Glowing purple */
-    --primary: 270 85% 65%;
+    /* Primary - Clean blue */
+    --primary: 210 100% 56%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 270 100% 75%;
+    --primary-glow: 210 100% 65%;
 
-    --secondary: 270 30% 16%;
-    --secondary-foreground: 270 40% 85%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 270 25% 14%;
-    --muted-foreground: 270 15% 55%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
 
-    --accent: 320 90% 60%;
+    --accent: 340 82% 52%;
     --accent-foreground: 0 0% 100%;
 
-    --success: 175 70% 50%;
+    --success: 142 76% 42%;
     --success-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 55%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 30% 18%;
-    --input: 270 25% 14%;
-    --ring: 270 85% 65%;
+    --border: 0 0% 18%;
+    --input: 0 0% 15%;
+    --ring: 210 100% 56%;
 
-    --sidebar-background: 270 35% 7%;
-    --sidebar-foreground: 270 10% 90%;
-    --sidebar-primary: 270 85% 65%;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 210 100% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 30% 14%;
-    --sidebar-accent-foreground: 270 40% 85%;
-    --sidebar-border: 270 30% 18%;
-    --sidebar-ring: 270 85% 65%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 210 100% 56%;
 
-    --star: 45 100% 60%;
-    --verified: 270 90% 70%;
-    --online: 160 70% 55%;
+    --star: 45 100% 55%;
+    --verified: 210 100% 56%;
+    --online: 142 76% 42%;
     --premium: 45 100% 55%;
-    --call-active: 160 80% 55%;
-    --call-end: 0 75% 55%;
-
-    --glass-bg: 270 40% 15% / 0.6;
-    --glass-border: 270 50% 30% / 0.2;
-    --glass-shadow: 270 70% 20% / 0.3;
+    --call-active: 142 76% 42%;
+    --call-end: 0 84% 60%;
   }
 }
 
@@ -140,145 +130,80 @@
   }
 
   html {
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "ss01", "ss02", "cv01";
-    background-image: 
-      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(270 60% 50% / 0.15), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(320 70% 50% / 0.1), transparent);
-    background-attachment: fixed;
-    min-height: 100vh;
+    @apply bg-background text-foreground;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     @apply font-semibold tracking-tight;
   }
 }
 
 @layer components {
-  /* Glass morphism card */
+  /* Clean card style */
   .glass-card {
-    @apply relative overflow-hidden;
-    background: linear-gradient(135deg, 
-      hsl(var(--glass-bg)), 
-      hsl(270 40% 98% / 0.5)
-    );
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid hsl(var(--glass-border));
-    box-shadow: 
-      0 8px 32px hsl(var(--glass-shadow)),
-      inset 0 1px 0 hsl(270 50% 100% / 0.2);
+    @apply bg-card border border-border rounded-xl;
   }
 
-  .dark .glass-card {
-    background: linear-gradient(135deg, 
-      hsl(var(--glass-bg)), 
-      hsl(270 40% 8% / 0.6)
-    );
-    box-shadow: 
-      0 8px 32px hsl(var(--glass-shadow)),
-      inset 0 1px 0 hsl(270 50% 50% / 0.1);
-  }
-
-  /* Premium glass effect */
+  /* Premium card - subtle elevation */
   .glass-premium {
-    @apply relative overflow-hidden rounded-2xl;
-    background: linear-gradient(135deg, 
-      hsl(270 60% 98% / 0.8), 
-      hsl(320 50% 98% / 0.6)
-    );
-    backdrop-filter: blur(30px) saturate(200%);
-    -webkit-backdrop-filter: blur(30px) saturate(200%);
-    border: 1px solid hsl(270 50% 90% / 0.5);
-    box-shadow: 
-      0 20px 60px hsl(270 60% 30% / 0.15),
-      0 8px 24px hsl(320 60% 40% / 0.1),
-      inset 0 1px 0 hsl(0 0% 100% / 0.4);
+    @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
-  .dark .glass-premium {
-    background: linear-gradient(135deg, 
-      hsl(270 40% 12% / 0.8), 
-      hsl(320 30% 10% / 0.6)
-    );
-    border: 1px solid hsl(270 40% 25% / 0.4);
-    box-shadow: 
-      0 20px 60px hsl(270 70% 10% / 0.4),
-      0 8px 24px hsl(320 60% 20% / 0.2),
-      inset 0 1px 0 hsl(270 50% 50% / 0.1);
-  }
-
-  /* Gradient text */
+  /* Gradient text - for branding only */
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, 
-      hsl(270 80% 55%), 
-      hsl(320 85% 55%),
-      hsl(270 80% 60%)
+      hsl(210 100% 52%), 
+      hsl(340 82% 52%)
     );
   }
 
-  /* Primary solid button */
+  /* Primary button - solid */
   .btn-gradient {
-    @apply relative overflow-hidden transition-all duration-300;
-    background: hsl(var(--primary));
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors;
   }
 
-  .btn-gradient:hover {
-    transform: translateY(-2px);
-    background: hsl(270 75% 50%);
-  }
-
-  /* Call buttons - solid colors */
+  /* Call buttons */
   .btn-call {
-    @apply relative rounded-full p-3 transition-all duration-300;
-    background: hsl(var(--call-active));
+    @apply rounded-full p-3 bg-success text-success-foreground transition-transform active:scale-95;
   }
 
   .btn-call:hover {
-    transform: scale(1.1);
-    background: hsl(160 80% 45%);
+    @apply bg-success/90;
   }
 
   .btn-call-end {
-    @apply relative rounded-full p-3 transition-all duration-300;
-    background: hsl(var(--call-end));
+    @apply rounded-full p-3 bg-destructive text-destructive-foreground transition-transform active:scale-95;
   }
 
   .btn-call-end:hover {
-    transform: scale(1.1);
-    background: hsl(0 75% 50%);
+    @apply bg-destructive/90;
   }
 
   .btn-call-accept {
-    @apply relative rounded-full p-3 transition-all duration-300;
-    background: hsl(var(--call-active));
+    @apply rounded-full p-3 bg-success text-success-foreground transition-transform active:scale-95;
   }
 
-  .btn-call-accept:hover {
-    transform: scale(1.1);
-    background: hsl(160 80% 45%);
-  }
-
-  /* Video mirror effect for self-view */
+  /* Video mirror effect */
   .mirror {
     transform: scaleX(-1);
   }
 
-  /* Glow effect on hover */
+  /* Subtle hover effect */
   .hover-glow {
-    @apply transition-all duration-300;
+    @apply transition-all duration-200;
   }
+  
   .hover-glow:hover {
-    box-shadow: 
-      0 0 40px hsl(270 80% 55% / 0.3),
-      0 0 80px hsl(320 70% 55% / 0.15);
+    @apply shadow-md;
   }
 
   /* Pulse animation for calls */
@@ -299,104 +224,64 @@
     }
   }
 
-  /* Star button animation */
+  /* Star button */
   .star-burst {
-    @apply transition-transform duration-200 hover:scale-110 active:scale-95;
+    @apply transition-transform duration-150 hover:scale-110 active:scale-95;
   }
 
-  /* Verified badge */
+  /* Verified badge - clean */
   .verified-badge {
-    @apply inline-flex items-center justify-center w-5 h-5 rounded-full;
-    background: linear-gradient(135deg, hsl(270 80% 55%), hsl(320 80% 55%));
-    box-shadow: 0 2px 8px hsl(270 80% 50% / 0.4);
+    @apply inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground;
   }
 
-  /* Avatar ring for online status */
+  /* Online status */
   .avatar-online {
-    @apply ring-2 ring-offset-2 ring-offset-background;
-    --tw-ring-color: hsl(var(--online));
-    box-shadow: 0 0 12px hsl(var(--online) / 0.5);
+    @apply ring-2 ring-success ring-offset-2 ring-offset-background;
   }
 
-  /* Message bubble - own */
+  /* Message bubbles - clean Instagram style */
   .message-own {
-    @apply relative;
-    background: linear-gradient(135deg, 
-      hsl(270 70% 55%), 
-      hsl(290 65% 50%)
-    );
-    box-shadow: 0 4px 15px hsl(270 70% 50% / 0.25);
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md;
   }
 
-  /* Message bubble - other */
   .message-other {
-    @apply relative;
-    background: hsl(var(--glass-bg));
-    backdrop-filter: blur(10px);
-    border: 1px solid hsl(var(--glass-border));
+    @apply bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md;
   }
 
-  /* Feed card hover effect */
+  /* Feed card */
   .feed-card {
-    @apply transition-all duration-400 hover:-translate-y-1;
+    @apply transition-colors duration-200;
   }
 
   .feed-card:hover {
-    box-shadow: 
-      0 20px 40px hsl(270 60% 30% / 0.12),
-      0 8px 16px hsl(320 50% 40% / 0.08);
+    @apply bg-secondary/50;
   }
 
-  /* Input focus ring */
+  /* Input focus */
   .input-focus {
-    @apply transition-all duration-300;
+    @apply transition-all duration-200;
   }
 
   .input-focus:focus {
-    box-shadow: 
-      0 0 0 3px hsl(270 70% 55% / 0.2),
-      0 4px 20px hsl(270 60% 50% / 0.15);
-    border-color: hsl(270 70% 55%);
+    @apply ring-2 ring-primary/20 border-primary;
   }
 
   /* Conversation item */
   .conversation-item {
-    @apply relative overflow-hidden rounded-xl transition-all duration-300;
+    @apply rounded-lg transition-colors duration-150;
   }
 
   .conversation-item:hover {
-    background: linear-gradient(135deg, 
-      hsl(270 50% 95% / 0.8), 
-      hsl(320 40% 95% / 0.6)
-    );
-  }
-
-  .dark .conversation-item:hover {
-    background: linear-gradient(135deg, 
-      hsl(270 40% 15% / 0.8), 
-      hsl(320 30% 12% / 0.6)
-    );
+    @apply bg-secondary;
   }
 
   .conversation-item.active {
-    background: linear-gradient(135deg, 
-      hsl(270 60% 92% / 0.9), 
-      hsl(320 50% 93% / 0.7)
-    );
-    border: 1px solid hsl(270 60% 80% / 0.5);
-  }
-
-  .dark .conversation-item.active {
-    background: linear-gradient(135deg, 
-      hsl(270 50% 18% / 0.9), 
-      hsl(320 40% 15% / 0.7)
-    );
-    border: 1px solid hsl(270 50% 35% / 0.5);
+    @apply bg-secondary;
   }
 }
 
 @layer utilities {
-  /* Hide scrollbar but keep functionality */
+  /* Hide scrollbar */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -405,10 +290,10 @@
     display: none;
   }
 
-  /* Custom scrollbar with purple theme */
+  /* Thin scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(270 50% 60% / 0.3) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
@@ -417,52 +302,20 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, 
-      hsl(270 60% 60% / 0.4), 
-      hsl(320 50% 55% / 0.3)
-    );
+    background: hsl(var(--muted-foreground) / 0.3);
     border-radius: 3px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, 
-      hsl(270 60% 55% / 0.6), 
-      hsl(320 50% 50% / 0.5)
-    );
-  }
-
-  /* Text shadow for depth */
-  .text-glow {
-    text-shadow: 0 0 30px hsl(270 80% 60% / 0.5);
-  }
-
-  /* Floating animation */
-  .float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 
   /* Accessibility - Reduced motion */
-  .reduce-motion * {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-
-  /* High contrast mode */
-  .high-contrast {
-    --foreground: 0 0% 0%;
-    --background: 0 0% 100%;
-    --border: 0 0% 20%;
-  }
-
-  .dark.high-contrast {
-    --foreground: 0 0% 100%;
-    --background: 0 0% 0%;
-    --border: 0 0% 80%;
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Reels animations */
@@ -483,5 +336,10 @@
   
   .animate-ping-once {
     animation: ping-once 0.8s ease-out forwards;
+  }
+
+  /* Safe area for mobile */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

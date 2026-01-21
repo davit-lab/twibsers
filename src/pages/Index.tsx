@@ -61,24 +61,22 @@ export default function Index() {
           progress={progress}
           shouldRefresh={shouldRefresh}
         >
-          <div className="max-w-2xl mx-auto pb-24 lg:pb-8">
-            {/* Stories Bar - Full bleed on mobile */}
-            <div className="border-b border-border/30">
+          <div className="max-w-xl mx-auto pb-24 lg:pb-8">
+            {/* Stories Bar */}
+            <div className="border-b border-border">
               <StoriesBar />
             </div>
             
             {/* Post Composer */}
-            <div className="p-4 border-b border-border/30">
+            <div className="p-4 border-b border-border">
               <PostComposer onPostCreated={handlePostCreated} />
             </div>
             
             {/* Feed */}
-            <div className="px-4 py-4">
-              <Feed 
-                refreshTrigger={refreshTrigger} 
-                onRefreshComplete={() => setIsRefreshingFeed(false)}
-              />
-            </div>
+            <Feed 
+              refreshTrigger={refreshTrigger} 
+              onRefreshComplete={() => setIsRefreshingFeed(false)}
+            />
           </div>
         </PullToRefresh>
       </MainLayout>

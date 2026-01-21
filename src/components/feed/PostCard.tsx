@@ -193,13 +193,13 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
   const VisibilityIcon = visibilityIcons[post.visibility];
 
   return (
-    <article className="py-4 transition-colors hover:bg-muted/20">
+    <article className="py-4 px-4">
       {/* Post Header */}
       <div className="flex items-start gap-3">
         <Link to={`/profile/${post.profiles.username}`}>
-          <Avatar className="h-11 w-11 hover:opacity-90 transition-opacity ring-2 ring-transparent hover:ring-primary/20">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={post.profiles.avatar_url || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
+            <AvatarFallback className="bg-muted text-muted-foreground text-sm">
               {getInitials(post.profiles.display_name)}
             </AvatarFallback>
           </Avatar>

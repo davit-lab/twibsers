@@ -29,13 +29,8 @@ import {
   Video,
   MoreVertical,
   Smile,
-  Paperclip,
   Mic,
-  X,
-  Image as ImageIcon,
-  Lock,
   PhoneOff,
-  UserX,
   User
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -90,30 +85,24 @@ export default function MessageThread({
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggeredRef = useRef(false);
 
-  // Check if calling is allowed (mutual follow for private accounts)
   useEffect(() => {
     const checkCallPermission = async () => {
       if (!user || !otherUserId) return;
-
-      // Check if user is blocked from calling
       const blocked = isUserBlocked(otherUserId);
       setIsBlocked(blocked);
 
-      // Check other user's privacy setting
       const { data: otherProfile } = await supabase
         .from('profiles')
         .select('privacy')
         .eq('user_id', otherUserId)
         .single();
 
-      // If public account, allow calling
       if (otherProfile?.privacy === 'public') {
         setCanCall(true);
         setCallBlockReason(null);
         return;
       }
 
-      // For private accounts, check mutual follow
       const [meFollowingThem, themFollowingMe] = await Promise.all([
         supabase
           .from('follows')
@@ -133,7 +122,7 @@ export default function MessageThread({
 
       const isMutualFollow = !!meFollowingThem.data && !!themFollowingMe.data;
       setCanCall(isMutualFollow);
-      setCallBlockReason(isMutualFollow ? null : 'Mutual follow required for private accounts');
+      setCallBlockReason(isMutualFollow ? null : 'Mutual follow required');
     };
 
     checkCallPermission();
@@ -149,11 +138,9 @@ export default function MessageThread({
     }
   };
 
-  // Derive active call type from callState session
   const activeCallType = callState.session?.call_type || null;
   const isInCall = callState.session && callState.session.status !== 'ended' && callState.session.status !== 'declined';
 
-  // Helper to detect if content is a GIF URL
   const isGifUrl = (content: string) => {
     const trimmed = content.trim();
     return (
@@ -186,19 +173,14 @@ export default function MessageThread({
     markAsRead();
   }, [conversationId]);
 
-  // Handle pending incoming call answer
   useEffect(() => {
     if (pendingAnswerCall && pendingAnswerCall.conversation_id === conversationId) {
-      // Answer the call asynchronously and notify parent after completion
       const handleAnswer = async () => {
         try {
-          console.log('[MessageThread] Answering pending call:', pendingAnswerCall.id);
           await answerCall(pendingAnswerCall);
-          console.log('[MessageThread] Call answered successfully');
         } catch (error) {
-          console.error('[MessageThread] Failed to answer call:', error);
+          console.error('Failed to answer call:', error);
         }
-        // Only notify parent after the answer process completes
         onCallAnswered?.();
       };
       handleAnswer();
@@ -232,12 +214,8 @@ export default function MessageThread({
 
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString);
-    if (isToday(date)) {
-      return format(date, 'HH:mm');
-    }
-    if (isYesterday(date)) {
-      return `Yesterday ${format(date, 'HH:mm')}`;
-    }
+    if (isToday(date)) return format(date, 'HH:mm');
+    if (isYesterday(date)) return `Yesterday ${format(date, 'HH:mm')}`;
     return format(date, 'MMM d, HH:mm');
   };
 
@@ -273,15 +251,6 @@ export default function MessageThread({
     return new Date(message.created_at) <= new Date(lastReadAt);
   };
 
-  const handleStartCall = async (type: 'audio' | 'video') => {
-    await startCall(type);
-  };
-
-  const handleEndCall = async () => {
-    await endCall();
-  };
-
-  // Long press handlers for reactions
   const handleLongPressStart = useCallback((messageId: string, isOwn: boolean) => {
     longPressTriggeredRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
@@ -307,15 +276,15 @@ export default function MessageThread({
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full glass-premium">
-        <div className="p-4 border-b border-border/30 flex items-center gap-3">
-          <Skeleton className="h-12 w-12 rounded-full" />
-          <Skeleton className="h-5 w-32" />
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b border-border flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-4 w-32" />
         </div>
         <div className="flex-1 p-4 space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className={cn('flex gap-2', i % 2 === 0 && 'justify-end')}>
-              <Skeleton className="h-16 w-48 rounded-2xl" />
+              <Skeleton className="h-12 w-40 rounded-2xl" />
             </div>
           ))}
         </div>
@@ -332,7 +301,7 @@ export default function MessageThread({
           type={activeCallType} 
           user={otherUser} 
           callState={callState}
-          onEnd={handleEndCall}
+          onEnd={endCall}
           onToggleAudio={toggleAudio}
           onToggleVideo={toggleVideo}
           onToggleScreenShare={toggleScreenShare}
@@ -341,105 +310,59 @@ export default function MessageThread({
       )}
       
       <div className={cn(
-        "flex flex-col h-full transition-all duration-400",
+        "flex flex-col h-full bg-background",
         isExtended && "fixed inset-0 z-50"
       )}>
-        {/* Glass background */}
-        <div className={cn(
-          "absolute inset-0 -z-10",
-          isExtended ? "bg-background" : "glass-premium"
-        )} />
-
         {/* Header */}
-        <div className="relative p-4 border-b border-border/30 flex items-center gap-3">
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-          
+        <div className="px-4 py-3 border-b border-border flex items-center gap-3">
           {onBack && !isExtended && (
-            <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden rounded-full">
+            <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden h-9 w-9">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
           
-          <div className="relative">
-            <Avatar className="h-12 w-12 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
-              <AvatarImage src={otherUser.avatar_url || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium">
-                {getInitials(otherUser.display_name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-online rounded-full border-2 border-background" />
-          </div>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={otherUser.avatar_url || undefined} />
+            <AvatarFallback className="bg-muted text-muted-foreground text-sm">
+              {getInitials(otherUser.display_name)}
+            </AvatarFallback>
+          </Avatar>
           
           <div className="flex-1 min-w-0">
-            <h3 className="font-display font-semibold text-lg truncate">{otherUser.display_name}</h3>
-            <p className="text-sm text-muted-foreground">Active now</p>
+            <h3 className="font-semibold text-sm truncate">{otherUser.display_name}</h3>
+            <p className="text-xs text-muted-foreground">Active now</p>
           </div>
 
-          {/* Call buttons */}
           <div className="flex items-center gap-1">
             {canCall ? (
               <>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                  onClick={() => handleStartCall('audio')}
-                >
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => startCall('audio')}>
                   <Phone className="h-5 w-5" />
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                  onClick={() => handleStartCall('video')}
-                >
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => startCall('video')}>
                   <Video className="h-5 w-5" />
                 </Button>
               </>
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="rounded-full opacity-50 cursor-not-allowed"
-                      disabled
-                    >
+                  <div className="flex items-center gap-1 opacity-50">
+                    <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
                       <Phone className="h-5 w-5" />
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="rounded-full opacity-50 cursor-not-allowed"
-                      disabled
-                    >
+                    <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
                       <Video className="h-5 w-5" />
                     </Button>
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
+                <TooltipContent>
                   <p className="text-xs">{callBlockReason}</p>
                 </TooltipContent>
               </Tooltip>
             )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsExtended(!isExtended)}
-              className="rounded-full hover:bg-primary/10 transition-colors"
-            >
-              {isExtended ? (
-                <Minimize2 className="h-5 w-5" />
-              ) : (
-                <Maximize2 className="h-5 w-5" />
-              )}
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted transition-colors">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -448,11 +371,12 @@ export default function MessageThread({
                   <User className="h-4 w-4 mr-2" />
                   View Profile
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsExtended(!isExtended)}>
+                  {isExtended ? <Minimize2 className="h-4 w-4 mr-2" /> : <Maximize2 className="h-4 w-4 mr-2" />}
+                  {isExtended ? 'Exit Fullscreen' : 'Fullscreen'}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleToggleBlock}
-                  className={isBlocked ? "text-green-600" : "text-red-600"}
-                >
+                <DropdownMenuItem onClick={handleToggleBlock} className={isBlocked ? "text-success" : "text-destructive"}>
                   {isBlocked ? (
                     <>
                       <Phone className="h-4 w-4 mr-2" />
@@ -461,7 +385,7 @@ export default function MessageThread({
                   ) : (
                     <>
                       <PhoneOff className="h-4 w-4 mr-2" />
-                      Block from Calling
+                      Block Calls
                     </>
                   )}
                 </DropdownMenuItem>
@@ -471,39 +395,29 @@ export default function MessageThread({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {messageGroups.map((group) => (
-            <div key={group.date} className="animate-fade-in">
-              <div className="flex items-center gap-4 my-6">
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-                <span className="text-xs text-muted-foreground font-medium px-3 py-1 rounded-full bg-muted/50">
-                  {group.date}
-                </span>
-                <div className="flex-1 h-px bg-gradient-to-r from-border via-transparent to-transparent" />
+            <div key={group.date}>
+              <div className="flex items-center gap-4 my-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">{group.date}</span>
+                <div className="flex-1 h-px bg-border" />
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {group.messages.map((message, idx) => {
                   const isOwn = message.sender_id === user?.id;
-                  const showAvatar =
-                    !isOwn &&
-                    (idx === 0 || group.messages[idx - 1].sender_id !== message.sender_id);
+                  const showAvatar = !isOwn && (idx === 0 || group.messages[idx - 1].sender_id !== message.sender_id);
                   const messageReactions = getReactionsForMessage(message.id);
 
                   return (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        'flex gap-2 animate-fade-in',
-                        isOwn && 'justify-end'
-                      )}
-                    >
+                    <div key={message.id} className={cn('flex gap-2', isOwn && 'justify-end')}>
                       {!isOwn && (
                         <div className="w-8 flex-shrink-0">
                           {showAvatar && (
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={otherUser.avatar_url || undefined} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-xs">
+                              <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                                 {getInitials(otherUser.display_name)}
                               </AvatarFallback>
                             </Avatar>
@@ -511,7 +425,6 @@ export default function MessageThread({
                         </div>
                       )}
                       <div className="relative max-w-[70%]">
-                        {/* Reaction picker */}
                         {selectedMessageId === message.id && (
                           <MessageReactionPicker
                             onSelect={handleReactionSelect}
@@ -522,11 +435,9 @@ export default function MessageThread({
                         
                         <div
                           className={cn(
-                            'rounded-2xl transition-all cursor-pointer select-none',
-                            isGifUrl(message.content) ? 'p-1' : 'px-4 py-3',
-                            isOwn
-                              ? 'message-own text-white rounded-br-md'
-                              : 'message-other rounded-bl-md',
+                            'rounded-2xl cursor-pointer select-none',
+                            isGifUrl(message.content) ? 'p-1' : 'px-4 py-2',
+                            isOwn ? 'message-own' : 'message-other',
                             selectedMessageId === message.id && 'ring-2 ring-primary/50'
                           )}
                           onMouseDown={() => handleLongPressStart(message.id, isOwn)}
@@ -548,29 +459,22 @@ export default function MessageThread({
                               loading="lazy"
                             />
                           ) : (
-                            <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
+                            <p className="break-words text-sm">{message.content}</p>
                           )}
-                          <div className={cn(
-                            'flex items-center gap-1.5 mt-1.5',
-                            isOwn ? 'justify-end' : 'justify-start'
-                          )}>
-                            <span className={cn(
-                              'text-[11px]',
-                              isOwn ? 'text-white/70' : 'text-muted-foreground'
-                            )}>
+                          <div className={cn('flex items-center gap-1 mt-1', isOwn ? 'justify-end' : 'justify-start')}>
+                            <span className={cn('text-[10px]', isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                               {formatMessageTime(message.created_at)}
                             </span>
                             {isOwn && (
                               isMessageRead(message) ? (
-                                <CheckCheck className="h-3.5 w-3.5 text-white/70" />
+                                <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
                               ) : (
-                                <Check className="h-3.5 w-3.5 text-white/70" />
+                                <Check className="h-3 w-3 text-primary-foreground/70" />
                               )
                             )}
                           </div>
                         </div>
                         
-                        {/* Reactions display */}
                         <MessageReactions
                           reactions={messageReactions}
                           isOwn={isOwn}
@@ -584,20 +488,19 @@ export default function MessageThread({
             </div>
           ))}
 
-          {/* Typing indicator */}
           {typingUsers.length > 0 && (
-            <div className="flex items-center gap-3 text-muted-foreground animate-fade-in">
+            <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={otherUser.avatar_url || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-xs">
+                <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                   {getInitials(otherUser.display_name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="message-other px-4 py-3 rounded-2xl rounded-bl-md">
-                <div className="flex space-x-1.5">
-                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-2 w-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="message-other px-4 py-2 rounded-2xl">
+                <div className="flex space-x-1">
+                  <span className="h-2 w-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -607,51 +510,39 @@ export default function MessageThread({
         </div>
 
         {/* Input */}
-        <div className="relative p-4 border-t border-border/30">
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
-          
-          <form onSubmit={handleSend} className="relative flex items-center gap-2">
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full flex-shrink-0 hover:bg-primary/10 transition-colors"
-            >
-              <Paperclip className="h-5 w-5 text-muted-foreground" />
-            </Button>
-            
+        <div className="p-4 border-t border-border">
+          <form onSubmit={handleSend} className="flex items-center gap-2">
             <div className="relative flex-1">
               <Input
                 ref={inputRef}
                 value={newMessage}
                 onChange={handleInputChange}
-                placeholder="Type a message..."
+                placeholder="Message..."
                 disabled={sending}
-                className="pr-12 rounded-full border-border/50 bg-muted/30 focus:bg-background input-focus h-12 text-[15px]"
+                className="pr-20 rounded-full bg-secondary border-0 h-11 text-sm focus-visible:ring-0"
               />
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full h-8 w-8"
-              >
-                <Smile className="h-5 w-5 text-muted-foreground" />
-              </Button>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
+                  className="h-8 w-8"
+                >
+                  <Smile className="h-5 w-5 text-muted-foreground" />
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
+                  className="h-8 w-8"
+                >
+                  <span className="text-xs font-semibold text-muted-foreground">GIF</span>
+                </Button>
+              </div>
             </div>
 
-            {/* GIF Button */}
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
-              className="rounded-full flex-shrink-0 hover:bg-primary/10 transition-colors"
-            >
-              <span className="text-xs font-bold text-muted-foreground">GIF</span>
-            </Button>
-
-            {/* Pickers */}
             {showEmojiPicker && (
               <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
             )}
@@ -660,25 +551,11 @@ export default function MessageThread({
             )}
 
             {newMessage.trim() ? (
-              <Button 
-                type="submit" 
-                disabled={sending} 
-                size="icon"
-                className="btn-gradient rounded-full h-12 w-12 flex-shrink-0"
-              >
-                {sending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
+              <Button type="submit" disabled={sending} size="sm" className="rounded-full px-4 h-11">
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
               </Button>
             ) : (
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="icon"
-                className="rounded-full h-12 w-12 flex-shrink-0 hover:bg-primary/10 transition-colors"
-              >
+              <Button type="button" variant="ghost" size="icon" className="h-11 w-11">
                 <Mic className="h-5 w-5 text-muted-foreground" />
               </Button>
             )}
