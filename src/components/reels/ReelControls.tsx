@@ -35,7 +35,7 @@ export default function ReelControls({
   return (
     <>
       {/* Top bar - minimal */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 pointer-events-none">
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-[60] pointer-events-none">
         <Button 
           variant="glass" 
           size="icon" 
