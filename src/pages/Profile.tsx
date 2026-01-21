@@ -5,10 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import Feed from '@/components/feed/Feed';
 import FollowButton from '@/components/social/FollowButton';
-import ReadingStreakCard from '@/components/library/ReadingStreakCard';
+import ProfileStoryRing from '@/components/profile/ProfileStoryRing';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -19,10 +18,16 @@ import {
   Settings,
   Lock,
   MessageCircle,
-  Flame,
   Hammer,
+  Grid3X3,
+  Bookmark,
+  Heart,
+  MoreHorizontal,
+  Share,
+  UserPlus,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface ProfileData {
   id: string;
@@ -49,6 +54,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [postCount, setPostCount] = useState(0);
   
   const isOwnProfile = currentUserProfile?.username === username;
   const { stats, loading: statsLoading } = useFollowStats(profileData?.user_id);
@@ -81,21 +87,20 @@ export default function Profile() {
           .maybeSingle();
         
         setIsProfileAdmin(!!roleData);
+
+        // Get post count
+        const { count } = await supabase
+          .from('posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', data.user_id);
+        
+        setPostCount(count || 0);
       }
       setLoading(false);
     };
 
     fetchProfile();
   }, [username]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const handleFollowChange = () => {
     setRefreshKey(prev => prev + 1);
@@ -104,15 +109,19 @@ export default function Profile() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="container max-w-4xl py-0 px-0">
-          <Skeleton className="h-48 md:h-64 w-full" />
-          <div className="px-4 pb-8">
-            <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20">
-              <Skeleton className="h-32 w-32 md:h-40 md:w-40 rounded-full border-4 border-background" />
+        <div className="min-h-screen">
+          <div className="max-w-lg mx-auto pt-4 px-4">
+            <div className="flex items-center gap-6 mb-6">
+              <Skeleton className="h-24 w-24 rounded-full" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-24" />
               </div>
+            </div>
+            <div className="flex justify-around py-4 border-y border-border">
+              <Skeleton className="h-12 w-16" />
+              <Skeleton className="h-12 w-16" />
+              <Skeleton className="h-12 w-16" />
             </div>
           </div>
         </div>
@@ -123,12 +132,19 @@ export default function Profile() {
   if (error || !profileData) {
     return (
       <MainLayout>
-        <div className="container max-w-4xl py-8 px-4 text-center">
-          <h1 className="text-2xl font-display font-bold mb-2">Profile not found</h1>
-          <p className="text-muted-foreground mb-4">
-            The user you're looking for doesn't exist or has been removed.
-          </p>
-          <Button onClick={() => navigate('/')}>Go Home</Button>
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center">
+            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <UserPlus className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h1 className="text-xl font-bold mb-2">User not found</h1>
+            <p className="text-muted-foreground mb-6">
+              The user you're looking for doesn't exist.
+            </p>
+            <Button onClick={() => navigate('/')} className="btn-gradient">
+              Go Home
+            </Button>
+          </div>
         </div>
       </MainLayout>
     );
@@ -136,58 +152,120 @@ export default function Profile() {
 
   return (
     <MainLayout>
-      <div className="container max-w-4xl py-0 px-0 pb-24 lg:pb-8">
-        {/* Cover Image */}
-        <div className="h-48 md:h-64 bg-gradient-to-br from-primary via-primary/80 to-accent relative">
-          {profileData.cover_url && (
-            <img
-              src={profileData.cover_url}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
-        </div>
+      <div className="min-h-screen pb-24 lg:pb-8">
+        <div className="max-w-lg mx-auto">
+          {/* Header Bar */}
+          <div className="sticky top-0 z-40 glass-card border-b border-border/50 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {profileData.privacy === 'private' && (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              )}
+              <h1 className="font-bold text-lg">{profileData.username}</h1>
+              {profileData.is_verified && (
+                <BadgeCheck className="h-5 w-5 text-verified" />
+              )}
+              {isProfileAdmin && (
+                <span className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+                  <Hammer className="h-3 w-3 text-white" />
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isOwnProfile ? (
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/settings">
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+          </div>
 
-        <div className="px-4">
-          {/* Profile Header */}
-          <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-16 md:-mt-20 relative z-10">
-            <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-background shadow-xl">
-              <AvatarImage src={profileData.avatar_url || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl">
-                {getInitials(profileData.display_name)}
-              </AvatarFallback>
-            </Avatar>
+          {/* Profile Info Section */}
+          <div className="px-4 pt-6">
+            {/* Top row: Avatar + Stats */}
+            <div className="flex items-center gap-6 mb-6">
+              {/* Profile Avatar with Story Ring */}
+              <ProfileStoryRing
+                userId={profileData.user_id}
+                avatarUrl={profileData.avatar_url}
+                displayName={profileData.display_name}
+                isOwnProfile={isOwnProfile}
+                size="lg"
+              />
 
-            <div className="flex-1 pb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl md:text-3xl font-display font-bold">
-                  {profileData.display_name}
-                </h1>
-                {isProfileAdmin && (
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white" title="Admin">
-                    <Hammer className="h-4 w-4" />
+              {/* Stats */}
+              <div className="flex-1 flex justify-around">
+                <button className="flex flex-col items-center hover:opacity-70 transition-opacity">
+                  <span className="text-xl font-bold">{postCount}</span>
+                  <span className="text-xs text-muted-foreground">Posts</span>
+                </button>
+                <button className="flex flex-col items-center hover:opacity-70 transition-opacity">
+                  <span className="text-xl font-bold">
+                    {statsLoading ? '–' : stats.followers.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Followers</span>
+                </button>
+                <button className="flex flex-col items-center hover:opacity-70 transition-opacity">
+                  <span className="text-xl font-bold">
+                    {statsLoading ? '–' : stats.following.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Following</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Name & Bio */}
+            <div className="mb-4">
+              <h2 className="font-bold text-base flex items-center gap-2">
+                {profileData.display_name}
+              </h2>
+              
+              {profileData.bio && (
+                <p className="text-sm mt-1 whitespace-pre-wrap">{profileData.bio}</p>
+              )}
+              
+              {/* Meta info */}
+              <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                {profileData.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {profileData.location}
                   </span>
                 )}
-                {profileData.is_verified && (
-                  <BadgeCheck className="h-6 w-6 text-verified" />
+                {profileData.website && (
+                  <a
+                    href={profileData.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    {profileData.website.replace(/^https?:\/\//, '').split('/')[0]}
+                  </a>
                 )}
-                {profileData.privacy === 'private' && (
-                  <Lock className="h-5 w-5 text-muted-foreground" />
-                )}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Joined {format(new Date(profileData.created_at), 'MMM yyyy')}
+                </span>
               </div>
-              <p className="text-muted-foreground">@{profileData.username}</p>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 pb-2">
+            <div className="flex gap-2 mb-6">
               {isOwnProfile ? (
-                <Button variant="outline" asChild>
-                  <Link to="/settings">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Link>
-                </Button>
+                <>
+                  <Button variant="outline" className="flex-1 rounded-lg h-9" asChild>
+                    <Link to="/settings">Edit profile</Link>
+                  </Button>
+                  <Button variant="outline" className="flex-1 rounded-lg h-9">
+                    Share profile
+                  </Button>
+                </>
               ) : user ? (
                 <>
                   <FollowButton
@@ -195,122 +273,80 @@ export default function Profile() {
                     targetUsername={profileData.username}
                     isPrivateAccount={profileData.privacy === 'private'}
                     onFollowChange={handleFollowChange}
+                    className="flex-1 rounded-lg h-9"
                   />
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" className="flex-1 rounded-lg h-9" asChild>
                     <Link to={`/messages?new=${profileData.user_id}`}>
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Message
                     </Link>
                   </Button>
+                  <Button variant="outline" size="icon" className="rounded-lg h-9 w-9">
+                    <Share className="h-4 w-4" />
+                  </Button>
                 </>
               ) : (
-                <Button className="btn-gradient" asChild>
+                <Button className="flex-1 btn-gradient rounded-lg h-9" asChild>
                   <Link to="/auth">Follow</Link>
                 </Button>
               )}
             </div>
           </div>
 
-          {/* Bio & Meta */}
-          <div className="mt-6 space-y-4">
-            {profileData.bio && (
-              <p className="text-foreground max-w-2xl">{profileData.bio}</p>
-            )}
-
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              {profileData.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  {profileData.location}
-                </span>
-              )}
-              {profileData.website && (
-                <a
-                  href={profileData.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
-                >
-                  <LinkIcon className="h-4 w-4" />
-                  {profileData.website.replace(/^https?:\/\//, '')}
-                </a>
-              )}
-              <span className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Joined {format(new Date(profileData.created_at), 'MMMM yyyy')}
-              </span>
-            </div>
-
-            {/* Stats */}
-            <div className="flex gap-6">
-              <button className="hover:underline">
-                <span className="font-bold">
-                  {statsLoading ? '–' : stats.following}
-                </span>{' '}
-                <span className="text-muted-foreground">Following</span>
-              </button>
-              <button className="hover:underline">
-                <span className="font-bold">
-                  {statsLoading ? '–' : stats.followers}
-                </span>{' '}
-                <span className="text-muted-foreground">Followers</span>
-              </button>
-            </div>
-
-            {/* Reading Streak */}
-            <div className="pt-2">
-              <ReadingStreakCard userId={profileData.user_id} compact />
-            </div>
-          </div>
-
           {/* Content Tabs */}
-          <Tabs defaultValue="posts" className="mt-8">
-            <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto">
+          <Tabs defaultValue="posts" className="w-full">
+            <TabsList className="w-full grid grid-cols-3 bg-transparent border-t border-border h-12 rounded-none p-0">
               <TabsTrigger
                 value="posts"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                className="rounded-none border-t-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent h-full"
               >
-                Posts
+                <Grid3X3 className="h-5 w-5" />
               </TabsTrigger>
               <TabsTrigger
-                value="replies"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                value="saved"
+                className="rounded-none border-t-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent h-full"
               >
-                Replies
+                <Bookmark className="h-5 w-5" />
               </TabsTrigger>
               <TabsTrigger
-                value="media"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                value="liked"
+                className="rounded-none border-t-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent h-full"
               >
-                Media
-              </TabsTrigger>
-              <TabsTrigger
-                value="starred"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
-              >
-                Starred
+                <Heart className="h-5 w-5" />
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="posts" className="mt-6">
+            <TabsContent value="posts" className="mt-0">
               <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
             </TabsContent>
 
-            <TabsContent value="replies" className="mt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No replies yet</p>
+            <TabsContent value="saved" className="mt-0">
+              <div className="flex flex-col items-center justify-center py-16 px-4">
+                <div className="w-20 h-20 rounded-full border-2 border-foreground flex items-center justify-center mb-4">
+                  <Bookmark className="w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-bold mb-1">Saved</h3>
+                <p className="text-muted-foreground text-center text-sm">
+                  {isOwnProfile 
+                    ? "Save photos and videos that you want to see again."
+                    : "No saved posts to show."
+                  }
+                </p>
               </div>
             </TabsContent>
 
-            <TabsContent value="media" className="mt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No media yet</p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="starred" className="mt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No starred posts yet</p>
+            <TabsContent value="liked" className="mt-0">
+              <div className="flex flex-col items-center justify-center py-16 px-4">
+                <div className="w-20 h-20 rounded-full border-2 border-foreground flex items-center justify-center mb-4">
+                  <Heart className="w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-bold mb-1">Liked</h3>
+                <p className="text-muted-foreground text-center text-sm">
+                  {isOwnProfile 
+                    ? "Posts you've liked will appear here."
+                    : "No liked posts to show."
+                  }
+                </p>
               </div>
             </TabsContent>
           </Tabs>
