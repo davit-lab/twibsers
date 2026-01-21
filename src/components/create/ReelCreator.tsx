@@ -2,14 +2,19 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useReels } from '@/hooks/useReels';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Loader2, Upload, X, Play, Pause, Scissors, Palette, Music, 
   Image, ChevronLeft, ChevronRight, Volume2, VolumeX, Check,
-  RotateCcw, Sparkles
+  Sparkles, Type, Smile, Pencil, Gauge, RotateCcw, Trash2,
+  Move, Plus, FastForward, Rewind, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +23,39 @@ interface ReelCreatorProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'upload' | 'trim' | 'filter' | 'music' | 'thumbnail' | 'caption';
+type Step = 'upload' | 'trim' | 'effects' | 'overlays' | 'filter' | 'music' | 'thumbnail' | 'caption';
+
+// Overlay types
+interface TextOverlay {
+  id: string;
+  type: 'text';
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontFamily: string;
+}
+
+interface StickerOverlay {
+  id: string;
+  type: 'sticker';
+  emoji: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
+type Overlay = TextOverlay | StickerOverlay;
+
+// Music track interface
+interface MusicTrack {
+  id: string;
+  name: string;
+  url: string | null;
+  duration: number;
+  isCustom?: boolean;
+}
 
 const FILTERS = [
   { id: 'none', name: 'Original', css: '' },
@@ -35,17 +72,32 @@ const FILTERS = [
   { id: 'noir', name: 'Noir', css: 'grayscale(100%) contrast(120%)' },
 ];
 
-const MUSIC_TRACKS = [
+const STICKERS = [
+  '😀', '😂', '🥰', '😎', '🤩', '🥳', '😍', '🤔',
+  '🔥', '❤️', '💯', '✨', '⭐', '🎉', '🎊', '💪',
+  '👍', '👏', '🙌', '💖', '💕', '🌟', '⚡', '🎵',
+  '🎬', '📸', '🎭', '🎪', '🎨', '🎤', '🎸', '🎹',
+];
+
+const TEXT_COLORS = [
+  '#FFFFFF', '#000000', '#FF0000', '#00FF00', '#0000FF',
+  '#FFFF00', '#FF00FF', '#00FFFF', '#FF6B6B', '#4ECDC4',
+  '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8',
+];
+
+const FONT_FAMILIES = [
+  { id: 'sans', name: 'Sans', value: 'ui-sans-serif, system-ui, sans-serif' },
+  { id: 'serif', name: 'Serif', value: 'ui-serif, Georgia, serif' },
+  { id: 'mono', name: 'Mono', value: 'ui-monospace, monospace' },
+  { id: 'cursive', name: 'Script', value: 'cursive' },
+];
+
+const DEFAULT_MUSIC_TRACKS: MusicTrack[] = [
   { id: 'none', name: 'No Music', url: null, duration: 0 },
-  { id: 'upbeat', name: '🎵 Upbeat Energy', url: '/music/upbeat.mp3', duration: 30 },
-  { id: 'chill', name: '🎶 Chill Vibes', url: '/music/chill.mp3', duration: 30 },
-  { id: 'epic', name: '🎸 Epic Rock', url: '/music/epic.mp3', duration: 30 },
-  { id: 'happy', name: '🌟 Happy Day', url: '/music/happy.mp3', duration: 30 },
-  { id: 'lofi', name: '☕ Lo-Fi Beats', url: '/music/lofi.mp3', duration: 30 },
-  { id: 'electronic', name: '⚡ Electronic', url: '/music/electronic.mp3', duration: 30 },
 ];
 
 export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
+  const { user } = useAuth();
   const { uploadReel } = useReels();
   const { toast } = useToast();
   
@@ -64,12 +116,27 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(60);
   
+  // Effects state
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isReversed, setIsReversed] = useState(false);
+  
+  // Overlays state
+  const [overlays, setOverlays] = useState<Overlay[]>([]);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [newTextValue, setNewTextValue] = useState('');
+  const [textColor, setTextColor] = useState('#FFFFFF');
+  const [textFontSize, setTextFontSize] = useState(24);
+  const [textFontFamily, setTextFontFamily] = useState(FONT_FAMILIES[0].value);
+  const [overlayTab, setOverlayTab] = useState<'text' | 'stickers'>('text');
+  
   // Filter state
   const [selectedFilter, setSelectedFilter] = useState('none');
   
   // Music state
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>(DEFAULT_MUSIC_TRACKS);
   const [selectedMusic, setSelectedMusic] = useState('none');
   const [musicVolume, setMusicVolume] = useState(50);
+  const [uploadingMusic, setUploadingMusic] = useState(false);
   
   // Thumbnail state
   const [thumbnails, setThumbnails] = useState<string[]>([]);
@@ -83,10 +150,48 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   
+  // Dragging state
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const musicInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load user's custom music tracks
+  useEffect(() => {
+    if (user && open) {
+      loadCustomMusicTracks();
+    }
+  }, [user, open]);
+
+  const loadCustomMusicTracks = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('reel-music')
+        .list(user.id, { limit: 50 });
+      
+      if (error) throw error;
+      
+      const customTracks: MusicTrack[] = (data || []).map(file => ({
+        id: file.id,
+        name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        url: supabase.storage.from('reel-music').getPublicUrl(`${user.id}/${file.name}`).data.publicUrl,
+        duration: 0,
+        isCustom: true,
+      }));
+      
+      setMusicTracks([...DEFAULT_MUSIC_TRACKS, ...customTracks]);
+    } catch (error) {
+      console.error('Error loading music tracks:', error);
+    }
+  };
 
   // Generate thumbnails from video
   const generateThumbnails = useCallback(async (video: HTMLVideoElement) => {
@@ -146,6 +251,76 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     setStep('trim');
   };
 
+  // Handle music upload
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('audio/')) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Please select an audio file (MP3, WAV, etc.).',
+      });
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'File too large',
+        description: 'Maximum music file size is 20MB.',
+      });
+      return;
+    }
+
+    setUploadingMusic(true);
+    try {
+      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage
+        .from('reel-music')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Music uploaded! 🎵',
+        description: 'Your track is now available.',
+      });
+
+      await loadCustomMusicTracks();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload music.',
+      });
+    } finally {
+      setUploadingMusic(false);
+      if (musicInputRef.current) musicInputRef.current.value = '';
+    }
+  };
+
+  // Delete custom music track
+  const handleDeleteMusic = async (track: MusicTrack) => {
+    if (!user || !track.isCustom) return;
+
+    try {
+      const path = track.url?.split('/reel-music/')[1];
+      if (path) {
+        await supabase.storage.from('reel-music').remove([decodeURIComponent(path)]);
+        await loadCustomMusicTracks();
+        if (selectedMusic === track.id) setSelectedMusic('none');
+        toast({
+          title: 'Track deleted',
+          description: 'Music track has been removed.',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting track:', error);
+    }
+  };
+
   // Handle video metadata loaded
   const handleVideoLoaded = () => {
     if (videoRef.current) {
@@ -179,12 +354,27 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        audioRef.current?.pause();
       } else {
         videoRef.current.play();
+        if (selectedMusic !== 'none' && audioRef.current) {
+          audioRef.current.currentTime = videoRef.current.currentTime;
+          audioRef.current.play();
+        }
       }
       setIsPlaying(!isPlaying);
     }
   };
+
+  // Update playback speed
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed]);
 
   // Update current time
   useEffect(() => {
@@ -193,9 +383,9 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
-      // Loop within trim range
       if (video.currentTime >= trimEnd) {
         video.currentTime = trimStart;
+        if (audioRef.current) audioRef.current.currentTime = trimStart;
       }
     };
 
@@ -209,6 +399,99 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
       videoRef.current.currentTime = trimStart;
     }
   }, [trimStart, step]);
+
+  // Add text overlay
+  const addTextOverlay = () => {
+    if (!newTextValue.trim()) return;
+    
+    const newOverlay: TextOverlay = {
+      id: `text-${Date.now()}`,
+      type: 'text',
+      text: newTextValue,
+      x: 50,
+      y: 50,
+      fontSize: textFontSize,
+      color: textColor,
+      fontFamily: textFontFamily,
+    };
+    
+    setOverlays([...overlays, newOverlay]);
+    setNewTextValue('');
+    setSelectedOverlayId(newOverlay.id);
+  };
+
+  // Add sticker overlay
+  const addStickerOverlay = (emoji: string) => {
+    const newOverlay: StickerOverlay = {
+      id: `sticker-${Date.now()}`,
+      type: 'sticker',
+      emoji,
+      x: 50,
+      y: 50,
+      size: 48,
+    };
+    
+    setOverlays([...overlays, newOverlay]);
+    setSelectedOverlayId(newOverlay.id);
+  };
+
+  // Remove overlay
+  const removeOverlay = (id: string) => {
+    setOverlays(overlays.filter(o => o.id !== id));
+    if (selectedOverlayId === id) setSelectedOverlayId(null);
+  };
+
+  // Handle overlay drag
+  const handleOverlayMouseDown = (e: React.MouseEvent, overlayId: string) => {
+    e.preventDefault();
+    const container = previewContainerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const overlay = overlays.find(o => o.id === overlayId);
+    if (!overlay) return;
+    
+    const currentX = (overlay.x / 100) * rect.width;
+    const currentY = (overlay.y / 100) * rect.height;
+    
+    setDragging(overlayId);
+    setDragOffset({
+      x: e.clientX - rect.left - currentX,
+      y: e.clientY - rect.top - currentY,
+    });
+    setSelectedOverlayId(overlayId);
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragging || !previewContainerRef.current) return;
+    
+    const container = previewContainerRef.current;
+    const rect = container.getBoundingClientRect();
+    
+    const newX = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100;
+    const newY = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100;
+    
+    setOverlays(overlays.map(o => 
+      o.id === dragging 
+        ? { ...o, x: Math.max(0, Math.min(100, newX)), y: Math.max(0, Math.min(100, newY)) }
+        : o
+    ));
+  }, [dragging, dragOffset, overlays]);
+
+  const handleMouseUp = useCallback(() => {
+    setDragging(null);
+  }, []);
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragging, handleMouseMove, handleMouseUp]);
 
   // Get current filter CSS
   const getFilterStyle = () => {
@@ -224,7 +507,6 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     setUploadProgress(0);
 
     try {
-      // Simulate progress (actual upload doesn't have progress callback yet)
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 500);
@@ -262,6 +544,10 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     setVideoDuration(0);
     setTrimStart(0);
     setTrimEnd(60);
+    setPlaybackSpeed(1);
+    setIsReversed(false);
+    setOverlays([]);
+    setSelectedOverlayId(null);
     setSelectedFilter('none');
     setSelectedMusic('none');
     setThumbnails([]);
@@ -289,7 +575,7 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     setStep(newStep);
   };
 
-  const steps: Step[] = ['trim', 'filter', 'music', 'thumbnail', 'caption'];
+  const steps: Step[] = ['trim', 'effects', 'overlays', 'filter', 'music', 'thumbnail', 'caption'];
   const currentStepIndex = steps.indexOf(step);
 
   const nextStep = () => {
@@ -306,9 +592,11 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     }
   };
 
+  const selectedMusicTrack = musicTracks.find(t => t.id === selectedMusic);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
@@ -321,6 +609,8 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
               <DialogTitle className="text-lg">
                 {step === 'upload' && 'Create Reel'}
                 {step === 'trim' && 'Trim Video'}
+                {step === 'effects' && 'Video Effects'}
+                {step === 'overlays' && 'Text & Stickers'}
                 {step === 'filter' && 'Add Filter'}
                 {step === 'music' && 'Add Music'}
                 {step === 'thumbnail' && 'Choose Thumbnail'}
@@ -356,13 +646,13 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
 
           {/* Step indicators */}
           {step !== 'upload' && (
-            <div className="flex justify-center gap-2 py-3 px-4 border-b bg-muted/30">
+            <div className="flex justify-center gap-1 py-2 px-4 border-b bg-muted/30 overflow-x-auto">
               {steps.map((s, i) => (
                 <button
                   key={s}
                   onClick={() => goToStep(s)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap",
                     step === s
                       ? "bg-primary text-primary-foreground"
                       : i < currentStepIndex
@@ -371,6 +661,8 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                   )}
                 >
                   {s === 'trim' && <Scissors className="h-3 w-3" />}
+                  {s === 'effects' && <Zap className="h-3 w-3" />}
+                  {s === 'overlays' && <Type className="h-3 w-3" />}
                   {s === 'filter' && <Palette className="h-3 w-3" />}
                   {s === 'music' && <Music className="h-3 w-3" />}
                   {s === 'thumbnail' && <Image className="h-3 w-3" />}
@@ -406,17 +698,58 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
               <div className="flex flex-col lg:flex-row gap-4 p-4">
                 {/* Video preview */}
                 <div className="flex-shrink-0 mx-auto">
-                  <div className="relative w-[200px] aspect-[9/16] rounded-xl overflow-hidden bg-black">
+                  <div 
+                    ref={previewContainerRef}
+                    className="relative w-[200px] aspect-[9/16] rounded-xl overflow-hidden bg-black"
+                  >
                     <video
                       ref={videoRef}
                       src={videoUrl}
                       className="w-full h-full object-cover"
-                      style={{ filter: getFilterStyle() }}
+                      style={{ 
+                        filter: getFilterStyle(),
+                        transform: isReversed ? 'scaleX(-1)' : 'none',
+                      }}
                       onLoadedMetadata={handleVideoLoaded}
-                      muted={isMuted}
+                      muted={isMuted || selectedMusic !== 'none'}
                       playsInline
                       loop
                     />
+                    
+                    {/* Overlays */}
+                    {overlays.map((overlay) => (
+                      <div
+                        key={overlay.id}
+                        className={cn(
+                          "absolute cursor-move select-none",
+                          selectedOverlayId === overlay.id && "ring-2 ring-primary ring-offset-1"
+                        )}
+                        style={{
+                          left: `${overlay.x}%`,
+                          top: `${overlay.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                        onMouseDown={(e) => handleOverlayMouseDown(e, overlay.id)}
+                      >
+                        {overlay.type === 'text' ? (
+                          <span
+                            style={{
+                              fontSize: `${overlay.fontSize}px`,
+                              color: overlay.color,
+                              fontFamily: overlay.fontFamily,
+                              textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {overlay.text}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: `${overlay.size}px` }}>
+                            {overlay.emoji}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                     
                     {/* Play/pause overlay */}
                     <button
@@ -444,6 +777,13 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                       )}
                     </button>
 
+                    {/* Speed indicator */}
+                    {playbackSpeed !== 1 && (
+                      <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/50 text-white text-xs font-medium">
+                        {playbackSpeed}x
+                      </div>
+                    )}
+
                     {/* Time display */}
                     <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-black/50 text-white text-xs">
                       {formatTime(currentTime)} / {formatTime(trimEnd - trimStart)}
@@ -453,71 +793,268 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
 
                 {/* Controls panel */}
                 <div className="flex-1 min-w-0">
-                  {/* Trim controls */}
-                  {step === 'trim' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-medium mb-3 flex items-center gap-2">
-                          <Scissors className="h-4 w-4" />
-                          Trim Video
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Select the portion of your video to use (max 60 seconds)
-                        </p>
-                      </div>
+                  <ScrollArea className="h-[350px] pr-2">
+                    {/* Trim controls */}
+                    {step === 'trim' && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="font-medium mb-3 flex items-center gap-2">
+                            <Scissors className="h-4 w-4" />
+                            Trim Video
+                          </h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Select the portion of your video (max 60 seconds)
+                          </p>
+                        </div>
 
-                      {/* Trim range slider */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between text-sm">
+                            <span>Start: {formatTime(trimStart)}</span>
+                            <span>End: {formatTime(trimEnd)}</span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">Start time</label>
+                            <Slider
+                              value={[trimStart]}
+                              min={0}
+                              max={Math.max(0, trimEnd - 1)}
+                              step={0.1}
+                              onValueChange={([value]) => setTrimStart(value)}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">End time</label>
+                            <Slider
+                              value={[trimEnd]}
+                              min={trimStart + 1}
+                              max={Math.min(videoDuration, trimStart + 60)}
+                              step={0.1}
+                              onValueChange={([value]) => setTrimEnd(value)}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                            <span className="text-sm">Duration</span>
+                            <span className="font-medium">{formatTime(trimEnd - trimStart)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Effects controls */}
+                    {step === 'effects' && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Video Effects
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Adjust speed and apply effects
+                          </p>
+                        </div>
+
+                        {/* Playback Speed */}
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium flex items-center gap-2">
+                            <Gauge className="h-4 w-4" />
+                            Playback Speed
+                          </label>
+                          <div className="grid grid-cols-5 gap-2">
+                            {[0.25, 0.5, 1, 1.5, 2].map((speed) => (
+                              <Button
+                                key={speed}
+                                variant={playbackSpeed === speed ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setPlaybackSpeed(speed)}
+                                className="text-xs"
+                              >
+                                {speed}x
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Rewind className="h-4 w-4" />
+                            <span>Slow motion</span>
+                            <span className="mx-2">—</span>
+                            <FastForward className="h-4 w-4" />
+                            <span>Speed up</span>
+                          </div>
+                        </div>
+
+                        {/* Mirror/Reverse */}
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium flex items-center gap-2">
+                            <RotateCcw className="h-4 w-4" />
+                            Mirror Video
+                          </label>
+                          <Button
+                            variant={isReversed ? "default" : "outline"}
+                            onClick={() => setIsReversed(!isReversed)}
+                            className="w-full"
+                          >
+                            {isReversed ? 'Mirrored' : 'Mirror Horizontally'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Overlays controls */}
+                    {step === 'overlays' && (
                       <div className="space-y-4">
-                        <div className="flex justify-between text-sm">
-                          <span>Start: {formatTime(trimStart)}</span>
-                          <span>End: {formatTime(trimEnd)}</span>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-sm text-muted-foreground">Start time</label>
-                          <Slider
-                            value={[trimStart]}
-                            min={0}
-                            max={Math.max(0, trimEnd - 1)}
-                            step={0.1}
-                            onValueChange={([value]) => setTrimStart(value)}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-sm text-muted-foreground">End time</label>
-                          <Slider
-                            value={[trimEnd]}
-                            min={trimStart + 1}
-                            max={Math.min(videoDuration, trimStart + 60)}
-                            step={0.1}
-                            onValueChange={([value]) => setTrimEnd(value)}
-                          />
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Type className="h-4 w-4" />
+                            Text & Stickers
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Add text and stickers, then drag to position
+                          </p>
                         </div>
 
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                          <span className="text-sm">Duration</span>
-                          <span className="font-medium">{formatTime(trimEnd - trimStart)}</span>
-                        </div>
+                        <Tabs value={overlayTab} onValueChange={(v) => setOverlayTab(v as 'text' | 'stickers')}>
+                          <TabsList className="w-full">
+                            <TabsTrigger value="text" className="flex-1">
+                              <Type className="h-4 w-4 mr-2" />
+                              Text
+                            </TabsTrigger>
+                            <TabsTrigger value="stickers" className="flex-1">
+                              <Smile className="h-4 w-4 mr-2" />
+                              Stickers
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="text" className="space-y-4 mt-4">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Enter text..."
+                                value={newTextValue}
+                                onChange={(e) => setNewTextValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addTextOverlay()}
+                              />
+                              <Button onClick={addTextOverlay} disabled={!newTextValue.trim()}>
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            {/* Text styling */}
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Color</label>
+                                <div className="flex flex-wrap gap-1">
+                                  {TEXT_COLORS.map((color) => (
+                                    <button
+                                      key={color}
+                                      onClick={() => setTextColor(color)}
+                                      className={cn(
+                                        "w-6 h-6 rounded-full border-2 transition-all",
+                                        textColor === color ? "border-primary scale-110" : "border-transparent"
+                                      )}
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Size: {textFontSize}px</label>
+                                <Slider
+                                  value={[textFontSize]}
+                                  min={12}
+                                  max={48}
+                                  step={2}
+                                  onValueChange={([v]) => setTextFontSize(v)}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Font</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {FONT_FAMILIES.map((font) => (
+                                    <Button
+                                      key={font.id}
+                                      variant={textFontFamily === font.value ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setTextFontFamily(font.value)}
+                                      className="text-xs"
+                                      style={{ fontFamily: font.value }}
+                                    >
+                                      {font.name}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="stickers" className="mt-4">
+                            <div className="grid grid-cols-8 gap-1">
+                              {STICKERS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => addStickerOverlay(emoji)}
+                                  className="w-8 h-8 flex items-center justify-center text-xl hover:bg-muted rounded transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+
+                        {/* Active overlays */}
+                        {overlays.length > 0 && (
+                          <div className="space-y-2 pt-2 border-t">
+                            <label className="text-xs text-muted-foreground">Active overlays</label>
+                            {overlays.map((overlay) => (
+                              <div 
+                                key={overlay.id}
+                                className={cn(
+                                  "flex items-center justify-between p-2 rounded-lg",
+                                  selectedOverlayId === overlay.id ? "bg-primary/10" : "bg-muted/50"
+                                )}
+                                onClick={() => setSelectedOverlayId(overlay.id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Move className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm truncate max-w-[150px]">
+                                    {overlay.type === 'text' ? overlay.text : overlay.emoji}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeOverlay(overlay.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Filter controls */}
-                  {step === 'filter' && (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1 flex items-center gap-2">
-                          <Palette className="h-4 w-4" />
-                          Filters
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Choose a filter for your reel
-                        </p>
-                      </div>
+                    {/* Filter controls */}
+                    {step === 'filter' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            Filters
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Choose a filter for your reel
+                          </p>
+                        </div>
 
-                      <ScrollArea className="h-[280px]">
-                        <div className="grid grid-cols-3 gap-2 pr-4">
+                        <div className="grid grid-cols-3 gap-2">
                           {FILTERS.map((filter) => (
                             <button
                               key={filter.id}
@@ -544,116 +1081,145 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                             </button>
                           ))}
                         </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-
-                  {/* Music controls */}
-                  {step === 'music' && (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1 flex items-center gap-2">
-                          <Music className="h-4 w-4" />
-                          Add Music
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Add background music to your reel
-                        </p>
                       </div>
+                    )}
 
-                      <ScrollArea className="h-[200px]">
-                        <div className="space-y-2 pr-4">
-                          {MUSIC_TRACKS.map((track) => (
-                            <button
+                    {/* Music controls */}
+                    {step === 'music' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Music className="h-4 w-4" />
+                            Add Music
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Add background music to your reel
+                          </p>
+                        </div>
+
+                        {/* Upload music */}
+                        <Button
+                          variant="outline"
+                          onClick={() => musicInputRef.current?.click()}
+                          disabled={uploadingMusic}
+                          className="w-full"
+                        >
+                          {uploadingMusic ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Your Music
+                            </>
+                          )}
+                        </Button>
+
+                        <div className="space-y-2">
+                          {musicTracks.map((track) => (
+                            <div
                               key={track.id}
-                              onClick={() => setSelectedMusic(track.id)}
                               className={cn(
-                                "w-full flex items-center gap-3 p-3 rounded-lg transition-all",
+                                "flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer",
                                 selectedMusic === track.id
                                   ? "bg-primary/10 border border-primary/30"
                                   : "bg-muted/50 hover:bg-muted"
                               )}
+                              onClick={() => setSelectedMusic(track.id)}
                             >
                               <div className={cn(
-                                "w-10 h-10 rounded-full flex items-center justify-center",
+                                "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
                                 selectedMusic === track.id
                                   ? "bg-primary text-white"
                                   : "bg-muted-foreground/20"
                               )}>
                                 <Music className="h-5 w-5" />
                               </div>
-                              <span className="flex-1 text-left font-medium">
+                              <span className="flex-1 text-left font-medium truncate">
                                 {track.name}
                               </span>
+                              {track.isCustom && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 flex-shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteMusic(track);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                               {selectedMusic === track.id && (
-                                <Check className="h-5 w-5 text-primary" />
+                                <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {selectedMusic !== 'none' && (
+                          <div className="space-y-2 pt-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Music Volume</span>
+                              <span>{musicVolume}%</span>
+                            </div>
+                            <Slider
+                              value={[musicVolume]}
+                              min={0}
+                              max={100}
+                              step={5}
+                              onValueChange={([value]) => setMusicVolume(value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Thumbnail controls */}
+                    {step === 'thumbnail' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            Cover Photo
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Choose a thumbnail for your reel
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2">
+                          {thumbnails.map((thumb, i) => (
+                            <button
+                              key={i}
+                              onClick={() => {
+                                setSelectedThumbnail(i);
+                                setCustomThumbnail(null);
+                              }}
+                              className={cn(
+                                "relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all",
+                                selectedThumbnail === i && !customThumbnail
+                                  ? "border-primary ring-2 ring-primary/20"
+                                  : "border-transparent hover:border-border"
+                              )}
+                            >
+                              <img
+                                src={thumb}
+                                alt={`Thumbnail ${i + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              {selectedThumbnail === i && !customThumbnail && (
+                                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                                  <Check className="h-2.5 w-2.5 text-white" />
+                                </div>
                               )}
                             </button>
                           ))}
                         </div>
-                      </ScrollArea>
 
-                      {selectedMusic !== 'none' && (
-                        <div className="space-y-2 pt-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Music Volume</span>
-                            <span>{musicVolume}%</span>
-                          </div>
-                          <Slider
-                            value={[musicVolume]}
-                            min={0}
-                            max={100}
-                            step={5}
-                            onValueChange={([value]) => setMusicVolume(value)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Thumbnail controls */}
-                  {step === 'thumbnail' && (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1 flex items-center gap-2">
-                          <Image className="h-4 w-4" />
-                          Cover Photo
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Choose a thumbnail for your reel
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2">
-                        {thumbnails.map((thumb, i) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              setSelectedThumbnail(i);
-                              setCustomThumbnail(null);
-                            }}
-                            className={cn(
-                              "relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all",
-                              selectedThumbnail === i && !customThumbnail
-                                ? "border-primary ring-2 ring-primary/20"
-                                : "border-transparent hover:border-border"
-                            )}
-                          >
-                            <img
-                              src={thumb}
-                              alt={`Thumbnail ${i + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            {selectedThumbnail === i && !customThumbnail && (
-                              <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                                <Check className="h-2.5 w-2.5 text-white" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="pt-2">
                         <Button
                           variant="outline"
                           onClick={() => thumbnailInputRef.current?.click()}
@@ -662,76 +1228,87 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                           <Upload className="h-4 w-4 mr-2" />
                           Upload Custom Thumbnail
                         </Button>
-                      </div>
 
-                      {customThumbnail && (
-                        <div className="relative w-20 aspect-[9/16] rounded-lg overflow-hidden border-2 border-primary ring-2 ring-primary/20">
-                          <img
-                            src={customThumbnail}
-                            alt="Custom thumbnail"
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            onClick={() => setCustomThumbnail(null)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center"
-                          >
-                            <X className="h-3 w-3 text-white" />
-                          </button>
+                        {customThumbnail && (
+                          <div className="relative w-20 aspect-[9/16] rounded-lg overflow-hidden border-2 border-primary ring-2 ring-primary/20">
+                            <img
+                              src={customThumbnail}
+                              alt="Custom thumbnail"
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              onClick={() => setCustomThumbnail(null)}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive flex items-center justify-center"
+                            >
+                              <X className="h-3 w-3 text-white" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Caption step */}
+                    {step === 'caption' && (
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-medium mb-1 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            Add Caption
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Write a caption for your reel
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  )}
 
-                  {/* Caption step */}
-                  {step === 'caption' && (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1 flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          Add Caption
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Write a caption for your reel
-                        </p>
-                      </div>
+                        <Textarea
+                          placeholder="Write something amazing..."
+                          value={caption}
+                          onChange={(e) => setCaption(e.target.value)}
+                          className="resize-none h-32"
+                          maxLength={2200}
+                        />
+                        
+                        <div className="text-right text-sm text-muted-foreground">
+                          {caption.length}/2200
+                        </div>
 
-                      <Textarea
-                        placeholder="Write something amazing..."
-                        value={caption}
-                        onChange={(e) => setCaption(e.target.value)}
-                        className="resize-none h-32"
-                        maxLength={2200}
-                      />
-                      
-                      <div className="text-right text-sm text-muted-foreground">
-                        {caption.length}/2200
-                      </div>
-
-                      {/* Summary */}
-                      <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-                        <h4 className="font-medium text-sm">Summary</h4>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="text-muted-foreground">Duration:</div>
-                          <div>{formatTime(trimEnd - trimStart)}</div>
-                          <div className="text-muted-foreground">Filter:</div>
-                          <div>{FILTERS.find(f => f.id === selectedFilter)?.name}</div>
-                          <div className="text-muted-foreground">Music:</div>
-                          <div>{MUSIC_TRACKS.find(m => m.id === selectedMusic)?.name}</div>
+                        {/* Summary */}
+                        <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                          <h4 className="font-medium text-sm">Summary</h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-muted-foreground">Duration:</div>
+                            <div>{formatTime(trimEnd - trimStart)}</div>
+                            <div className="text-muted-foreground">Speed:</div>
+                            <div>{playbackSpeed}x</div>
+                            <div className="text-muted-foreground">Overlays:</div>
+                            <div>{overlays.length} items</div>
+                            <div className="text-muted-foreground">Filter:</div>
+                            <div>{FILTERS.find(f => f.id === selectedFilter)?.name}</div>
+                            <div className="text-muted-foreground">Music:</div>
+                            <div className="truncate">{selectedMusicTrack?.name || 'None'}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </ScrollArea>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Hidden inputs */}
+          {/* Hidden inputs and audio */}
           <input
             ref={fileInputRef}
             type="file"
             accept="video/*"
             onChange={handleFileSelect}
+            className="hidden"
+          />
+          <input
+            ref={musicInputRef}
+            type="file"
+            accept="audio/*"
+            onChange={handleMusicUpload}
             className="hidden"
           />
           <input
@@ -742,6 +1319,16 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
             className="hidden"
           />
           <canvas ref={canvasRef} className="hidden" />
+          
+          {/* Background audio for music */}
+          {selectedMusicTrack?.url && (
+            <audio
+              ref={audioRef}
+              src={selectedMusicTrack.url}
+              loop
+              style={{ display: 'none' }}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
