@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMessages, Message } from '@/hooks/useMessages';
+import { useMessageReactions } from '@/hooks/useMessageReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,6 +29,8 @@ import { cn } from '@/lib/utils';
 import CallOverlay from './CallOverlay';
 import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
+import MessageReactionPicker from './MessageReactionPicker';
+import MessageReactions from './MessageReactions';
 
 interface MessageThreadProps {
   conversationId: string;
@@ -55,14 +58,19 @@ export default function MessageThread({
 }: MessageThreadProps) {
   const { user } = useAuth();
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
+  const { toggleReaction, getReactionsForMessage } = useMessageReactions(conversationId);
   const { callState, startCall, answerCall, endCall, toggleAudio, toggleVideo, toggleScreenShare, retryCall } = useWebRTC(conversationId, otherUserId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<'left' | 'right'>('left');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   // Derive active call type from callState session
   const activeCallType = callState.session?.call_type || null;
@@ -196,6 +204,30 @@ export default function MessageThread({
     await endCall();
   };
 
+  // Long press handlers for reactions
+  const handleLongPressStart = useCallback((messageId: string, isOwn: boolean) => {
+    longPressTriggeredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setSelectedMessageId(messageId);
+      setReactionPickerPosition(isOwn ? 'right' : 'left');
+    }, 500);
+  }, []);
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleReactionSelect = async (emoji: string) => {
+    if (selectedMessageId) {
+      await toggleReaction(selectedMessageId, emoji);
+      setSelectedMessageId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col h-full glass-premium">
@@ -321,6 +353,7 @@ export default function MessageThread({
                   const showAvatar =
                     !isOwn &&
                     (idx === 0 || group.messages[idx - 1].sender_id !== message.sender_id);
+                  const messageReactions = getReactionsForMessage(message.id);
 
                   return (
                     <div
@@ -342,43 +375,72 @@ export default function MessageThread({
                           )}
                         </div>
                       )}
-                      <div
-                        className={cn(
-                          'max-w-[70%] rounded-2xl transition-all',
-                          isGifUrl(message.content) ? 'p-1' : 'px-4 py-3',
-                          isOwn
-                            ? 'message-own text-white rounded-br-md'
-                            : 'message-other rounded-bl-md'
-                        )}
-                      >
-                        {isGifUrl(message.content) ? (
-                          <img 
-                            src={message.content.trim()} 
-                            alt="GIF" 
-                            className="max-w-full rounded-xl max-h-64 object-contain"
-                            loading="lazy"
+                      <div className="relative max-w-[70%]">
+                        {/* Reaction picker */}
+                        {selectedMessageId === message.id && (
+                          <MessageReactionPicker
+                            onSelect={handleReactionSelect}
+                            onClose={() => setSelectedMessageId(null)}
+                            position={reactionPickerPosition}
                           />
-                        ) : (
-                          <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
                         )}
-                        <div className={cn(
-                          'flex items-center gap-1.5 mt-1.5',
-                          isOwn ? 'justify-end' : 'justify-start'
-                        )}>
-                          <span className={cn(
-                            'text-[11px]',
-                            isOwn ? 'text-white/70' : 'text-muted-foreground'
-                          )}>
-                            {formatMessageTime(message.created_at)}
-                          </span>
-                          {isOwn && (
-                            isMessageRead(message) ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-white/70" />
-                            ) : (
-                              <Check className="h-3.5 w-3.5 text-white/70" />
-                            )
+                        
+                        <div
+                          className={cn(
+                            'rounded-2xl transition-all cursor-pointer select-none',
+                            isGifUrl(message.content) ? 'p-1' : 'px-4 py-3',
+                            isOwn
+                              ? 'message-own text-white rounded-br-md'
+                              : 'message-other rounded-bl-md',
+                            selectedMessageId === message.id && 'ring-2 ring-primary/50'
                           )}
+                          onMouseDown={() => handleLongPressStart(message.id, isOwn)}
+                          onMouseUp={handleLongPressEnd}
+                          onMouseLeave={handleLongPressEnd}
+                          onTouchStart={() => handleLongPressStart(message.id, isOwn)}
+                          onTouchEnd={handleLongPressEnd}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setSelectedMessageId(message.id);
+                            setReactionPickerPosition(isOwn ? 'right' : 'left');
+                          }}
+                        >
+                          {isGifUrl(message.content) ? (
+                            <img 
+                              src={message.content.trim()} 
+                              alt="GIF" 
+                              className="max-w-full rounded-xl max-h-64 object-contain pointer-events-none"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
+                          )}
+                          <div className={cn(
+                            'flex items-center gap-1.5 mt-1.5',
+                            isOwn ? 'justify-end' : 'justify-start'
+                          )}>
+                            <span className={cn(
+                              'text-[11px]',
+                              isOwn ? 'text-white/70' : 'text-muted-foreground'
+                            )}>
+                              {formatMessageTime(message.created_at)}
+                            </span>
+                            {isOwn && (
+                              isMessageRead(message) ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-white/70" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 text-white/70" />
+                              )
+                            )}
+                          </div>
                         </div>
+                        
+                        {/* Reactions display */}
+                        <MessageReactions
+                          reactions={messageReactions}
+                          isOwn={isOwn}
+                          onToggle={(emoji) => toggleReaction(message.id, emoji)}
+                        />
                       </div>
                     </div>
                   );
