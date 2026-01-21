@@ -49,73 +49,54 @@ export default function FollowersFollowingModal({
       setLoading(true);
       
       try {
+        let userIds: string[] = [];
+        
         if (type === 'followers') {
           // Get users who follow this profile
-          const { data, error } = await supabase
+          const { data: followsData, error: followsError } = await supabase
             .from('follows')
-            .select(`
-              follower_id,
-              profiles!follows_follower_id_fkey (
-                user_id,
-                username,
-                display_name,
-                avatar_url,
-                is_verified,
-                privacy
-              )
-            `)
+            .select('follower_id')
             .eq('following_id', userId)
             .eq('status', 'accepted');
 
-          if (error) throw error;
-
-          const userList: UserItem[] = (data || [])
-            .map((f: any) => f.profiles)
-            .filter(Boolean)
-            .map((p: any) => ({
-              user_id: p.user_id,
-              username: p.username,
-              display_name: p.display_name,
-              avatar_url: p.avatar_url,
-              is_verified: p.is_verified || false,
-              privacy: p.privacy || 'public',
-            }));
-
-          setUsers(userList);
+          if (followsError) throw followsError;
+          userIds = (followsData || []).map(f => f.follower_id);
         } else {
           // Get users this profile follows
-          const { data, error } = await supabase
+          const { data: followsData, error: followsError } = await supabase
             .from('follows')
-            .select(`
-              following_id,
-              profiles!follows_following_id_fkey (
-                user_id,
-                username,
-                display_name,
-                avatar_url,
-                is_verified,
-                privacy
-              )
-            `)
+            .select('following_id')
             .eq('follower_id', userId)
             .eq('status', 'accepted');
 
-          if (error) throw error;
-
-          const userList: UserItem[] = (data || [])
-            .map((f: any) => f.profiles)
-            .filter(Boolean)
-            .map((p: any) => ({
-              user_id: p.user_id,
-              username: p.username,
-              display_name: p.display_name,
-              avatar_url: p.avatar_url,
-              is_verified: p.is_verified || false,
-              privacy: p.privacy || 'public',
-            }));
-
-          setUsers(userList);
+          if (followsError) throw followsError;
+          userIds = (followsData || []).map(f => f.following_id);
         }
+
+        if (userIds.length === 0) {
+          setUsers([]);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch profiles for these users
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, username, display_name, avatar_url, is_verified, privacy')
+          .in('user_id', userIds);
+
+        if (profilesError) throw profilesError;
+
+        const userList: UserItem[] = (profiles || []).map((p: any) => ({
+          user_id: p.user_id,
+          username: p.username,
+          display_name: p.display_name,
+          avatar_url: p.avatar_url,
+          is_verified: p.is_verified || false,
+          privacy: p.privacy || 'public',
+        }));
+
+        setUsers(userList);
       } catch (error) {
         console.error('Error fetching users:', error);
         setUsers([]);

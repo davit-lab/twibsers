@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReels, useReelComments } from '@/hooks/useReels';
+import { useStories } from '@/hooks/useStories';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Heart, 
@@ -25,20 +32,30 @@ import {
   Plus,
   Loader2,
   Home,
-  BadgeCheck
+  BadgeCheck,
+  BookmarkCheck,
+  Copy,
+  Flag,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Reels() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const { reels, loading, refreshing, error, refetch, currentIndex, setCurrentIndex, likeReel, incrementView } = useReels();
+  const { uploadStory } = useStories();
   const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
+  const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
+  const [sharingToStory, setSharingToStory] = useState(false);
+  const [likeAnimation, setLikeAnimation] = useState<string | null>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -158,6 +175,50 @@ export default function Reels() {
 
   const handleDoubleTap = (reelId: string) => {
     likeReel(reelId);
+    setLikeAnimation(reelId);
+    setTimeout(() => setLikeAnimation(null), 1000);
+  };
+
+  const handleSaveReel = (reelId: string) => {
+    setSavedReels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(reelId)) {
+        newSet.delete(reelId);
+        toast({ title: 'Removed from saved' });
+      } else {
+        newSet.add(reelId);
+        toast({ title: 'Saved to collection ✨' });
+      }
+      return newSet;
+    });
+  };
+
+  const handleShareToStory = async (reel: typeof reels[0]) => {
+    if (!user) {
+      toast({ title: 'Sign in required', description: 'Please sign in to share to your story.' });
+      return;
+    }
+    
+    setSharingToStory(true);
+    try {
+      // Get the video thumbnail or first frame as story
+      const response = await fetch(reel.thumbnail_url || reel.video_url);
+      const blob = await response.blob();
+      const file = new File([blob], 'reel-share.jpg', { type: 'image/jpeg' });
+      
+      await uploadStory(file, `Check out this reel by @${reel.profile?.username}! 🎬`);
+      toast({ title: 'Shared to your story! 🎉', description: 'Your followers can now see this reel.' });
+    } catch (error) {
+      console.error('Failed to share to story:', error);
+      toast({ variant: 'destructive', title: 'Failed to share', description: 'Could not share this reel to your story.' });
+    } finally {
+      setSharingToStory(false);
+    }
+  };
+
+  const handleCopyLink = (reelId: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/reels/${reelId}`);
+    toast({ title: 'Link copied! 📋' });
   };
 
   const openComments = (reelId: string) => {
@@ -336,88 +397,160 @@ export default function Reels() {
               )}
             </div>
 
-            {/* Right side actions */}
-            <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6">
+            {/* Right side actions - Enhanced */}
+            <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5">
               {/* Like */}
               <button 
                 onClick={() => likeReel(reel.id)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-1 group"
               >
                 <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center transition-all",
-                  reel.is_liked ? "bg-destructive/20" : "bg-white/10 hover:bg-white/20"
+                  "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm",
+                  reel.is_liked 
+                    ? "bg-gradient-to-br from-rose-500/30 to-pink-500/30 shadow-lg shadow-rose-500/20" 
+                    : "bg-white/10 hover:bg-white/20 hover:scale-110"
                 )}>
                   <Heart className={cn(
-                    "h-6 w-6 transition-all",
-                    reel.is_liked ? "text-destructive fill-destructive scale-110" : "text-white"
+                    "h-6 w-6 transition-all duration-300",
+                    reel.is_liked ? "text-rose-500 fill-rose-500 scale-110" : "text-white group-hover:scale-110"
                   )} />
                 </div>
-                <span className="text-white text-xs font-medium">{reel.like_count}</span>
+                <span className={cn(
+                  "text-xs font-semibold transition-colors",
+                  reel.is_liked ? "text-rose-400" : "text-white"
+                )}>{reel.like_count}</span>
               </button>
 
               {/* Comment */}
               <button 
                 onClick={() => openComments(reel.id)}
-                className="flex flex-col items-center gap-1"
+                className="flex flex-col items-center gap-1 group"
               >
-                <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-                  <MessageCircle className="h-6 w-6 text-white" />
+                <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <MessageCircle className="h-6 w-6 text-white group-hover:text-primary transition-colors" />
                 </div>
-                <span className="text-white text-xs font-medium">{reel.comment_count}</span>
+                <span className="text-white text-xs font-semibold">{reel.comment_count}</span>
               </button>
 
-              {/* Share */}
-              <button className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-                  <Share2 className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-white text-xs font-medium">{reel.share_count}</span>
-              </button>
+              {/* Share Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex flex-col items-center gap-1 group">
+                    <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all duration-300 hover:scale-110">
+                      <Share2 className="h-6 w-6 text-white group-hover:text-accent transition-colors" />
+                    </div>
+                    <span className="text-white text-xs font-semibold">{reel.share_count}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 glass-premium">
+                  <DropdownMenuItem 
+                    onClick={() => handleShareToStory(reel)}
+                    disabled={sharingToStory}
+                    className="gap-3"
+                  >
+                    {sharingToStory ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 text-primary" />
+                    )}
+                    Share to Story
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleCopyLink(reel.id)} className="gap-3">
+                    <Copy className="h-4 w-4" />
+                    Copy Link
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Bookmark */}
-              <button className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-                  <Bookmark className="h-5 w-5 text-white" />
+              <button 
+                onClick={() => handleSaveReel(reel.id)}
+                className="flex flex-col items-center gap-1 group"
+              >
+                <div className={cn(
+                  "w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-300 hover:scale-110",
+                  savedReels.has(reel.id) 
+                    ? "bg-gradient-to-br from-amber-500/30 to-orange-500/30" 
+                    : "bg-white/10 hover:bg-white/20"
+                )}>
+                  {savedReels.has(reel.id) ? (
+                    <BookmarkCheck className="h-5 w-5 text-amber-400 fill-amber-400" />
+                  ) : (
+                    <Bookmark className="h-5 w-5 text-white group-hover:text-amber-300 transition-colors" />
+                  )}
                 </div>
               </button>
 
-              {/* More */}
-              <button>
-                <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-                  <MoreHorizontal className="h-5 w-5 text-white" />
+              {/* More Options */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="group">
+                    <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all duration-300 hover:scale-110">
+                      <MoreHorizontal className="h-5 w-5 text-white" />
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 glass-premium">
+                  <DropdownMenuItem className="gap-3">
+                    <Flag className="h-4 w-4" />
+                    Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Audio disc */}
+              {reel.audio_name && (
+                <div className="mt-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent p-0.5 animate-spin-slow">
+                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+                      <Music2 className="h-4 w-4 text-white" />
+                    </div>
+                  </div>
                 </div>
-              </button>
+              )}
             </div>
+
+            {/* Double-tap like animation */}
+            {likeAnimation === reel.id && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <Heart className="h-32 w-32 text-rose-500 fill-rose-500 animate-ping-once" />
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Top navigation */}
+      {/* Top navigation - Enhanced */}
       <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10">
         <Link to="/">
-          <Button variant="ghost" size="icon" className="rounded-full bg-black/30 text-white hover:bg-black/50">
+          <Button variant="ghost" size="icon" className="rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 border border-white/10">
             <X className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-white font-display font-bold text-lg">Reels</h1>
+        
+        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10">
+          <Zap className="h-4 w-4 text-primary" />
+          <h1 className="text-white font-display font-bold">Reels</h1>
+        </div>
+        
         <Button
           variant="ghost"
           size="icon"
           onClick={() => refetch()}
-          className="rounded-full bg-black/30 text-white hover:bg-black/50"
+          className="rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 border border-white/10"
           disabled={refreshing}
         >
           {refreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
         </Button>
       </div>
 
-      {/* Volume control */}
+      {/* Volume control - Enhanced */}
       <button 
         onClick={() => setMuted(!muted)}
-        className="absolute top-20 right-4 z-10 w-10 h-10 rounded-full bg-black/30 flex items-center justify-center"
+        className="absolute top-20 right-4 z-10 w-11 h-11 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-black/60 transition-all"
       >
         {muted ? (
-          <VolumeX className="h-5 w-5 text-white" />
+          <VolumeX className="h-5 w-5 text-white/70" />
         ) : (
           <Volume2 className="h-5 w-5 text-white" />
         )}
