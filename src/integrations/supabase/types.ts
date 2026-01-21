@@ -1056,6 +1056,42 @@ export type Database = {
           },
         ]
       }
+      user_bans: {
+        Row: {
+          banned_at: string
+          banned_by: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          reason: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          banned_at?: string
+          banned_by: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          banned_at?: string
+          banned_by?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_library: {
         Row: {
           added_at: string
@@ -1171,6 +1207,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_active_ban: {
+        Args: { _user_id: string }
+        Returns: {
+          expires_at: string
+          reason: string
+        }[]
+      }
       get_follower_count: { Args: { _user_id: string }; Returns: number }
       get_following_count: { Args: { _user_id: string }; Returns: number }
       get_or_create_dm_conversation: {
@@ -1199,6 +1242,7 @@ export type Database = {
         Args: { post_row: Database["public"]["Tables"]["posts"]["Row"] }
         Returns: boolean
       }
+      is_user_banned: { Args: { _user_id: string }; Returns: boolean }
       is_verified_author: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
