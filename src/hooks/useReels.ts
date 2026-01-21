@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface Reel {
   id: string;
@@ -46,36 +47,37 @@ export interface ReelComment {
 export function useReels() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [reels, setReels] = useState<Reel[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const queryClient = useQueryClient();
 
-  const fetchReels = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const { data: reelsData, error } = await supabase
+  const queryKey = ['reels', user?.id ?? null];
+
+  const {
+    data: reels = [],
+    isLoading: loading,
+    isFetching: refreshing,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const { data: reelsData, error: reelsError } = await supabase
         .from('reels')
         .select('*')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) {
-        console.error('[Reels] Fetch error:', error);
-        throw error;
+      if (reelsError) {
+        console.error('[Reels] Fetch error:', reelsError);
+        throw reelsError;
       }
 
       console.log('[Reels] Fetched reels count:', reelsData?.length || 0);
-
-      if (!reelsData || reelsData.length === 0) {
-        setReels([]);
-        setLoading(false);
-        return;
-      }
+      if (!reelsData || reelsData.length === 0) return [] as Reel[];
 
       // Fetch profiles for each reel
-      const userIds = [...new Set(reelsData.map(r => r.user_id))];
+      const userIds = [...new Set(reelsData.map((r: any) => r.user_id))];
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('user_id, username, display_name, avatar_url, is_verified')
@@ -92,12 +94,18 @@ export function useReels() {
           .from('reel_likes')
           .select('reel_id')
           .eq('user_id', user.id);
-        userLikes = (likesData || []).map(l => l.reel_id);
+        userLikes = (likesData || []).map((l: any) => l.reel_id);
       }
 
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
-      const enrichedReels = reelsData.map(reel => ({
+      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      const enrichedReels = reelsData.map((reel: any) => ({
         ...reel,
+        duration: reel.duration ?? 0,
+        view_count: reel.view_count ?? 0,
+        like_count: reel.like_count ?? 0,
+        comment_count: reel.comment_count ?? 0,
+        share_count: reel.share_count ?? 0,
+        is_published: reel.is_published ?? true,
         profile: profileMap.get(reel.user_id) || {
           username: 'unknown',
           display_name: 'Unknown User',
@@ -108,18 +116,10 @@ export function useReels() {
       })) as Reel[];
 
       console.log('[Reels] Enriched reels:', enrichedReels.length);
-      setReels(enrichedReels);
-    } catch (error) {
-      console.error('Error fetching reels:', error);
-      setReels([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchReels();
-  }, [fetchReels]);
+      return enrichedReels;
+    },
+    staleTime: 10_000,
+  });
 
   const likeReel = async (reelId: string) => {
     if (!user) {
@@ -131,10 +131,10 @@ export function useReels() {
       return;
     }
 
-    const reel = reels.find(r => r.id === reelId);
-    if (!reel) return;
-
     try {
+      const reel = reels.find(r => r.id === reelId);
+      if (!reel) return;
+
       if (reel.is_liked) {
         await supabase
           .from('reel_likes')
@@ -147,15 +147,8 @@ export function useReels() {
           .insert({ reel_id: reelId, user_id: user.id });
       }
 
-      setReels(reels.map(r => 
-        r.id === reelId 
-          ? { 
-              ...r, 
-              is_liked: !r.is_liked, 
-              like_count: r.is_liked ? r.like_count - 1 : r.like_count + 1 
-            }
-          : r
-      ));
+      // Keep all screens in sync (Reels page + creator) by invalidating the shared query.
+      await queryClient.invalidateQueries({ queryKey: ['reels'] });
     } catch (error: any) {
       console.error('Error liking reel:', error);
     }
@@ -180,15 +173,29 @@ export function useReels() {
     }
   };
 
+  type UploadReelOptions = {
+    audioName?: string | null;
+    audioUrl?: string | null;
+    duration?: number;
+    isPublished?: boolean;
+  };
+
   const uploadReel = async (
     file: File,
     caption: string,
-    onProgress?: (progress: number) => void
+    optionsOrProgress?: UploadReelOptions | ((progress: number) => void),
+    maybeProgress?: (progress: number) => void
   ) => {
     if (!user) throw new Error('Not authenticated');
 
+    const options: UploadReelOptions =
+      typeof optionsOrProgress === 'function' ? {} : (optionsOrProgress ?? {});
+    const onProgress = typeof optionsOrProgress === 'function' ? optionsOrProgress : maybeProgress;
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+    onProgress?.(5);
 
     // Upload video
     const { error: uploadError } = await supabase.storage
@@ -199,6 +206,8 @@ export function useReels() {
       });
 
     if (uploadError) throw uploadError;
+
+    onProgress?.(70);
 
     const { data: urlData } = supabase.storage
       .from('reels')
@@ -211,26 +220,33 @@ export function useReels() {
         user_id: user.id,
         video_url: urlData.publicUrl,
         caption,
-        duration: 0, // Would need video duration detection
+        duration: options.duration ?? 0,
+        is_published: options.isPublished ?? true,
+        audio_name: options.audioName ?? null,
+        audio_url: options.audioUrl ?? null,
       })
       .select()
       .single();
 
     if (insertError) throw insertError;
 
-    await fetchReels();
+    onProgress?.(95);
+    await queryClient.invalidateQueries({ queryKey: ['reels'] });
+    onProgress?.(100);
     return reel;
   };
 
   return {
     reels,
     loading,
+    refreshing,
+    error: error ? (error as any).message ?? String(error) : null,
     currentIndex,
     setCurrentIndex,
     likeReel,
     incrementView,
     uploadReel,
-    refetch: fetchReels,
+    refetch,
   };
 }
 

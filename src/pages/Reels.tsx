@@ -34,7 +34,7 @@ import { format } from 'date-fns';
 export default function Reels() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const { reels, loading, currentIndex, setCurrentIndex, likeReel, incrementView } = useReels();
+  const { reels, loading, refreshing, error, refetch, currentIndex, setCurrentIndex, likeReel, incrementView } = useReels();
   const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -149,6 +149,25 @@ export default function Reels() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white px-6 text-center">
+        <h2 className="text-2xl font-display font-bold mb-2">Reels not loading</h2>
+        <p className="text-white/70 mb-6 max-w-md">{error}</p>
+        <Button className="btn-gradient" onClick={() => refetch()} disabled={refreshing}>
+          {refreshing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Refreshing...
+            </>
+          ) : (
+            'Try again'
+          )}
+        </Button>
+      </div>
+    );
+  }
+
   if (reels.length === 0) {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-gray-900 via-purple-900/50 to-gray-900 flex flex-col items-center justify-center text-white">
@@ -179,15 +198,16 @@ export default function Reels() {
             <Button 
               className="btn-gradient gap-2 px-6" 
               onClick={() => {
-                // Would open upload dialog
-                toast({
-                  title: "Coming soon! 🚀",
-                  description: "Upload feature will be available soon.",
-                });
+                refetch();
               }}
+              disabled={refreshing}
             >
-              <Plus className="h-5 w-5" />
-              Create Reel
+              {refreshing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Plus className="h-5 w-5" />
+              )}
+              Refresh
             </Button>
             <Link to="/">
               <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10">
@@ -352,8 +372,14 @@ export default function Reels() {
           </Button>
         </Link>
         <h1 className="text-white font-display font-bold text-lg">Reels</h1>
-        <Button variant="ghost" size="icon" className="rounded-full bg-black/30 text-white hover:bg-black/50">
-          <Plus className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => refetch()}
+          className="rounded-full bg-black/30 text-white hover:bg-black/50"
+          disabled={refreshing}
+        >
+          {refreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
         </Button>
       </div>
 
