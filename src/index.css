@@ -283,6 +283,25 @@
     box-shadow: 0 6px 25px hsl(var(--call-end) / 0.5);
   }
 
+  .btn-call-accept {
+    @apply relative rounded-full p-3 transition-all duration-300;
+    background: linear-gradient(135deg, 
+      hsl(var(--call-active)), 
+      hsl(175 80% 45%)
+    );
+    box-shadow: 0 4px 20px hsl(var(--call-active) / 0.4);
+  }
+
+  .btn-call-accept:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px hsl(var(--call-active) / 0.5);
+  }
+
+  /* Video mirror effect for self-view */
+  .mirror {
+    transform: scaleX(-1);
+  }
+
   /* Glow effect on hover */
   .hover-glow {
     @apply transition-all duration-300;

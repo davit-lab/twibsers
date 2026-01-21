@@ -59,6 +59,65 @@ export type Database = {
         }
         Relationships: []
       }
+      call_sessions: {
+        Row: {
+          call_type: string
+          caller_ice_candidates: Json | null
+          caller_id: string
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          receiver_ice_candidates: Json | null
+          receiver_id: string
+          sdp_answer: string | null
+          sdp_offer: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          call_type: string
+          caller_ice_candidates?: Json | null
+          caller_id: string
+          conversation_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_ice_candidates?: Json | null
+          receiver_id: string
+          sdp_answer?: string | null
+          sdp_offer?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          call_type?: string
+          caller_ice_candidates?: Json | null
+          caller_id?: string
+          conversation_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_ice_candidates?: Json | null
+          receiver_id?: string
+          sdp_answer?: string | null
+          sdp_offer?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           book_id: string

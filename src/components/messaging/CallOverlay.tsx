@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CallState } from '@/hooks/useWebRTC';
 
 interface CallOverlayProps {
   type: 'audio' | 'video';
@@ -23,34 +24,58 @@ interface CallOverlayProps {
     username: string;
     avatar_url: string | null;
   };
+  callState: CallState;
   onEnd: () => void;
+  onToggleAudio: () => boolean;
+  onToggleVideo: () => boolean;
 }
 
-export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
+export default function CallOverlay({ 
+  type, 
+  user, 
+  callState,
+  onEnd, 
+  onToggleAudio,
+  onToggleVideo,
+}: CallOverlayProps) {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSpeakerOff, setIsSpeakerOff] = useState(false);
-  const [callState, setCallState] = useState<'calling' | 'connected'>('calling');
+  
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
+  // Attach local stream to video element
   useEffect(() => {
-    // Simulate call connection after 2 seconds
-    const connectTimer = setTimeout(() => {
-      setCallState('connected');
-    }, 2000);
+    if (localVideoRef.current && callState.localStream) {
+      localVideoRef.current.srcObject = callState.localStream;
+    }
+  }, [callState.localStream]);
 
-    return () => clearTimeout(connectTimer);
-  }, []);
-
+  // Attach remote stream to video/audio element
   useEffect(() => {
-    if (callState !== 'connected') return;
+    if (callState.remoteStream) {
+      if (type === 'video' && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = callState.remoteStream;
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = callState.remoteStream;
+      }
+    }
+  }, [callState.remoteStream, type]);
+
+  // Call duration timer
+  useEffect(() => {
+    if (!callState.isConnected) return;
 
     const interval = setInterval(() => {
       setDuration(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [callState]);
+  }, [callState.isConnected]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -62,8 +87,38 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
   };
 
+  const handleToggleAudio = () => {
+    const muted = onToggleAudio();
+    setIsMuted(muted);
+  };
+
+  const handleToggleVideo = () => {
+    const videoOff = onToggleVideo();
+    setIsVideoOff(videoOff);
+  };
+
+  const handleToggleSpeaker = () => {
+    setIsSpeakerOff(!isSpeakerOff);
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = !isSpeakerOff;
+    }
+  };
+
+  const getCallStatus = () => {
+    if (callState.error) return callState.error;
+    if (callState.isConnecting) {
+      if (callState.session?.status === 'ringing') return 'Ringing...';
+      return 'Connecting...';
+    }
+    if (callState.isConnected) return formatDuration(duration);
+    return 'Starting call...';
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Hidden audio element for remote audio */}
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a2e] via-[#16082a] to-[#0d0618]">
         {/* Animated gradient orbs */}
@@ -72,12 +127,19 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px]" />
       </div>
 
-      {/* Video preview (if video call) */}
+      {/* Video call UI */}
       {type === 'video' && (
         <>
-          {/* Other user's video (placeholder) */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {callState === 'calling' ? (
+          {/* Remote video (full screen) */}
+          {callState.remoteStream ? (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
                 <div className="relative inline-block mb-6">
                   <Avatar className="h-32 w-32 ring-4 ring-primary/30 ring-offset-4 ring-offset-transparent">
@@ -86,31 +148,29 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
                       {getInitials(user.display_name)}
                     </AvatarFallback>
                   </Avatar>
-                  {/* Pulsing rings */}
-                  <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/50" />
-                  <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/30" style={{ animationDelay: '0.5s' }} />
+                  {callState.isConnecting && (
+                    <>
+                      <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/50" />
+                      <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/30" style={{ animationDelay: '0.5s' }} />
+                    </>
+                  )}
                 </div>
                 <h2 className="text-2xl font-display font-semibold text-white mb-2">{user.display_name}</h2>
-                <p className="text-white/60 animate-pulse">Calling...</p>
+                <p className="text-white/60">{getCallStatus()}</p>
               </div>
-            ) : (
-              <div className="text-white/40 text-center">
-                <Video className="h-20 w-20 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">Camera preview</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Self video preview */}
-          {callState === 'connected' && !isVideoOff && (
+          {/* Local video preview (picture-in-picture) */}
+          {callState.localStream && !isVideoOff && (
             <div className="absolute bottom-32 right-6 w-40 h-56 rounded-2xl overflow-hidden glass-premium border border-white/10 shadow-glow">
-              <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/20 flex items-center justify-center">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-xl">
-                    You
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover mirror"
+              />
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -133,30 +193,33 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
                 {getInitials(user.display_name)}
               </AvatarFallback>
             </Avatar>
-            {callState === 'calling' && (
+            {callState.isConnecting && (
               <>
                 <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/50" />
                 <div className="absolute inset-0 rounded-full animate-ring-pulse border-2 border-primary/30" style={{ animationDelay: '0.5s' }} />
               </>
             )}
-            {callState === 'connected' && (
+            {callState.isConnected && (
               <div className="absolute bottom-0 right-0 w-6 h-6 bg-online rounded-full border-4 border-[#1a0a2e] shadow-[0_0_15px_hsl(160_70%_45%/0.5)]" />
             )}
           </div>
           <h2 className="text-3xl font-display font-semibold text-white mb-2">{user.display_name}</h2>
-          <p className="text-white/60 text-lg">
-            {callState === 'calling' ? 'Calling...' : formatDuration(duration)}
-          </p>
+          <p className="text-white/60 text-lg">{getCallStatus()}</p>
         </div>
       )}
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-20">
         <div className="flex items-center gap-4">
-          {type === 'video' && callState === 'connected' && (
+          {callState.isConnected && (
             <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full">
               <div className="w-2 h-2 bg-online rounded-full animate-pulse" />
               <span className="text-white font-medium">{formatDuration(duration)}</span>
+            </div>
+          )}
+          {callState.error && (
+            <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full border border-destructive/50">
+              <span className="text-destructive font-medium">{callState.error}</span>
             </div>
           )}
         </div>
@@ -177,7 +240,7 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsMuted(!isMuted)}
+            onClick={handleToggleAudio}
             className={cn(
               "rounded-full h-14 w-14 transition-all duration-300",
               isMuted 
@@ -193,7 +256,7 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsVideoOff(!isVideoOff)}
+              onClick={handleToggleVideo}
               className={cn(
                 "rounded-full h-14 w-14 transition-all duration-300",
                 isVideoOff 
@@ -217,7 +280,7 @@ export default function CallOverlay({ type, user, onEnd }: CallOverlayProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsSpeakerOff(!isSpeakerOff)}
+            onClick={handleToggleSpeaker}
             className={cn(
               "rounded-full h-14 w-14 transition-all duration-300",
               isSpeakerOff 

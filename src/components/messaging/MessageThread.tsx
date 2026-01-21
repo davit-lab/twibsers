@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMessages, Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWebRTC } from '@/hooks/useWebRTC';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ interface MessageThreadProps {
     avatar_url: string | null;
     is_verified: boolean;
   };
+  otherUserId: string;
   onBack?: () => void;
   lastReadAt?: string | null;
 }
@@ -40,15 +42,17 @@ interface MessageThreadProps {
 export default function MessageThread({
   conversationId,
   otherUser,
+  otherUserId,
   onBack,
   lastReadAt,
 }: MessageThreadProps) {
   const { user } = useAuth();
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
+  const { callState, startCall, endCall, toggleAudio, toggleVideo } = useWebRTC(conversationId, otherUserId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
-  const [callType, setCallType] = useState<'audio' | 'video' | null>(null);
+  const [activeCallType, setActiveCallType] = useState<'audio' | 'video' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -128,12 +132,14 @@ export default function MessageThread({
     return new Date(message.created_at) <= new Date(lastReadAt);
   };
 
-  const startCall = (type: 'audio' | 'video') => {
-    setCallType(type);
+  const handleStartCall = async (type: 'audio' | 'video') => {
+    setActiveCallType(type);
+    await startCall(type);
   };
 
-  const endCall = () => {
-    setCallType(null);
+  const handleEndCall = async () => {
+    await endCall();
+    setActiveCallType(null);
   };
 
   if (loading) {
@@ -158,11 +164,14 @@ export default function MessageThread({
 
   return (
     <>
-      {callType && (
+      {activeCallType && (
         <CallOverlay 
-          type={callType} 
+          type={activeCallType} 
           user={otherUser} 
-          onEnd={endCall} 
+          callState={callState}
+          onEnd={handleEndCall}
+          onToggleAudio={toggleAudio}
+          onToggleVideo={toggleVideo}
         />
       )}
       
@@ -208,7 +217,7 @@ export default function MessageThread({
               variant="ghost" 
               size="icon" 
               className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-              onClick={() => startCall('audio')}
+              onClick={() => handleStartCall('audio')}
             >
               <Phone className="h-5 w-5" />
             </Button>
@@ -216,7 +225,7 @@ export default function MessageThread({
               variant="ghost" 
               size="icon" 
               className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-              onClick={() => startCall('video')}
+              onClick={() => handleStartCall('video')}
             >
               <Video className="h-5 w-5" />
             </Button>
