@@ -33,6 +33,7 @@ import { format } from 'date-fns';
 
 export default function Reels() {
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const { reels, loading, currentIndex, setCurrentIndex, likeReel, incrementView } = useReels();
   const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -150,16 +151,52 @@ export default function Reels() {
 
   if (reels.length === 0) {
     return (
-      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white">
-        <Music2 className="h-16 w-16 mb-4 opacity-50" />
-        <h2 className="text-xl font-semibold mb-2">No Reels Yet</h2>
-        <p className="text-white/60 mb-6">Be the first to create a reel!</p>
-        <Link to="/">
-          <Button variant="outline" className="gap-2">
-            <Home className="h-4 w-4" />
-            Go Home
-          </Button>
-        </Link>
+      <div className="h-screen w-full bg-gradient-to-br from-gray-900 via-purple-900/50 to-gray-900 flex flex-col items-center justify-center text-white">
+        {/* Animated background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        </div>
+        
+        <div className="relative z-10 text-center px-6">
+          <div className="relative mb-6">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mx-auto shadow-2xl shadow-purple-500/30">
+              <Music2 className="h-12 w-12 text-white" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-sm animate-bounce">
+              ✨
+            </div>
+          </div>
+          
+          <h2 className="text-3xl font-display font-bold mb-3 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+            No Reels Yet 🎬
+          </h2>
+          <p className="text-white/70 mb-8 max-w-sm mx-auto">
+            Be the first to share amazing short videos with the community!
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              className="btn-gradient gap-2 px-6" 
+              onClick={() => {
+                // Would open upload dialog
+                toast({
+                  title: "Coming soon! 🚀",
+                  description: "Upload feature will be available soon.",
+                });
+              }}
+            >
+              <Plus className="h-5 w-5" />
+              Create Reel
+            </Button>
+            <Link to="/">
+              <Button variant="outline" className="gap-2 border-white/20 text-white hover:bg-white/10">
+                <Home className="h-4 w-4" />
+                Go Home
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

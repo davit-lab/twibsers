@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from 'next-themes';
 
 export interface UserPreferences {
   id?: string;
@@ -40,17 +41,12 @@ const defaultPreferences: Omit<UserPreferences, 'user_id'> = {
 export function useUserPreferences() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { setTheme } = useTheme();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchPreferences();
-    }
-  }, [user]);
-
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -66,6 +62,16 @@ export function useUserPreferences() {
 
       if (data) {
         setPreferences(data as UserPreferences);
+        // Apply theme from preferences
+        if (data.theme) {
+          setTheme(data.theme);
+        }
+        // Apply font size
+        applyFontSize(data.font_size);
+        // Apply accent color
+        applyAccentColor(data.color_accent);
+        // Apply accessibility settings
+        applyAccessibilitySettings(data);
       } else {
         // Create default preferences
         const newPreferences = { ...defaultPreferences, user_id: user.id };
@@ -83,10 +89,78 @@ export function useUserPreferences() {
     } finally {
       setLoading(false);
     }
+  }, [user, setTheme]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPreferences();
+    } else {
+      setLoading(false);
+    }
+  }, [user, fetchPreferences]);
+
+  const applyFontSize = (size: string) => {
+    const root = document.documentElement;
+    const sizes: Record<string, string> = {
+      small: '14px',
+      medium: '16px',
+      large: '18px',
+      xlarge: '20px',
+    };
+    root.style.setProperty('--base-font-size', sizes[size] || '16px');
+    root.style.fontSize = sizes[size] || '16px';
+  };
+
+  const applyAccentColor = (accent: string) => {
+    const root = document.documentElement;
+    const accents: Record<string, { primary: string; glow: string }> = {
+      purple: { primary: '270 70% 55%', glow: '270 100% 65%' },
+      blue: { primary: '220 70% 55%', glow: '220 100% 65%' },
+      green: { primary: '160 70% 45%', glow: '160 100% 55%' },
+      orange: { primary: '30 90% 55%', glow: '30 100% 65%' },
+      pink: { primary: '330 80% 55%', glow: '330 100% 65%' },
+      red: { primary: '0 75% 55%', glow: '0 100% 65%' },
+    };
+    const colors = accents[accent] || accents.purple;
+    root.style.setProperty('--primary', colors.primary);
+    root.style.setProperty('--primary-glow', colors.glow);
+    root.style.setProperty('--ring', colors.primary);
+  };
+
+  const applyAccessibilitySettings = (prefs: Partial<UserPreferences>) => {
+    const root = document.documentElement;
+    
+    if (prefs.reduced_motion) {
+      root.style.setProperty('--transition-duration', '0ms');
+      root.classList.add('reduce-motion');
+    } else {
+      root.style.removeProperty('--transition-duration');
+      root.classList.remove('reduce-motion');
+    }
+
+    if (prefs.high_contrast) {
+      root.classList.add('high-contrast');
+    } else {
+      root.classList.remove('high-contrast');
+    }
   };
 
   const updatePreferences = async (updates: Partial<UserPreferences>) => {
     if (!user || !preferences) return;
+
+    // Optimistically update the UI
+    if (updates.theme) {
+      setTheme(updates.theme);
+    }
+    if (updates.font_size) {
+      applyFontSize(updates.font_size);
+    }
+    if (updates.color_accent) {
+      applyAccentColor(updates.color_accent);
+    }
+    if (updates.reduced_motion !== undefined || updates.high_contrast !== undefined) {
+      applyAccessibilitySettings({ ...preferences, ...updates });
+    }
 
     setSaving(true);
     try {
@@ -99,10 +173,14 @@ export function useUserPreferences() {
 
       setPreferences({ ...preferences, ...updates });
       toast({
-        title: 'Settings saved',
+        title: 'Settings saved ✨',
         description: 'Your preferences have been updated.',
       });
     } catch (error: any) {
+      // Revert on error
+      if (updates.theme && preferences.theme) {
+        setTheme(preferences.theme);
+      }
       toast({
         variant: 'destructive',
         title: 'Error',
