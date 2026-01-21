@@ -268,72 +268,72 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
             )}
 
             {/* Actions Bar */}
-            <div className="flex items-center justify-between mt-3 -ml-2">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center">
                 {/* Star Button */}
                 <button
                   onClick={handleStar}
                   disabled={isStarring}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all group",
+                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-all active:scale-95",
                     isStarred 
                       ? "text-star" 
-                      : "text-muted-foreground hover:text-star hover:bg-star/10"
+                      : "text-muted-foreground hover:text-star"
                   )}
                 >
                   <Star 
                     className={cn(
-                      "h-[18px] w-[18px] transition-transform",
-                      isStarred && "fill-star scale-110"
+                      "h-5 w-5 transition-transform",
+                      isStarred && "fill-star"
                     )} 
                   />
-                  <span className="text-[13px] tabular-nums">{starCount > 0 ? starCount : ''}</span>
+                  {starCount > 0 && <span className="text-xs tabular-nums">{starCount}</span>}
                 </button>
 
                 {/* Comment Button */}
                 <button 
                   onClick={() => setShowComments(!showComments)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all",
+                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-all active:scale-95",
                     showComments 
-                      ? "text-primary bg-primary/10" 
-                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      ? "text-primary" 
+                      : "text-muted-foreground hover:text-primary"
                   )}
                 >
-                  <MessageCircle className={cn("h-[18px] w-[18px]", showComments && "fill-primary/30")} />
-                  <span className="text-[13px] tabular-nums">{commentCount > 0 ? commentCount : ''}</span>
+                  <MessageCircle className={cn("h-5 w-5", showComments && "fill-primary/20")} />
+                  {commentCount > 0 && <span className="text-xs tabular-nums">{commentCount}</span>}
                 </button>
 
                 {/* Share Button */}
                 <button 
                   onClick={handleShare}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                  className="flex items-center px-2 py-1.5 rounded-lg text-muted-foreground hover:text-primary transition-all active:scale-95"
                 >
-                  <Share2 className="h-[18px] w-[18px]" />
+                  <Share2 className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Right Actions */}
-              <div className="flex items-center gap-1">
-                <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
-                  <Bookmark className="h-[18px] w-[18px]" />
+              <div className="flex items-center">
+                <button className="p-1.5 rounded-lg text-muted-foreground hover:text-primary transition-all active:scale-95">
+                  <Bookmark className="h-5 w-5" />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                      <MoreHorizontal className="h-[18px] w-[18px]" />
+                    <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-all active:scale-95">
+                      <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-44 bg-card border-border">
                     {isOwnPost ? (
                       <>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem className="gap-2 text-sm">
                           <Pin className="h-4 w-4" />
                           Pin to profile
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
-                          className="gap-2 text-destructive focus:text-destructive"
+                          className="gap-2 text-destructive focus:text-destructive text-sm"
                           onClick={handleDelete}
                           disabled={isDeleting}
                         >
@@ -342,7 +342,7 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
                         </DropdownMenuItem>
                       </>
                     ) : (
-                      <DropdownMenuItem className="gap-2">
+                      <DropdownMenuItem className="gap-2 text-sm">
                         <Flag className="h-4 w-4" />
                         Report post
                       </DropdownMenuItem>
@@ -355,7 +355,7 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
             {/* Comments Section */}
             <Collapsible open={showComments} onOpenChange={setShowComments}>
               <CollapsibleContent>
-                <div className="mt-3 pt-3 border-t border-border/30">
+                <div className="mt-2 pt-2">
                   <CommentSection postId={post.id} />
                 </div>
               </CollapsibleContent>

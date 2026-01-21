@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useComments } from '@/hooks/useComments';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageCircle } from 'lucide-react';
+import { Send } from 'lucide-react';
 import CommentItem from './CommentItem';
+import defaultAvatar from '@/assets/default-avatar.png';
 
 interface CommentSectionProps {
   postId: string;
@@ -17,10 +17,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   const { comments, isLoading, addComment, deleteComment, vote } = useComments(postId);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const getInitials = (name: string) => {
-    return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
-  };
 
   const handleSubmit = async () => {
     if (!newComment.trim()) return;
@@ -33,23 +29,26 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     setIsSubmitting(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   const handleReply = async (content: string, parentId: string) => {
     return addComment(content, parentId);
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4 mt-4 border-t border-border pt-4">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-muted-foreground" />
-          <span className="font-medium">Comments</span>
-        </div>
+      <div className="space-y-3">
         {[1, 2].map((i) => (
-          <div key={i} className="flex gap-3">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-16 w-full" />
+          <div key={i} className="flex gap-2">
+            <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-10 w-full rounded-xl" />
             </div>
           </div>
         ))}
@@ -58,52 +57,48 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   }
 
   return (
-    <div className="mt-4 border-t border-border pt-4">
-      <div className="flex items-center gap-2 mb-4">
-        <MessageCircle className="h-5 w-5 text-muted-foreground" />
-        <span className="font-medium">
-          {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
-        </span>
-      </div>
-
-      {/* New comment form */}
+    <div className="space-y-3">
+      {/* Comment input */}
       {user ? (
-        <div className="flex gap-3 mb-6">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-accent text-white">
-              {getInitials(profile?.display_name || '')}
+        <div className="flex gap-2 items-start">
+          <Avatar className="h-8 w-8 flex-shrink-0">
+            <AvatarImage src={profile?.avatar_url || defaultAvatar} />
+            <AvatarFallback className="bg-muted text-xs">
+              {profile?.display_name?.[0] || 'U'}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 space-y-2">
-            <Textarea
+          <div className="flex-1 flex gap-2">
+            <input
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="min-h-[80px] text-sm"
+              onKeyDown={handleKeyDown}
+              placeholder="Add a comment..."
+              className="flex-1 bg-muted/50 border border-border/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 placeholder:text-muted-foreground"
             />
             <Button
-              size="sm"
+              size="icon"
+              variant="ghost"
               onClick={handleSubmit}
               disabled={!newComment.trim() || isSubmitting}
+              className="h-9 w-9 rounded-full text-primary hover:bg-primary/10 disabled:opacity-30"
             >
-              {isSubmitting ? 'Posting...' : 'Comment'}
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground mb-4">
-          Sign in to leave a comment.
+        <p className="text-sm text-muted-foreground text-center py-2">
+          Sign in to comment
         </p>
       )}
 
       {/* Comments list */}
       {comments.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">
-          No comments yet. Be the first to comment!
+        <p className="text-sm text-muted-foreground text-center py-4">
+          No comments yet
         </p>
       ) : (
-        <div className="divide-y divide-border">
+        <div className="space-y-1">
           {comments.map((comment) => (
             <CommentItem
               key={comment.id}
