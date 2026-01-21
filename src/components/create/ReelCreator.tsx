@@ -14,7 +14,8 @@ import {
   Loader2, Upload, X, Play, Pause, Scissors, Palette, Music, 
   Image, ChevronLeft, ChevronRight, Volume2, VolumeX, Check,
   Sparkles, Type, Smile, Pencil, Gauge, RotateCcw, Trash2,
-  Move, Plus, FastForward, Rewind, Zap
+  Move, Plus, FastForward, Rewind, Zap, Video, Camera, SwitchCamera,
+  Circle, Square, Timer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -104,6 +105,18 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
   
   // Step management
   const [step, setStep] = useState<Step>('upload');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'record'>('upload');
+  
+  // Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Video state
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -422,6 +435,120 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     }
   }, [trimStart, step]);
 
+  // Camera recording functions
+  const startCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } },
+        audio: true,
+      });
+      setCameraStream(stream);
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+      }
+    } catch (error: any) {
+      console.error('Camera error:', error);
+      setCameraError(error.message || 'Failed to access camera');
+      toast({
+        variant: 'destructive',
+        title: 'Camera access denied',
+        description: 'Please allow camera access to record videos.',
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const switchCamera = async () => {
+    stopCamera();
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
+
+  useEffect(() => {
+    if (uploadMode === 'record' && step === 'upload') {
+      startCamera();
+    }
+    return () => {
+      if (uploadMode === 'record') {
+        stopCamera();
+      }
+    };
+  }, [uploadMode, facingMode]);
+
+  useEffect(() => {
+    if (step !== 'upload') {
+      stopCamera();
+    }
+  }, [step]);
+
+  const startRecording = () => {
+    if (!cameraStream) return;
+
+    setRecordedChunks([]);
+    setRecordingTime(0);
+
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : 'video/webm';
+
+    const mediaRecorder = new MediaRecorder(cameraStream, { mimeType });
+    mediaRecorderRef.current = mediaRecorder;
+
+    const chunks: Blob[] = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mimeType });
+      const file = new File([blob], `recording-${Date.now()}.webm`, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      
+      setVideoFile(file);
+      setVideoUrl(url);
+      setRecordedChunks([]);
+      stopCamera();
+      setStep('trim');
+    };
+
+    mediaRecorder.start(100);
+    setIsRecording(true);
+
+    // Start timer
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime(prev => {
+        if (prev >= 60) {
+          stopRecording();
+          return 60;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  };
+
   // Add text overlay
   const addTextOverlay = () => {
     if (!newTextValue.trim()) return;
@@ -569,7 +696,10 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
 
   // Reset and close
   const handleClose = () => {
+    stopCamera();
+    stopRecording();
     setStep('upload');
+    setUploadMode('upload');
     setVideoFile(null);
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl(null);
@@ -588,6 +718,9 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     setCustomThumbnail(null);
     setCaption('');
     setIsPlaying(false);
+    setRecordingTime(0);
+    setIsRecording(false);
+    setCameraError(null);
     onOpenChange(false);
   };
 
@@ -715,19 +848,148 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
           <div className="flex-1 overflow-auto">
             {/* Upload Step */}
             {step === 'upload' && (
-              <div className="flex flex-col items-center justify-center h-[400px] p-6">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full max-w-sm aspect-[9/16] rounded-2xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-4 transition-colors"
-                >
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Upload className="w-8 h-8 text-primary" />
+              <div className="flex flex-col items-center justify-center min-h-[450px] p-6">
+                {/* Mode toggle */}
+                <div className="flex gap-2 mb-6">
+                  <Button
+                    variant={uploadMode === 'upload' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setUploadMode('upload');
+                      stopCamera();
+                    }}
+                    className="gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </Button>
+                  <Button
+                    variant={uploadMode === 'record' ? 'default' : 'outline'}
+                    onClick={() => setUploadMode('record')}
+                    className="gap-2"
+                  >
+                    <Video className="h-4 w-4" />
+                    Record
+                  </Button>
+                </div>
+
+                {/* Upload mode */}
+                {uploadMode === 'upload' && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full max-w-sm aspect-[9/16] rounded-2xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-4 transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Upload className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-medium">Upload Video</p>
+                      <p className="text-sm text-muted-foreground">MP4, MOV, WebM • Max 100MB</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Record mode */}
+                {uploadMode === 'record' && (
+                  <div className="w-full max-w-sm aspect-[9/16] rounded-2xl overflow-hidden bg-black relative">
+                    {cameraError ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                        <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-4">
+                          <Camera className="w-8 h-8 text-destructive" />
+                        </div>
+                        <p className="text-white font-medium mb-2">Camera access denied</p>
+                        <p className="text-white/60 text-sm mb-4">{cameraError}</p>
+                        <Button onClick={startCamera} variant="outline" size="sm">
+                          Try Again
+                        </Button>
+                      </div>
+                    ) : !cameraStream ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
+                        <p className="text-white/60 text-sm">Starting camera...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <video
+                          ref={cameraVideoRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                          style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                        />
+
+                        {/* Recording timer */}
+                        {isRecording && (
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm">
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-white font-mono text-sm">
+                              {formatTime(recordingTime)} / 1:00
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Progress bar */}
+                        {isRecording && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-white/20">
+                            <div 
+                              className="h-full bg-red-500 transition-all duration-1000"
+                              style={{ width: `${(recordingTime / 60) * 100}%` }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Camera controls */}
+                        <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6">
+                          {/* Switch camera */}
+                          <button
+                            onClick={switchCamera}
+                            disabled={isRecording}
+                            className={cn(
+                              "w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all",
+                              isRecording ? "opacity-50" : "hover:bg-white/30"
+                            )}
+                          >
+                            <SwitchCamera className="w-6 h-6 text-white" />
+                          </button>
+
+                          {/* Record button */}
+                          <button
+                            onClick={isRecording ? stopRecording : startRecording}
+                            className={cn(
+                              "w-20 h-20 rounded-full flex items-center justify-center transition-all",
+                              isRecording
+                                ? "bg-white"
+                                : "bg-red-500 ring-4 ring-white/30 hover:ring-white/50"
+                            )}
+                          >
+                            {isRecording ? (
+                              <Square className="w-8 h-8 text-red-500 fill-red-500" />
+                            ) : (
+                              <Circle className="w-16 h-16 text-red-600 fill-red-600" />
+                            )}
+                          </button>
+
+                          {/* Timer indicator */}
+                          <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                            <Timer className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+
+                        {/* Recording instructions */}
+                        {!isRecording && (
+                          <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 text-center pointer-events-none">
+                            <p className="text-white/80 text-sm font-medium drop-shadow-lg">
+                              Tap to start recording
+                            </p>
+                            <p className="text-white/60 text-xs mt-1">
+                              Max 60 seconds
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                  <div className="text-center">
-                    <p className="font-medium">Upload Video</p>
-                    <p className="text-sm text-muted-foreground">MP4, MOV, WebM • Max 100MB</p>
-                  </div>
-                </button>
+                )}
               </div>
             )}
 
