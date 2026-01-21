@@ -16,6 +16,7 @@ import BookDetail from "./pages/BookDetail";
 import BookEditor from "./pages/BookEditor";
 import ChapterReader from "./pages/ChapterReader";
 import Pricing from "./pages/Pricing";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/library/book/:bookId/edit" element={<BookEditor />} />
             <Route path="/library/book/:bookId/read/:chapterId" element={<ChapterReader />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
