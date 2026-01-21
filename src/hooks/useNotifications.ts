@@ -10,7 +10,8 @@ export type NotificationType =
   | 'mention'
   | 'message'
   | 'comment'
-  | 'system';
+  | 'system'
+  | 'missed_call';
 
 export interface Notification {
   id: string;

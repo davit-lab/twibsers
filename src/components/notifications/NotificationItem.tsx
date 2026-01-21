@@ -12,6 +12,7 @@ import {
   Bell,
   MessageSquare,
   X,
+  PhoneMissed,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -31,6 +32,7 @@ const iconMap: Record<NotificationType, React.ComponentType<{ className?: string
   message: MessageCircle,
   comment: MessageSquare,
   system: Bell,
+  missed_call: PhoneMissed,
 };
 
 const colorMap: Record<NotificationType, string> = {
@@ -42,6 +44,7 @@ const colorMap: Record<NotificationType, string> = {
   message: 'text-primary bg-primary/10',
   comment: 'text-cyan-500 bg-cyan-500/10',
   system: 'text-muted-foreground bg-muted',
+  missed_call: 'text-red-500 bg-red-500/10',
 };
 
 export default function NotificationItem({

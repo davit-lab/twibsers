@@ -1,13 +1,20 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useIncomingCalls } from '@/hooks/useWebRTC';
+import { useIncomingCalls } from '@/hooks/useIncomingCalls';
 import { supabase } from '@/integrations/supabase/client';
 import IncomingCallModal from '@/components/messaging/IncomingCallModal';
+import CallWaitingIndicator from '@/components/calling/CallWaitingIndicator';
 
 export default function GlobalCallProvider() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { incomingCall, callerProfile, clearIncomingCall } = useIncomingCalls();
+  const { 
+    incomingCall, 
+    callerProfile, 
+    callQueue,
+    clearIncomingCall,
+    declineQueuedCall,
+  } = useIncomingCalls();
 
   // Check if we're already on the messages page with this conversation
   const isOnMessagesPage = location.pathname === '/messages';
@@ -40,17 +47,36 @@ export default function GlobalCallProvider() {
     clearIncomingCall();
   }, [incomingCall, clearIncomingCall]);
 
-  // Don't show modal if we're already viewing this conversation
-  if (!incomingCall || isAlreadyInConversation) {
-    return null;
-  }
+  const handleAnswerQueuedCall = useCallback(async (sessionId: string) => {
+    const queuedCall = callQueue.find(c => c.session.id === sessionId);
+    if (!queuedCall) return;
+
+    // Navigate to answer the queued call
+    navigate(`/messages?conv=${queuedCall.session.conversation_id}&answer=${sessionId}`);
+  }, [callQueue, navigate]);
+
+  const handleDeclineQueuedCall = useCallback(async (sessionId: string) => {
+    await declineQueuedCall(sessionId);
+  }, [declineQueuedCall]);
 
   return (
-    <IncomingCallModal
-      session={incomingCall}
-      callerProfile={callerProfile}
-      onAnswer={handleAnswerCall}
-      onDecline={handleDeclineCall}
-    />
+    <>
+      {/* Call waiting indicator for queued calls */}
+      <CallWaitingIndicator
+        queuedCalls={callQueue}
+        onAnswer={handleAnswerQueuedCall}
+        onDecline={handleDeclineQueuedCall}
+      />
+
+      {/* Main incoming call modal */}
+      {incomingCall && !isAlreadyInConversation && (
+        <IncomingCallModal
+          session={incomingCall}
+          callerProfile={callerProfile}
+          onAnswer={handleAnswerCall}
+          onDecline={handleDeclineCall}
+        />
+      )}
+    </>
   );
 }
