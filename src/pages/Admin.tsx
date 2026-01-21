@@ -93,7 +93,7 @@ interface UserBan {
 }
 
 export default function Admin() {
-  const { user, isAdmin, isModerator, loading: authLoading } = useAuth();
+  const { user: currentUser, isAdmin, isModerator, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [books, setBooks] = useState<BookData[]>([]);
@@ -118,7 +118,7 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    if (!authLoading && (!user || (!isAdmin && !isModerator))) {
+    if (!authLoading && (!currentUser || (!isAdmin && !isModerator))) {
       toast({
         title: 'Access Denied',
         description: 'You do not have permission to access the admin panel.',
@@ -126,13 +126,13 @@ export default function Admin() {
       });
       navigate('/');
     }
-  }, [user, isAdmin, isModerator, authLoading, navigate]);
+  }, [currentUser, isAdmin, isModerator, authLoading, navigate]);
 
   useEffect(() => {
-    if (user && (isAdmin || isModerator)) {
+    if (currentUser && (isAdmin || isModerator)) {
       fetchData();
     }
-  }, [user, isAdmin, isModerator]);
+  }, [currentUser, isAdmin, isModerator]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -302,7 +302,7 @@ export default function Admin() {
   };
 
   const banUser = async (userId: string) => {
-    if (!user || !banReason.trim()) {
+    if (!currentUser || !banReason.trim()) {
       toast({
         title: 'Error',
         description: 'Please provide a reason for the ban.',
@@ -331,7 +331,7 @@ export default function Admin() {
         .from('user_bans')
         .insert({
           user_id: userId,
-          banned_by: user.id,
+          banned_by: currentUser.id,
           reason: banReason.trim(),
           expires_at: expiresAt,
         });
@@ -427,7 +427,7 @@ export default function Admin() {
   const deleteAllUsers = async () => {
     setPurgeLoading(true);
     try {
-      const { data, error } = await supabase.rpc('admin_purge_all_users', { keep_user_id: user?.id });
+      const { data, error } = await supabase.rpc('admin_purge_all_users', { keep_user_id: currentUser?.id });
       if (error) throw error;
 
       // Refresh data after purge
@@ -446,6 +446,52 @@ export default function Admin() {
       });
     } finally {
       setPurgeLoading(false);
+    }
+  };
+
+  const changeUserRole = async (userId: string, newRole: 'admin' | 'moderator' | 'user') => {
+    try {
+      if (newRole === 'user') {
+        // Remove all elevated roles
+        const { error } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .in('role', ['admin', 'moderator']);
+        
+        if (error) throw error;
+      } else {
+        // Upsert the role
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .in('role', ['admin', 'moderator']);
+        
+        if (deleteError) throw deleteError;
+
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role: newRole });
+        
+        if (insertError) throw insertError;
+      }
+
+      setUsers(prev => prev.map(u => 
+        u.user_id === userId ? { ...u, role: newRole } : u
+      ));
+
+      toast({
+        title: 'Success',
+        description: `User role changed to ${newRole}.`,
+      });
+    } catch (error) {
+      console.error('Error changing role:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to change user role.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -738,13 +784,29 @@ export default function Admin() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'secondary' : 'outline'}
-                              className={user.role === 'admin' ? 'bg-amber-500 hover:bg-amber-600' : ''}
-                            >
-                              {user.role === 'admin' && <Hammer className="w-3 h-3 mr-1" />}
-                              {user.role}
-                            </Badge>
+                            {isAdmin && user.user_id !== currentUser?.id ? (
+                              <Select 
+                                value={user.role} 
+                                onValueChange={(value: 'admin' | 'moderator' | 'user') => changeUserRole(user.user_id, value)}
+                              >
+                                <SelectTrigger className="w-[120px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="user">User</SelectItem>
+                                  <SelectItem value="moderator">Moderator</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge 
+                                variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'secondary' : 'outline'}
+                                className={user.role === 'admin' ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                              >
+                                {user.role === 'admin' && <Hammer className="w-3 h-3 mr-1" />}
+                                {user.role}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             {isUserBanned(user.user_id) ? (
