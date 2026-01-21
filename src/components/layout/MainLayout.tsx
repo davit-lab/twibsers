@@ -53,7 +53,7 @@ const mobileNavItems = [
   { icon: Compass, label: 'Explore', href: '/explore', id: 'explore' },
   { icon: Clapperboard, label: 'Reels', href: '/reels', id: 'reels' },
   { icon: BookOpen, label: 'Library', href: '/library', id: 'library' },
-  { icon: User, label: 'Profile', href: '/profile', id: 'profile' },
+  { icon: Menu, label: 'More', href: '#more', id: 'more' },
 ];
 
 export default function MainLayout({ children }: MainLayoutProps) {
@@ -270,38 +270,69 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <div className="flex items-center justify-around h-12">
             {mobileNavItems.map((item) => {
               const active = isActive(item.href);
-              const isCreate = item.href === '#create';
-              const isProfile = item.href === '/profile';
+              const isMore = item.href === '#more';
 
-              if (isCreate) {
+              if (isMore) {
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => setCreateDialogOpen(true)}
-                    className="flex items-center justify-center p-2"
-                  >
-                    <item.icon className="h-6 w-6" strokeWidth={1.5} />
-                  </button>
-                );
-              }
-
-              if (isProfile) {
-                return (
-                  <Link
-                    key={item.id}
-                    to={`/profile/${profile?.username}`}
-                    className="flex items-center justify-center p-2"
-                  >
-                    <Avatar className={cn(
-                      "h-6 w-6",
-                      active && "ring-2 ring-foreground"
-                    )}>
-                      <AvatarImage src={profile?.avatar_url || undefined} />
-                      <AvatarFallback className="text-[8px] bg-muted">
-                        {getInitials(profile?.display_name || 'U')}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
+                  <DropdownMenu key={item.id}>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center justify-center p-2">
+                        <Menu className="h-6 w-6" strokeWidth={1.5} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent 
+                      className="w-[180px] bg-background border border-border shadow-lg" 
+                      align="end" 
+                      side="top"
+                      sideOffset={12}
+                    >
+                      <DropdownMenuItem 
+                        onClick={() => setCreateDialogOpen(true)} 
+                        className="cursor-pointer"
+                      >
+                        <PlusSquare className="mr-3 h-4 w-4" />
+                        Create
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/profile/${profile?.username}`} className="cursor-pointer">
+                          <User className="mr-3 h-4 w-4" />
+                          Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/notifications" className="cursor-pointer">
+                          <Heart className="mr-3 h-4 w-4" />
+                          Notifications
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/messages" className="cursor-pointer">
+                          <MessageCircle className="mr-3 h-4 w-4" />
+                          Messages
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/settings" className="cursor-pointer">
+                          <Settings className="mr-3 h-4 w-4" />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      {(isAdmin || isModerator) && (
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="cursor-pointer">
+                            <Shield className="mr-3 h-4 w-4" />
+                            Admin
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
+                        <LogOut className="mr-3 h-4 w-4" />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 );
               }
 
