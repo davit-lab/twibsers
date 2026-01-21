@@ -31,8 +31,12 @@ import {
   Gift,
   Hammer,
   Crown,
+  Ban,
+  Clock,
+  ShieldOff,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface UserWithRole {
   id: string;
@@ -76,6 +80,16 @@ interface SubscriptionPlan {
   tier: string;
 }
 
+interface UserBan {
+  id: string;
+  user_id: string;
+  banned_by: string;
+  reason: string;
+  banned_at: string;
+  expires_at: string | null;
+  is_active: boolean;
+}
+
 export default function Admin() {
   const { user, isAdmin, isModerator, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -85,13 +99,19 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [bans, setBans] = useState<UserBan[]>([]);
   const [giftingUserId, setGiftingUserId] = useState<string | null>(null);
   const [giftingLoading, setGiftingLoading] = useState(false);
+  const [banDialogUserId, setBanDialogUserId] = useState<string | null>(null);
+  const [banReason, setBanReason] = useState('');
+  const [banDuration, setBanDuration] = useState<string>('7d');
+  const [banLoading, setBanLoading] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
     totalBooks: 0,
     verifiedUsers: 0,
+    bannedUsers: 0,
   });
 
   useEffect(() => {
@@ -142,6 +162,14 @@ export default function Admin() {
         .eq('is_active', true);
       
       setPlans(plansData || []);
+
+      // Fetch active bans
+      const { data: bansData } = await supabase
+        .from('user_bans')
+        .select('*')
+        .eq('is_active', true);
+      
+      setBans((bansData || []) as UserBan[]);
 
       // Fetch books
       const { data: booksData } = await supabase
@@ -209,6 +237,7 @@ export default function Admin() {
         totalPosts: postsData?.length || 0,
         totalBooks: booksData?.length || 0,
         verifiedUsers: profilesData?.filter(p => p.is_verified).length || 0,
+        bannedUsers: bansData?.length || 0,
       });
 
     } catch (error) {
@@ -269,10 +298,112 @@ export default function Admin() {
     }
   };
 
+  const banUser = async (userId: string) => {
+    if (!user || !banReason.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please provide a reason for the ban.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBanLoading(true);
+    try {
+      // Calculate expiration date based on duration
+      let expiresAt: string | null = null;
+      if (banDuration !== 'permanent') {
+        const now = new Date();
+        const durationMap: Record<string, number> = {
+          '1h': 60 * 60 * 1000,
+          '24h': 24 * 60 * 60 * 1000,
+          '7d': 7 * 24 * 60 * 60 * 1000,
+          '30d': 30 * 24 * 60 * 60 * 1000,
+          '90d': 90 * 24 * 60 * 60 * 1000,
+        };
+        expiresAt = new Date(now.getTime() + durationMap[banDuration]).toISOString();
+      }
+
+      const { error } = await supabase
+        .from('user_bans')
+        .insert({
+          user_id: userId,
+          banned_by: user.id,
+          reason: banReason.trim(),
+          expires_at: expiresAt,
+        });
+
+      if (error) throw error;
+
+      // Refresh bans
+      const { data: bansData } = await supabase
+        .from('user_bans')
+        .select('*')
+        .eq('is_active', true);
+      
+      setBans((bansData || []) as UserBan[]);
+      setStats(prev => ({ ...prev, bannedUsers: bansData?.length || 0 }));
+
+      toast({
+        title: 'User Banned',
+        description: `User has been banned ${banDuration === 'permanent' ? 'permanently' : `for ${banDuration}`}.`,
+      });
+
+      setBanDialogUserId(null);
+      setBanReason('');
+      setBanDuration('7d');
+    } catch (error) {
+      console.error('Error banning user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to ban user.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const unbanUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_bans')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      setBans(prev => prev.filter(b => b.user_id !== userId));
+      setStats(prev => ({ ...prev, bannedUsers: prev.bannedUsers - 1 }));
+
+      toast({
+        title: 'User Unbanned',
+        description: 'User ban has been lifted.',
+      });
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to unban user.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const isUserBanned = (userId: string) => {
+    return bans.some(b => b.user_id === userId && b.is_active);
+  };
+
+  const getUserBan = (userId: string) => {
+    return bans.find(b => b.user_id === userId && b.is_active);
+  };
+
   const deleteUser = async (userId: string) => {
     // Note: This only deletes the profile and related data, not the auth user
     try {
       // Delete user's posts, comments, etc.
+      await supabase.from('user_bans').delete().eq('user_id', userId);
       await supabase.from('posts').delete().eq('user_id', userId);
       await supabase.from('comments').delete().eq('user_id', userId);
       await supabase.from('user_roles').delete().eq('user_id', userId);
@@ -280,6 +411,7 @@ export default function Admin() {
       await supabase.from('profiles').delete().eq('user_id', userId);
 
       setUsers(prev => prev.filter(u => u.user_id !== userId));
+      setBans(prev => prev.filter(b => b.user_id !== userId));
       
       toast({
         title: 'Success',
@@ -412,7 +544,7 @@ export default function Admin() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -461,6 +593,19 @@ export default function Admin() {
                 <div>
                   <p className="text-2xl font-bold">{stats.verifiedUsers}</p>
                   <p className="text-sm text-muted-foreground">Verified</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <Ban className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.bannedUsers}</p>
+                  <p className="text-sm text-muted-foreground">Banned</p>
                 </div>
               </div>
             </CardContent>
@@ -535,6 +680,9 @@ export default function Admin() {
                                   {user.is_verified && (
                                     <BadgeCheck className="w-4 h-4 text-verified" />
                                   )}
+                                  {isUserBanned(user.user_id) && (
+                                    <Ban className="w-4 h-4 text-destructive" />
+                                  )}
                                 </p>
                                 <p className="text-sm text-muted-foreground">@{user.username}</p>
                               </div>
@@ -550,9 +698,16 @@ export default function Admin() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={user.privacy === 'public' ? 'outline' : 'secondary'}>
-                              {user.privacy}
-                            </Badge>
+                            {isUserBanned(user.user_id) ? (
+                              <Badge variant="destructive" className="gap-1">
+                                <Ban className="w-3 h-3" />
+                                Banned
+                              </Badge>
+                            ) : (
+                              <Badge variant={user.privacy === 'public' ? 'outline' : 'secondary'}>
+                                {user.privacy}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {new Date(user.created_at).toLocaleDateString()}
@@ -602,6 +757,87 @@ export default function Admin() {
                                   </div>
                                 </DialogContent>
                               </Dialog>
+
+                              {/* Ban/Unban User Button */}
+                              {isAdmin && user.role !== 'admin' && (
+                                isUserBanned(user.user_id) ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => unbanUser(user.user_id)}
+                                    className="text-green-600 hover:text-green-700"
+                                    title="Unban user"
+                                  >
+                                    <ShieldOff className="w-4 h-4" />
+                                  </Button>
+                                ) : (
+                                  <Dialog open={banDialogUserId === user.user_id} onOpenChange={(open) => {
+                                    setBanDialogUserId(open ? user.user_id : null);
+                                    if (!open) {
+                                      setBanReason('');
+                                      setBanDuration('7d');
+                                    }
+                                  }}>
+                                    <DialogTrigger asChild>
+                                      <Button variant="ghost" size="sm" title="Ban user" className="text-destructive hover:text-destructive">
+                                        <Ban className="w-4 h-4" />
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                          <Ban className="w-5 h-5 text-destructive" />
+                                          Ban User
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                          Ban {user.display_name} (@{user.username}) from using the platform.
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-4 py-4">
+                                        <div className="space-y-2">
+                                          <Label htmlFor="ban-reason">Reason for ban</Label>
+                                          <Textarea
+                                            id="ban-reason"
+                                            placeholder="Describe why this user is being banned..."
+                                            value={banReason}
+                                            onChange={(e) => setBanReason(e.target.value)}
+                                            rows={3}
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label htmlFor="ban-duration">Duration</Label>
+                                          <Select value={banDuration} onValueChange={setBanDuration}>
+                                            <SelectTrigger>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="1h">1 Hour</SelectItem>
+                                              <SelectItem value="24h">24 Hours</SelectItem>
+                                              <SelectItem value="7d">7 Days</SelectItem>
+                                              <SelectItem value="30d">30 Days</SelectItem>
+                                              <SelectItem value="90d">90 Days</SelectItem>
+                                              <SelectItem value="permanent">Permanent</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      </div>
+                                      <DialogFooter>
+                                        <Button variant="outline" onClick={() => setBanDialogUserId(null)}>
+                                          Cancel
+                                        </Button>
+                                        <Button 
+                                          variant="destructive" 
+                                          onClick={() => banUser(user.user_id)}
+                                          disabled={banLoading || !banReason.trim()}
+                                        >
+                                          {banLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Ban className="w-4 h-4 mr-2" />}
+                                          Ban User
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
+                                )
+                              )}
 
                               {/* Delete User Button */}
                               {isAdmin && user.role !== 'admin' && (

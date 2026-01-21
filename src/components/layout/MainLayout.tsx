@@ -1,9 +1,11 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserBan } from '@/hooks/useUserBan';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 import CreateDialog from '@/components/create/CreateDialog';
 import {
@@ -30,7 +32,10 @@ import {
   Shield,
   BadgeCheck,
   Crown,
+  Ban,
+  Clock,
 } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -47,6 +52,7 @@ const navItems = [
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const { user, profile, signOut, isAdmin, isModerator } = useAuth();
+  const { isBanned, banInfo } = useUserBan();
   const location = useLocation();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -230,7 +236,47 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
         {/* Main Content */}
         <main className="flex-1 min-h-[calc(100vh-4rem)]">
-          {children}
+          {isBanned && banInfo ? (
+            <div className="container max-w-2xl py-12 px-4">
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardHeader className="text-center">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                    <Ban className="w-8 h-8 text-destructive" />
+                  </div>
+                  <CardTitle className="text-destructive">Account Suspended</CardTitle>
+                  <CardDescription>
+                    Your account has been suspended from using Twibsers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium mb-1">Reason:</p>
+                    <p className="text-sm text-muted-foreground">{banInfo.reason}</p>
+                  </div>
+                  {banInfo.expires_at ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        Suspension ends: {format(new Date(banInfo.expires_at), 'PPpp')}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-center text-sm text-destructive font-medium">
+                      This is a permanent suspension.
+                    </p>
+                  )}
+                  <div className="text-center pt-4">
+                    <Button variant="outline" onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
 
