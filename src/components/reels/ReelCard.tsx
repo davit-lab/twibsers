@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Reel } from '@/hooks/useReels';
 import ReelShareMenu from './ReelShareMenu';
+import ReelLikersModal from './ReelLikersModal';
 
 interface ReelCardProps {
   reel: Reel;
@@ -56,6 +57,7 @@ export default function ReelCard({
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const [showLikersModal, setShowLikersModal] = useState(false);
   
   // Swipe detection refs
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -317,6 +319,7 @@ export default function ReelCard({
           isActive={reel.is_liked}
           activeColor="rose"
           onClick={onLike}
+          onCountClick={() => setShowLikersModal(true)}
         />
         
         {/* Comment */}
@@ -362,6 +365,13 @@ export default function ReelCard({
           </div>
         )}
       </div>
+
+      {/* Likers Modal */}
+      <ReelLikersModal
+        reelId={reel.id}
+        open={showLikersModal}
+        onOpenChange={setShowLikersModal}
+      />
     </div>
   );
 }
@@ -372,9 +382,10 @@ interface ActionButtonProps {
   isActive?: boolean;
   activeColor?: 'rose' | 'amber' | 'primary';
   onClick: () => void;
+  onCountClick?: () => void;
 }
 
-function ActionButton({ icon: Icon, count, isActive, activeColor = 'primary', onClick }: ActionButtonProps) {
+function ActionButton({ icon: Icon, count, isActive, activeColor = 'primary', onClick, onCountClick }: ActionButtonProps) {
   const colorClasses = {
     rose: 'from-rose-500/30 to-pink-500/30 text-rose-500 shadow-rose-500/30',
     amber: 'from-amber-500/30 to-orange-500/30 text-amber-400 shadow-amber-500/30',
@@ -382,27 +393,32 @@ function ActionButton({ icon: Icon, count, isActive, activeColor = 'primary', on
   };
   
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-1.5 group">
-      <div className={cn(
-        "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300",
-        "backdrop-blur-md border border-white/10",
-        isActive 
-          ? `bg-gradient-to-br ${colorClasses[activeColor]} shadow-lg` 
-          : "bg-white/10 hover:bg-white/20 hover:scale-110 active:scale-95"
-      )}>
-        <Icon className={cn(
-          "h-6 w-6 transition-all duration-300",
-          isActive ? `${colorClasses[activeColor].split(' ').pop()} fill-current` : "text-white"
-        )} />
-      </div>
-      {count && (
-        <span className={cn(
-          "text-xs font-semibold transition-colors",
-          isActive ? colorClasses[activeColor].split(' ').pop() : "text-white"
+    <div className="flex flex-col items-center gap-1.5">
+      <button onClick={onClick} className="group">
+        <div className={cn(
+          "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300",
+          "backdrop-blur-md border border-white/10",
+          isActive 
+            ? `bg-gradient-to-br ${colorClasses[activeColor]} shadow-lg` 
+            : "bg-white/10 hover:bg-white/20 hover:scale-110 active:scale-95"
         )}>
+          <Icon className={cn(
+            "h-6 w-6 transition-all duration-300",
+            isActive ? `${colorClasses[activeColor].split(' ').pop()} fill-current` : "text-white"
+          )} />
+        </div>
+      </button>
+      {count && (
+        <button 
+          onClick={onCountClick}
+          className={cn(
+            "text-xs font-semibold transition-colors hover:underline",
+            isActive ? colorClasses[activeColor].split(' ').pop() : "text-white"
+          )}
+        >
           {count}
-        </span>
+        </button>
       )}
-    </button>
+    </div>
   );
 }
