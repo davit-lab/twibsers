@@ -34,13 +34,18 @@ export default function Messages() {
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [lastReadAt, setLastReadAt] = useState<string | null>(null);
+  const [pendingAnswerCall, setPendingAnswerCall] = useState<any>(null);
   
   // Incoming calls handler
   const { incomingCall, callerProfile, clearIncomingCall } = useIncomingCalls();
-  const { answerCall, declineCall } = useWebRTC(
-    incomingCall?.conversation_id || null, 
-    incomingCall?.caller_id || null
-  );
+  
+  // For declining calls only - we don't use answerCall here anymore
+  const declineCallHandler = async (sessionId: string) => {
+    await supabase
+      .from('call_sessions')
+      .update({ status: 'declined' })
+      .eq('id', sessionId);
+  };
 
   // Handle starting new conversation from profile page
   useEffect(() => {
@@ -133,8 +138,9 @@ export default function Messages() {
 
   const handleAnswerCall = async () => {
     if (incomingCall) {
-      await answerCall(incomingCall);
-      // Navigate to the conversation
+      // Store the call to be answered by MessageThread
+      setPendingAnswerCall(incomingCall);
+      // Navigate to the conversation first, so MessageThread can handle the answer
       setSearchParams({ conv: incomingCall.conversation_id });
       clearIncomingCall();
     }
@@ -142,7 +148,7 @@ export default function Messages() {
 
   const handleDeclineCall = async () => {
     if (incomingCall) {
-      await declineCall(incomingCall.id);
+      await declineCallHandler(incomingCall.id);
       clearIncomingCall();
     }
   };
@@ -214,6 +220,8 @@ export default function Messages() {
                 otherUserId={otherUserId}
                 onBack={handleBack}
                 lastReadAt={lastReadAt}
+                pendingAnswerCall={pendingAnswerCall}
+                onCallAnswered={() => setPendingAnswerCall(null)}
               />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">

@@ -40,6 +40,8 @@ interface MessageThreadProps {
   otherUserId: string;
   onBack?: () => void;
   lastReadAt?: string | null;
+  pendingAnswerCall?: any;
+  onCallAnswered?: () => void;
 }
 
 export default function MessageThread({
@@ -48,18 +50,33 @@ export default function MessageThread({
   otherUserId,
   onBack,
   lastReadAt,
+  pendingAnswerCall,
+  onCallAnswered,
 }: MessageThreadProps) {
   const { user } = useAuth();
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
-  const { callState, startCall, endCall, toggleAudio, toggleVideo, toggleScreenShare } = useWebRTC(conversationId, otherUserId);
+  const { callState, startCall, answerCall, endCall, toggleAudio, toggleVideo, toggleScreenShare } = useWebRTC(conversationId, otherUserId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
-  const [activeCallType, setActiveCallType] = useState<'audio' | 'video' | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Derive active call type from callState session
+  const activeCallType = callState.session?.call_type || null;
+  const isInCall = callState.session && callState.session.status !== 'ended' && callState.session.status !== 'declined';
+
+  // Helper to detect if content is a GIF URL
+  const isGifUrl = (content: string) => {
+    const trimmed = content.trim();
+    return (
+      trimmed.match(/^https?:\/\/.*\.(gif)(\?.*)?$/i) ||
+      trimmed.includes('giphy.com') ||
+      trimmed.includes('tenor.com')
+    );
+  };
 
   const handleEmojiSelect = (emoji: string) => {
     setNewMessage(prev => prev + emoji);
@@ -83,6 +100,14 @@ export default function MessageThread({
   useEffect(() => {
     markAsRead();
   }, [conversationId]);
+
+  // Handle pending incoming call answer
+  useEffect(() => {
+    if (pendingAnswerCall && pendingAnswerCall.conversation_id === conversationId) {
+      answerCall(pendingAnswerCall);
+      onCallAnswered?.();
+    }
+  }, [pendingAnswerCall, conversationId]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,13 +178,11 @@ export default function MessageThread({
   };
 
   const handleStartCall = async (type: 'audio' | 'video') => {
-    setActiveCallType(type);
     await startCall(type);
   };
 
   const handleEndCall = async () => {
     await endCall();
-    setActiveCallType(null);
   };
 
   if (loading) {
@@ -184,7 +207,7 @@ export default function MessageThread({
 
   return (
     <>
-      {activeCallType && (
+      {isInCall && activeCallType && (
         <CallOverlay 
           type={activeCallType} 
           user={otherUser} 
@@ -309,13 +332,23 @@ export default function MessageThread({
                       )}
                       <div
                         className={cn(
-                          'max-w-[70%] px-4 py-3 rounded-2xl transition-all',
+                          'max-w-[70%] rounded-2xl transition-all',
+                          isGifUrl(message.content) ? 'p-1' : 'px-4 py-3',
                           isOwn
                             ? 'message-own text-white rounded-br-md'
                             : 'message-other rounded-bl-md'
                         )}
                       >
-                        <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
+                        {isGifUrl(message.content) ? (
+                          <img 
+                            src={message.content.trim()} 
+                            alt="GIF" 
+                            className="max-w-full rounded-xl max-h-64 object-contain"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <p className="break-words text-[15px] leading-relaxed">{message.content}</p>
+                        )}
                         <div className={cn(
                           'flex items-center gap-1.5 mt-1.5',
                           isOwn ? 'justify-end' : 'justify-start'
