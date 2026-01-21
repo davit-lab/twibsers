@@ -3,10 +3,12 @@ import { useMessages, Message } from '@/hooks/useMessages';
 import { useMessageReactions } from '@/hooks/useMessageReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Send, 
   Loader2, 
@@ -22,7 +24,8 @@ import {
   Paperclip,
   Mic,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Lock
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -67,10 +70,57 @@ export default function MessageThread({
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [reactionPickerPosition, setReactionPickerPosition] = useState<'left' | 'right'>('left');
+  const [canCall, setCanCall] = useState(true);
+  const [callBlockReason, setCallBlockReason] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggeredRef = useRef(false);
+
+  // Check if calling is allowed (mutual follow for private accounts)
+  useEffect(() => {
+    const checkCallPermission = async () => {
+      if (!user || !otherUserId) return;
+
+      // Check other user's privacy setting
+      const { data: otherProfile } = await supabase
+        .from('profiles')
+        .select('privacy')
+        .eq('user_id', otherUserId)
+        .single();
+
+      // If public account, allow calling
+      if (otherProfile?.privacy === 'public') {
+        setCanCall(true);
+        setCallBlockReason(null);
+        return;
+      }
+
+      // For private accounts, check mutual follow
+      const [meFollowingThem, themFollowingMe] = await Promise.all([
+        supabase
+          .from('follows')
+          .select('status')
+          .eq('follower_id', user.id)
+          .eq('following_id', otherUserId)
+          .eq('status', 'accepted')
+          .maybeSingle(),
+        supabase
+          .from('follows')
+          .select('status')
+          .eq('follower_id', otherUserId)
+          .eq('following_id', user.id)
+          .eq('status', 'accepted')
+          .maybeSingle(),
+      ]);
+
+      const isMutualFollow = !!meFollowingThem.data && !!themFollowingMe.data;
+      setCanCall(isMutualFollow);
+      setCallBlockReason(isMutualFollow ? null : 'Mutual follow required for private accounts');
+    };
+
+    checkCallPermission();
+  }, [user, otherUserId]);
 
   // Derive active call type from callState session
   const activeCallType = callState.session?.call_type || null;
@@ -301,22 +351,53 @@ export default function MessageThread({
 
           {/* Call buttons */}
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-              onClick={() => handleStartCall('audio')}
-            >
-              <Phone className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-              onClick={() => handleStartCall('video')}
-            >
-              <Video className="h-5 w-5" />
-            </Button>
+            {canCall ? (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={() => handleStartCall('audio')}
+                >
+                  <Phone className="h-5 w-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={() => handleStartCall('video')}
+                >
+                  <Video className="h-5 w-5" />
+                </Button>
+              </>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <Phone className="h-5 w-5" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <Video className="h-5 w-5" />
+                    </Button>
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">{callBlockReason}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
