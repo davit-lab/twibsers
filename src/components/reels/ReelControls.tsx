@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   X, 
@@ -26,19 +26,24 @@ export default function ReelControls({
   onMuteToggle,
   onRefresh,
 }: ReelControlsProps) {
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    navigate('/');
+  };
+
   return (
     <>
       {/* Top bar - minimal */}
       <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 pointer-events-none">
-        <Link to="/" className="pointer-events-auto">
-          <Button 
-            variant="glass" 
-            size="icon" 
-            className="h-10 w-10"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </Link>
+        <Button 
+          variant="glass" 
+          size="icon" 
+          className="h-10 w-10 pointer-events-auto"
+          onClick={handleClose}
+        >
+          <X className="h-5 w-5" />
+        </Button>
         
         {/* Brand logo - simple text */}
         <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2">
