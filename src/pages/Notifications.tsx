@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bell, CheckCheck, Trash2, UserPlus, Star, MessageCircle, AtSign } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserPlus, Star, MessageCircle, AtSign, PhoneMissed } from 'lucide-react';
 import { NotificationType } from '@/hooks/useNotifications';
 
 export default function Notifications() {
@@ -40,7 +40,7 @@ export default function Notifications() {
 
   const socialNotifs = filterNotifications(['follow', 'follow_request', 'follow_accepted']);
   const activityNotifs = filterNotifications(['star', 'mention', 'comment']);
-  const messageNotifs = filterNotifications(['message']);
+  const messageNotifs = filterNotifications(['message', 'missed_call']);
 
   return (
     <MainLayout>

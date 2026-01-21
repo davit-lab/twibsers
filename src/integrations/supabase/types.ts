@@ -1299,6 +1299,7 @@ export type Database = {
         | "message"
         | "comment"
         | "system"
+        | "missed_call"
       plan_tier: "free" | "pro" | "premium"
       post_visibility: "public" | "followers" | "private"
       subscription_status:
@@ -1447,6 +1448,7 @@ export const Constants = {
         "message",
         "comment",
         "system",
+        "missed_call",
       ],
       plan_tier: ["free", "pro", "premium"],
       post_visibility: ["public", "followers", "private"],
