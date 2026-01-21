@@ -32,8 +32,12 @@ import {
   VolumeX,
   Trash2,
   Sparkles,
-  Zap,
   Camera,
+  Share2,
+  MoreHorizontal,
+  CalendarDays,
+  Users,
+  FileText,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -205,12 +209,16 @@ export default function Profile() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="min-h-screen">
-          <div className="max-w-2xl mx-auto pt-8 px-6">
-            <Skeleton className="h-80 w-full rounded-3xl mb-6" />
-            <Skeleton className="h-8 w-48 mb-4" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-3/4" />
+        <div className="min-h-screen bg-muted/30">
+          <div className="max-w-4xl mx-auto">
+            <Skeleton className="h-48 w-full" />
+            <div className="px-6 -mt-16 relative">
+              <Skeleton className="h-32 w-32 rounded-full border-4 border-background" />
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
           </div>
         </div>
       </MainLayout>
@@ -222,15 +230,15 @@ export default function Profile() {
       <MainLayout>
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="text-center">
-            <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-12 h-12 text-primary" />
+            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
+              <Users className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">User not found</h1>
+            <h1 className="text-2xl font-bold mb-2">Profile not found</h1>
             <p className="text-muted-foreground mb-8">
-              This profile doesn't exist or has been removed.
+              This user doesn't exist or the profile has been removed.
             </p>
-            <Button onClick={() => navigate('/')} className="btn-gradient rounded-full px-8">
-              Explore
+            <Button onClick={() => navigate('/')} className="btn-gradient">
+              Back to Home
             </Button>
           </div>
         </div>
@@ -240,74 +248,88 @@ export default function Profile() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen pb-24 lg:pb-8">
-        {/* Hero Header - Magazine Style */}
-        <div className="relative">
-          {/* Background Gradient */}
-          <div className="absolute inset-0 h-[420px] bg-gradient-to-b from-primary/10 via-accent/5 to-background" />
-          
-          {/* Floating Navigation */}
-          <div className="relative z-20 flex items-center justify-between px-4 py-4 max-w-2xl mx-auto">
+      <div className="min-h-screen bg-muted/30 pb-24 lg:pb-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Cover Banner */}
+          <div className="relative h-48 md:h-56 bg-gradient-to-r from-primary/80 via-primary to-accent/80 overflow-hidden">
+            {profileData.cover_url ? (
+              <img 
+                src={profileData.cover_url} 
+                alt="" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 opacity-30">
+                <div className="absolute top-4 left-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+                <div className="absolute bottom-4 right-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-white/5 blur-3xl" />
+              </div>
+            )}
+            
+            {/* Back button */}
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="icon"
               onClick={() => navigate(-1)}
-              className="rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80"
+              className="absolute top-4 left-4 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            
-            {isOwnProfile ? (
+
+            {/* Actions on cover */}
+            <div className="absolute top-4 right-4 flex gap-2">
+              {isOwnProfile && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  asChild
+                  className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                >
+                  <Link to="/settings">
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
-                size="icon" 
-                asChild
-                className="rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80"
+                size="icon"
+                className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
               >
-                <Link to="/settings">
-                  <Settings className="h-5 w-5" />
-                </Link>
+                <MoreHorizontal className="h-5 w-5" />
               </Button>
-            ) : (
-              <div className="w-10" />
-            )}
+            </div>
           </div>
 
-          {/* Profile Card */}
-          <div className="relative z-10 max-w-2xl mx-auto px-4 pt-4">
-            <div className="glass-premium rounded-[2rem] p-6 md:p-8">
-              {/* Top Section - Avatar & Story */}
-              <div className="flex flex-col items-center mb-6">
+          {/* Profile Header Card */}
+          <div className="glass-card mx-4 -mt-20 relative rounded-xl border border-border/50">
+            <div className="p-6">
+              {/* Avatar Section */}
+              <div className="flex flex-col md:flex-row md:items-end gap-4">
                 {/* Avatar with Story Ring */}
-                <div className="relative mb-4 group">
+                <div className="relative -mt-20 md:-mt-24">
                   <div 
                     className={cn(
-                      "rounded-[1.5rem] p-[3px] cursor-pointer transition-all duration-500",
+                      "rounded-full p-1 cursor-pointer transition-all duration-300",
                       hasStories 
                         ? hasUnviewed 
-                          ? "bg-gradient-to-br from-primary via-accent to-primary bg-[length:200%_200%] animate-gradient-shift" 
-                          : "bg-muted-foreground/20"
-                        : "bg-transparent"
+                          ? "bg-gradient-to-br from-primary via-accent to-primary" 
+                          : "bg-muted-foreground/30"
+                        : "bg-background border-4 border-background"
                     )}
                     onClick={hasStories ? openViewer : undefined}
                   >
-                    <div className="rounded-[1.3rem] bg-background p-[3px]">
-                      <Avatar className="w-28 h-28 md:w-32 md:h-32 rounded-[1.2rem]">
-                        <AvatarImage src={profileData.avatar_url || undefined} className="object-cover rounded-[1.2rem]" />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl font-bold rounded-[1.2rem]">
+                    <div className={cn(
+                      "rounded-full",
+                      hasStories && "bg-background p-1"
+                    )}>
+                      <Avatar className="w-28 h-28 md:w-36 md:h-36 border-4 border-background shadow-xl">
+                        <AvatarImage src={profileData.avatar_url || undefined} className="object-cover" />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl font-bold">
                           {getInitials(profileData.display_name)}
                         </AvatarFallback>
                       </Avatar>
                     </div>
                   </div>
-
-                  {/* Story Indicator Badge */}
-                  {hasStories && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-primary text-primary-foreground text-xs font-bold rounded-full px-3 py-1 shadow-lg">
-                      <Zap className="w-3 h-3" />
-                      {currentGroup.stories.length} {currentGroup.stories.length === 1 ? 'story' : 'stories'}
-                    </div>
-                  )}
 
                   {/* Add Story Button */}
                   {isOwnProfile && user && (
@@ -315,11 +337,10 @@ export default function Profile() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                       className={cn(
-                        "absolute -bottom-2 -right-2 w-10 h-10 rounded-xl",
-                        "bg-gradient-to-br from-primary to-accent text-white",
-                        "flex items-center justify-center transition-all duration-300",
-                        "shadow-lg shadow-primary/30 hover:scale-110 hover:shadow-xl",
-                        "border-4 border-background"
+                        "absolute bottom-2 right-2 w-9 h-9 rounded-full",
+                        "bg-primary text-primary-foreground",
+                        "flex items-center justify-center transition-all duration-200",
+                        "shadow-lg hover:scale-110 border-2 border-background"
                       )}
                     >
                       {uploading ? (
@@ -329,15 +350,19 @@ export default function Profile() {
                       )}
                     </button>
                   )}
+
+                  {/* Story indicator */}
+                  {hasStories && (
+                    <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-background">
+                      {currentGroup.stories.length}
+                    </div>
+                  )}
                 </div>
 
-                {/* Name & Badges */}
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    {profileData.privacy === 'private' && (
-                      <Lock className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <h1 className="text-2xl md:text-3xl font-bold gradient-text">
+                {/* Name and quick info */}
+                <div className="flex-1 md:pb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-2xl md:text-3xl font-bold">
                       {profileData.display_name}
                     </h1>
                     {profileData.is_verified && (
@@ -346,47 +371,63 @@ export default function Profile() {
                       </div>
                     )}
                     {isProfileAdmin && (
-                      <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
+                      <span className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
                         <Hammer className="h-3 w-3 text-white" />
                       </span>
                     )}
+                    {profileData.privacy === 'private' && (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </div>
-                  <p className="text-muted-foreground font-medium">@{profileData.username}</p>
+                  <p className="text-muted-foreground">@{profileData.username}</p>
+                </div>
+
+                {/* Action Buttons - Desktop */}
+                <div className="hidden md:flex items-center gap-2">
+                  {isOwnProfile ? (
+                    <>
+                      <Button variant="outline" asChild>
+                        <Link to="/settings">Edit Profile</Link>
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                    </>
+                  ) : user ? (
+                    <>
+                      <FollowButton
+                        targetUserId={profileData.user_id}
+                        targetUsername={profileData.username}
+                        isPrivateAccount={profileData.privacy === 'private'}
+                        onFollowChange={handleFollowChange}
+                      />
+                      <Button variant="outline" asChild>
+                        <Link to={`/messages?new=${profileData.user_id}`}>
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Message
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <Button className="btn-gradient" asChild>
+                      <Link to="/auth">Follow</Link>
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              {/* Stats Row - Unique Pill Design */}
-              <div className="flex justify-center gap-3 mb-6">
-                <div className="glass-card rounded-2xl px-5 py-3 text-center min-w-[90px] hover-glow transition-all cursor-pointer">
-                  <div className="text-xl font-bold">{postCount}</div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Posts</div>
-                </div>
-                <div className="glass-card rounded-2xl px-5 py-3 text-center min-w-[90px] hover-glow transition-all cursor-pointer">
-                  <div className="text-xl font-bold">
-                    {statsLoading ? '–' : stats.followers.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Followers</div>
-                </div>
-                <div className="glass-card rounded-2xl px-5 py-3 text-center min-w-[90px] hover-glow transition-all cursor-pointer">
-                  <div className="text-xl font-bold">
-                    {statsLoading ? '–' : stats.following.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Following</div>
-                </div>
-              </div>
-
-              {/* Bio Section */}
+              {/* Bio */}
               {profileData.bio && (
-                <p className="text-center text-sm md:text-base mb-6 max-w-md mx-auto leading-relaxed">
+                <p className="mt-4 text-foreground/90 leading-relaxed max-w-2xl">
                   {profileData.bio}
                 </p>
               )}
 
-              {/* Meta Tags - Chip Style */}
-              <div className="flex flex-wrap justify-center gap-2 mb-6">
+              {/* Meta info */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-sm text-muted-foreground">
                 {profileData.location && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 text-sm text-secondary-foreground">
-                    <MapPin className="h-3 w-3" />
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
                     {profileData.location}
                   </span>
                 )}
@@ -395,33 +436,49 @@ export default function Profile() {
                     href={profileData.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-sm text-primary hover:bg-primary/20 transition-colors"
+                    className="flex items-center gap-1.5 text-primary hover:underline"
                   >
-                    <LinkIcon className="h-3 w-3" />
+                    <LinkIcon className="h-4 w-4" />
                     {profileData.website.replace(/^https?:\/\//, '').split('/')[0]}
                   </a>
                 )}
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-sm text-muted-foreground">
-                  <Sparkles className="h-3 w-3" />
-                  Since {format(new Date(profileData.created_at), 'MMM yyyy')}
+                <span className="flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" />
+                  Joined {format(new Date(profileData.created_at), 'MMMM yyyy')}
                 </span>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 justify-center">
+              {/* Stats Row */}
+              <div className="flex items-center gap-6 mt-5 pt-5 border-t border-border/50">
+                <button className="group">
+                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                    {postCount}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1.5">posts</span>
+                </button>
+                <button className="group">
+                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                    {statsLoading ? '–' : stats.followers.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1.5">followers</span>
+                </button>
+                <button className="group">
+                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                    {statsLoading ? '–' : stats.following.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1.5">following</span>
+                </button>
+              </div>
+
+              {/* Mobile Action Buttons */}
+              <div className="flex md:hidden gap-2 mt-5">
                 {isOwnProfile ? (
                   <>
-                    <Button 
-                      variant="outline" 
-                      className="rounded-full px-6 h-11 border-2"
-                      asChild
-                    >
+                    <Button variant="outline" className="flex-1" asChild>
                       <Link to="/settings">Edit Profile</Link>
                     </Button>
-                    <Button 
-                      className="btn-gradient rounded-full px-6 h-11"
-                    >
-                      Share Profile
+                    <Button variant="outline" size="icon">
+                      <Share2 className="h-5 w-5" />
                     </Button>
                   </>
                 ) : user ? (
@@ -431,40 +488,40 @@ export default function Profile() {
                       targetUsername={profileData.username}
                       isPrivateAccount={profileData.privacy === 'private'}
                       onFollowChange={handleFollowChange}
-                      className="rounded-full px-6 h-11"
+                      className="flex-1"
                     />
-                    <Button 
-                      variant="outline" 
-                      className="rounded-full h-11 px-6 border-2 gap-2"
-                      asChild
-                    >
+                    <Button variant="outline" className="flex-1" asChild>
                       <Link to={`/messages?new=${profileData.user_id}`}>
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-4 w-4 mr-2" />
                         Message
                       </Link>
                     </Button>
                   </>
                 ) : (
-                  <Button className="btn-gradient rounded-full px-8 h-11" asChild>
+                  <Button className="flex-1 btn-gradient" asChild>
                     <Link to="/auth">Follow</Link>
                   </Button>
                 )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Posts Section */}
-        <div className="max-w-2xl mx-auto px-4 pt-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Posts
-            </h2>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+          {/* Activity Section */}
+          <div className="glass-card mx-4 mt-4 rounded-xl border border-border/50">
+            <div className="p-5 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <h2 className="font-semibold text-lg">Activity</h2>
+                </div>
+                <span className="text-sm text-muted-foreground">{postCount} posts</span>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
+            </div>
           </div>
-          
-          <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
         </div>
       </div>
 
@@ -501,9 +558,9 @@ export default function Profile() {
               {/* Header */}
               <div className="absolute top-6 left-0 right-0 z-20 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10 ring-2 ring-white/30 rounded-xl">
-                    <AvatarImage src={currentGroup.avatar_url || undefined} className="rounded-xl" />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm rounded-xl">
+                  <Avatar className="w-10 h-10 ring-2 ring-white/30">
+                    <AvatarImage src={currentGroup.avatar_url || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
                       {getInitials(currentGroup.display_name)}
                     </AvatarFallback>
                   </Avatar>
@@ -586,7 +643,7 @@ export default function Profile() {
               {/* Caption */}
               {currentStory.caption && (
                 <div className="absolute bottom-20 left-4 right-4 z-20">
-                  <p className="text-white text-center text-sm bg-black/40 rounded-xl px-4 py-2 backdrop-blur-sm">
+                  <p className="text-white text-center text-sm bg-black/40 rounded-lg px-4 py-2 backdrop-blur-sm">
                     {currentStory.caption}
                   </p>
                 </div>
@@ -637,13 +694,6 @@ export default function Profile() {
         }
         .animate-story-progress {
           animation: story-progress 5s linear forwards;
-        }
-        @keyframes gradient-shift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        .animate-gradient-shift {
-          animation: gradient-shift 3s ease infinite;
         }
       `}</style>
     </MainLayout>
