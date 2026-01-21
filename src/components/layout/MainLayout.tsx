@@ -17,6 +17,7 @@ import {
 import {
   Home,
   Compass,
+  Clapperboard,
   MessageCircle,
   BookOpen,
   Bell,
@@ -38,6 +39,7 @@ interface MainLayoutProps {
 const navItems = [
   { icon: Home, label: 'Home', href: '/' },
   { icon: Compass, label: 'Explore', href: '/explore' },
+  { icon: Clapperboard, label: 'Reels', href: '/reels' },
   { icon: MessageCircle, label: 'Messages', href: '/messages' },
   { icon: BookOpen, label: 'Library', href: '/library' },
   { icon: Bell, label: 'Notifications', href: '/notifications' },
@@ -237,7 +239,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
           <div className="absolute inset-0 glass-card border-t border-border/30" />
           <div className="relative flex items-center justify-around h-16 px-2">
-            {navItems.slice(0, 5).map((item) => {
+            {navItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
