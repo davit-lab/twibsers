@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useReels } from '@/hooks/useReels';
+import { useReels, ReelsFeedType } from '@/hooks/useReels';
 import { useStories } from '@/hooks/useStories';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -9,10 +9,13 @@ import ReelCard from '@/components/reels/ReelCard';
 import ReelControls from '@/components/reels/ReelControls';
 import ReelCommentsSheet from '@/components/reels/ReelComments';
 import ReelEmptyState from '@/components/reels/ReelEmptyState';
+import FeedTabs from '@/components/reels/FeedTabs';
 
 export default function Reels() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [feedType, setFeedType] = useState<ReelsFeedType>('foryou');
+  
   const { 
     reels, 
     loading, 
@@ -23,7 +26,7 @@ export default function Reels() {
     setCurrentIndex, 
     likeReel, 
     incrementView 
-  } = useReels();
+  } = useReels(feedType);
   const { uploadStory } = useStories();
   
   const [muted, setMuted] = useState(false);
@@ -207,7 +210,17 @@ export default function Reels() {
 
   // Empty state
   if (reels.length === 0) {
-    return <ReelEmptyState isRefreshing={refreshing} onRefresh={() => refetch()} />;
+    return (
+      <div className="h-screen w-full bg-black relative">
+        {/* Feed type tabs */}
+        <FeedTabs feedType={feedType} onFeedTypeChange={setFeedType} />
+        <ReelEmptyState 
+          isRefreshing={refreshing} 
+          onRefresh={() => refetch()} 
+          isFollowingFeed={feedType === 'following'}
+        />
+      </div>
+    );
   }
 
   return (
@@ -217,6 +230,9 @@ export default function Reels() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Feed type tabs */}
+      <FeedTabs feedType={feedType} onFeedTypeChange={setFeedType} />
+      
       {/* Reels container with smooth transition */}
       <div 
         className={cn(

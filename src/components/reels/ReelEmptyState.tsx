@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, Home, Loader2, Sparkles } from 'lucide-react';
+import { Music2, Plus, Home, Loader2, Sparkles, Users } from 'lucide-react';
 
 interface ReelEmptyStateProps {
   isRefreshing: boolean;
   onRefresh: () => void;
+  isFollowingFeed?: boolean;
 }
 
-export default function ReelEmptyState({ isRefreshing, onRefresh }: ReelEmptyStateProps) {
+export default function ReelEmptyState({ isRefreshing, onRefresh, isFollowingFeed = false }: ReelEmptyStateProps) {
   return (
     <div className="h-screen w-full bg-gradient-to-br from-gray-900 via-purple-900/30 to-gray-900 flex flex-col items-center justify-center text-white overflow-hidden">
       {/* Animated background */}
@@ -22,7 +23,11 @@ export default function ReelEmptyState({ isRefreshing, onRefresh }: ReelEmptySta
         {/* Icon */}
         <div className="relative mb-8 inline-block">
           <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary via-accent to-pink-500 flex items-center justify-center shadow-2xl shadow-primary/40">
-            <Music2 className="h-14 w-14 text-white" />
+            {isFollowingFeed ? (
+              <Users className="h-14 w-14 text-white" />
+            ) : (
+              <Music2 className="h-14 w-14 text-white" />
+            )}
           </div>
           <div className="absolute -top-3 -right-3 w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
             <Sparkles className="h-5 w-5 text-white" />
@@ -31,10 +36,12 @@ export default function ReelEmptyState({ isRefreshing, onRefresh }: ReelEmptySta
         
         {/* Text */}
         <h2 className="text-4xl font-display font-bold mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
-          No Reels Yet
+          {isFollowingFeed ? 'No Reels from Following' : 'No Reels Yet'}
         </h2>
         <p className="text-white/60 mb-10 text-lg leading-relaxed">
-          Be the first to share amazing short videos with the community!
+          {isFollowingFeed 
+            ? 'Follow more creators to see their reels here!' 
+            : 'Be the first to share amazing short videos with the community!'}
         </p>
         
         {/* Actions */}
