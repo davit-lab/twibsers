@@ -345,6 +345,42 @@ export type Database = {
         }
         Relationships: []
       }
+      login_sessions: {
+        Row: {
+          created_at: string
+          device_name: string | null
+          device_type: string | null
+          id: string
+          ip_address: string | null
+          is_current: boolean | null
+          last_active_at: string | null
+          location: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean | null
+          last_active_at?: string | null
+          location?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_name?: string | null
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          is_current?: boolean | null
+          last_active_at?: string | null
+          location?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -700,6 +736,137 @@ export type Database = {
         }
         Relationships: []
       }
+      reel_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          like_count: number | null
+          parent_id: string | null
+          reel_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          like_count?: number | null
+          parent_id?: string | null
+          reel_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          like_count?: number | null
+          parent_id?: string | null
+          reel_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "reel_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reel_comments_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: false
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reel_likes: {
+        Row: {
+          created_at: string
+          id: string
+          reel_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reel_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_likes_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: false
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reels: {
+        Row: {
+          audio_name: string | null
+          audio_url: string | null
+          caption: string | null
+          comment_count: number | null
+          created_at: string
+          duration: number | null
+          id: string
+          is_published: boolean | null
+          like_count: number | null
+          share_count: number | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+          video_url: string
+          view_count: number | null
+        }
+        Insert: {
+          audio_name?: string | null
+          audio_url?: string | null
+          caption?: string | null
+          comment_count?: number | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          is_published?: boolean | null
+          like_count?: number | null
+          share_count?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+          video_url: string
+          view_count?: number | null
+        }
+        Update: {
+          audio_name?: string | null
+          audio_url?: string | null
+          caption?: string | null
+          comment_count?: number | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          is_published?: boolean | null
+          like_count?: number | null
+          share_count?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+          video_url?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       stars: {
         Row: {
           created_at: string
@@ -852,6 +1019,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          autoplay_videos: boolean | null
+          color_accent: string | null
+          content_filter: string | null
+          created_at: string
+          display_density: string | null
+          font_size: string | null
+          high_contrast: boolean | null
+          id: string
+          language: string | null
+          login_alerts: boolean | null
+          reduced_motion: boolean | null
+          screen_reader_optimized: boolean | null
+          show_sensitive_content: boolean | null
+          theme: string | null
+          two_factor_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          autoplay_videos?: boolean | null
+          color_accent?: string | null
+          content_filter?: string | null
+          created_at?: string
+          display_density?: string | null
+          font_size?: string | null
+          high_contrast?: boolean | null
+          id?: string
+          language?: string | null
+          login_alerts?: boolean | null
+          reduced_motion?: boolean | null
+          screen_reader_optimized?: boolean | null
+          show_sensitive_content?: boolean | null
+          theme?: string | null
+          two_factor_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          autoplay_videos?: boolean | null
+          color_accent?: string | null
+          content_filter?: string | null
+          created_at?: string
+          display_density?: string | null
+          font_size?: string | null
+          high_contrast?: boolean | null
+          id?: string
+          language?: string | null
+          login_alerts?: boolean | null
+          reduced_motion?: boolean | null
+          screen_reader_optimized?: boolean | null
+          show_sensitive_content?: boolean | null
+          theme?: string | null
+          two_factor_enabled?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

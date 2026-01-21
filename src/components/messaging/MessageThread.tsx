@@ -20,11 +20,14 @@ import {
   Smile,
   Paperclip,
   Mic,
-  X
+  X,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import CallOverlay from './CallOverlay';
+import EmojiPicker from './EmojiPicker';
+import GifPicker from './GifPicker';
 
 interface MessageThreadProps {
   conversationId: string;
@@ -53,8 +56,25 @@ export default function MessageThread({
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
   const [activeCallType, setActiveCallType] = useState<'audio' | 'video' | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    inputRef.current?.focus();
+  };
+
+  const handleGifSelect = async (gifUrl: string) => {
+    setShowGifPicker(false);
+    setSending(true);
+    try {
+      await sendMessage(gifUrl);
+    } finally {
+      setSending(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -371,11 +391,31 @@ export default function MessageThread({
                 type="button" 
                 variant="ghost" 
                 size="icon" 
+                onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full h-8 w-8"
               >
                 <Smile className="h-5 w-5 text-muted-foreground" />
               </Button>
             </div>
+
+            {/* GIF Button */}
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
+              className="rounded-full flex-shrink-0 hover:bg-primary/10 transition-colors"
+            >
+              <span className="text-xs font-bold text-muted-foreground">GIF</span>
+            </Button>
+
+            {/* Pickers */}
+            {showEmojiPicker && (
+              <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
+            )}
+            {showGifPicker && (
+              <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifPicker(false)} />
+            )}
 
             {newMessage.trim() ? (
               <Button 
