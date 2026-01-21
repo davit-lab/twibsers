@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
+import { useWebRTC, useIncomingCalls } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
 import MainLayout from '@/components/layout/MainLayout';
 import ConversationList from '@/components/messaging/ConversationList';
 import MessageThread from '@/components/messaging/MessageThread';
+import IncomingCallModal from '@/components/messaging/IncomingCallModal';
 import { Card } from '@/components/ui/card';
 import { MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,7 +29,15 @@ export default function Messages() {
   const newUserId = searchParams.get('new');
   
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [lastReadAt, setLastReadAt] = useState<string | null>(null);
+  
+  // Incoming calls handler
+  const { incomingCall, callerProfile, clearIncomingCall } = useIncomingCalls();
+  const { answerCall, declineCall } = useWebRTC(
+    incomingCall?.conversation_id || null, 
+    incomingCall?.caller_id || null
+  );
 
   // Handle starting new conversation from profile page
   useEffect(() => {
@@ -46,6 +56,7 @@ export default function Messages() {
   useEffect(() => {
     if (!selectedConvId || !user) {
       setOtherUser(null);
+      setOtherUserId(null);
       return;
     }
 
@@ -70,6 +81,7 @@ export default function Messages() {
       if (other) {
         const profile = Array.isArray(other.profiles) ? other.profiles[0] : other.profiles;
         setOtherUser(profile);
+        setOtherUserId(other.user_id);
       }
       
       // Get other user's last_read_at to show read receipts
@@ -116,6 +128,22 @@ export default function Messages() {
     return null;
   }
 
+  const handleAnswerCall = async () => {
+    if (incomingCall) {
+      await answerCall(incomingCall);
+      // Navigate to the conversation
+      setSearchParams({ conv: incomingCall.conversation_id });
+      clearIncomingCall();
+    }
+  };
+
+  const handleDeclineCall = async () => {
+    if (incomingCall) {
+      await declineCall(incomingCall.id);
+      clearIncomingCall();
+    }
+  };
+
   const handleSelectConversation = (convId: string) => {
     setSearchParams({ conv: convId });
   };
@@ -126,6 +154,15 @@ export default function Messages() {
 
   return (
     <MainLayout>
+      {/* Incoming call modal */}
+      {incomingCall && callerProfile && (
+        <IncomingCallModal
+          session={incomingCall}
+          callerProfile={callerProfile}
+          onAnswer={handleAnswerCall}
+          onDecline={handleDeclineCall}
+        />
+      )}
       <div className="container max-w-5xl py-0 px-0 pb-24 lg:pb-0 h-[calc(100vh-4rem)]">
         <div className="flex h-full">
           {/* Conversation List - hidden on mobile when conversation selected */}
@@ -151,10 +188,11 @@ export default function Messages() {
             'flex-1 rounded-none md:rounded-r-xl overflow-hidden',
             !selectedConvId ? 'hidden md:flex' : 'flex'
           )}>
-            {selectedConvId && otherUser ? (
+            {selectedConvId && otherUser && otherUserId ? (
               <MessageThread
                 conversationId={selectedConvId}
                 otherUser={otherUser}
+                otherUserId={otherUserId}
                 onBack={handleBack}
                 lastReadAt={lastReadAt}
               />
