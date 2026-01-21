@@ -66,37 +66,36 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 w-full">
-        <div className="absolute inset-0 glass-card border-b border-border/30" />
-        <div className="container relative flex h-16 items-center justify-between px-4">
+    <div className="min-h-screen bg-background">
+      {/* Top Navigation Bar - Native App Style */}
+      <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border/40">
+        <div className="flex h-14 items-center justify-between px-4 max-w-screen-xl mx-auto">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity group">
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-glow-sm group-hover:shadow-glow transition-shadow duration-300">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity group">
+            <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span className="font-display font-bold text-xl hidden sm:inline gradient-text">Twibsers</span>
           </Link>
 
           {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <div className="hidden md:flex flex-1 max-w-sm mx-6">
             <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
               <input
                 type="text"
-                placeholder="Search Twibsers..."
-                className="w-full h-11 pl-11 pr-4 rounded-full bg-muted/40 border border-transparent focus:border-primary/30 focus:bg-background focus:shadow-glow-sm transition-all outline-none text-sm"
+                placeholder="Search..."
+                className="w-full h-10 pl-10 pr-4 rounded-full bg-muted/50 border border-transparent focus:border-primary/30 focus:bg-background focus:shadow-sm transition-all outline-none text-sm"
               />
             </div>
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden rounded-full"
+              className="md:hidden rounded-full h-9 w-9"
             >
               <Search className="h-5 w-5" />
             </Button>
@@ -106,10 +105,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <NotificationDropdown className="hidden md:flex" />
                 <Button 
                   onClick={() => setCreateDialogOpen(true)}
-                  className="btn-gradient rounded-full gap-2 hidden sm:flex h-10 px-5"
+                  className="btn-gradient rounded-full gap-2 hidden sm:flex h-9 px-4 text-sm font-medium"
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="font-medium">Create</span>
+                  Post
                 </Button>
               </>
             )}
@@ -117,16 +116,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-11 w-11 rounded-full p-0">
-                    <Avatar className="h-11 w-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all hover:ring-primary/40">
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                    <Avatar className="h-9 w-9 ring-2 ring-primary/10 ring-offset-1 ring-offset-background transition-all hover:ring-primary/30">
                       <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
                         {getInitials(profile?.display_name || 'U')}
                       </AvatarFallback>
                     </Avatar>
                     {profile?.is_verified && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-background flex items-center justify-center shadow-sm">
-                        <BadgeCheck className="w-4 h-4 text-verified" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background flex items-center justify-center shadow-sm">
+                        <BadgeCheck className="w-3.5 h-3.5 text-verified" />
                       </div>
                     )}
                   </Button>
@@ -189,13 +188,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex max-w-screen-xl mx-auto">
         {/* Left Sidebar - Desktop Navigation */}
         {user && (
-          <aside className="hidden lg:flex flex-col w-64 h-[calc(100vh-4rem)] sticky top-16 p-4">
-            <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-border/50 to-transparent" />
-            
-            <nav className="flex-1 space-y-1.5">
+          <aside className="hidden lg:flex flex-col w-60 h-[calc(100vh-3.5rem)] sticky top-14 py-4 pr-4">
+            <nav className="flex-1 space-y-1">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
@@ -203,13 +200,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300',
+                      'flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-glow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className={cn("h-5 w-5", isActive && "scale-105")} />
                     {item.label}
                   </Link>
                 );
@@ -217,9 +214,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </nav>
 
             {/* User Card */}
-            <div className="glass-premium p-4 rounded-2xl">
+            <div className="mt-4 p-3 rounded-2xl bg-muted/30 border border-border/30">
               <div className="flex items-center gap-3">
-                <Avatar className="h-11 w-11 ring-2 ring-primary/20">
+                <Avatar className="h-10 w-10">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
                     {getInitials(profile?.display_name || 'U')}
@@ -235,7 +232,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 min-h-[calc(100vh-4rem)]">
+        <main className="flex-1 min-h-[calc(100vh-3.5rem)] border-x border-border/30">
           {isBanned && banInfo ? (
             <div className="container max-w-2xl py-12 px-4">
               <Card className="border-destructive/50 bg-destructive/5">
@@ -280,34 +277,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - Minimal iOS style */}
       {user && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
-          <div className="absolute inset-0 glass-card border-t border-border/30" />
-          <div className="relative flex items-center justify-around h-16 px-2">
-            {navItems.map((item) => {
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/40 safe-area-inset-bottom">
+          <div className="flex items-center justify-around h-14 px-2">
+            {navItems.slice(0, 5).map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'flex flex-col items-center justify-center h-full px-3 py-2 rounded-xl transition-all',
+                    'flex flex-col items-center justify-center py-1 px-4 transition-all',
                     isActive
                       ? 'text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      : 'text-muted-foreground'
                   )}
                 >
-                  <div className={cn(
-                    "relative p-2 rounded-xl transition-all",
-                    isActive && "bg-primary/10"
-                  )}>
-                    <item.icon className={cn('h-5 w-5', isActive && 'text-primary')} />
-                    {isActive && (
-                      <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10" />
-                    )}
-                  </div>
-                  <span className="text-[10px] mt-1 font-medium">{item.label}</span>
+                  <item.icon className={cn('h-6 w-6', isActive && 'scale-105')} strokeWidth={isActive ? 2.5 : 2} />
                 </Link>
               );
             })}

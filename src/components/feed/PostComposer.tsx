@@ -13,14 +13,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { 
   Image, 
-  Video, 
   Globe, 
   Users, 
   Lock, 
   ChevronDown, 
   X, 
   Loader2,
-  Sparkles
+  Smile,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,9 +37,9 @@ interface PostComposerProps {
 }
 
 const visibilityOptions = [
-  { value: 'public', label: 'Public', icon: Globe, description: 'Anyone can see this' },
-  { value: 'followers', label: 'Followers', icon: Users, description: 'Only followers can see' },
-  { value: 'private', label: 'Only me', icon: Lock, description: 'Only you can see this' },
+  { value: 'public', label: 'Everyone', icon: Globe, description: 'Anyone can see' },
+  { value: 'followers', label: 'Followers', icon: Users, description: 'Only followers' },
+  { value: 'private', label: 'Only me', icon: Lock, description: 'Private' },
 ] as const;
 
 export default function PostComposer({ onPostCreated }: PostComposerProps) {
@@ -62,7 +62,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     const validFiles = files.filter(file => {
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
-      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
+      const isValidSize = file.size <= 10 * 1024 * 1024;
       return (isImage || isVideo) && isValidSize;
     });
 
@@ -121,7 +121,6 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     setIsSubmitting(true);
 
     try {
-      // Create post
       const { data: post, error: postError } = await supabase
         .from('posts')
         .insert({
@@ -134,7 +133,6 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
 
       if (postError) throw postError;
 
-      // Upload media files
       if (mediaFiles.length > 0) {
         const uploadPromises = mediaFiles.map(async (media, index) => {
           const url = await uploadMedia(media.file, profile.user_id);
@@ -152,15 +150,14 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
         await Promise.all(uploadPromises);
       }
 
-      // Reset form
       setContent('');
       setMediaFiles([]);
       setVisibility('public');
       setIsFocused(false);
       
       toast({
-        title: 'Posted!',
-        description: 'Your post has been published.',
+        title: 'Posted! ✨',
+        description: 'Your post is now live.',
       });
 
       onPostCreated?.();
@@ -183,30 +180,30 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
 
   return (
     <div className={cn(
-      "p-4 bg-card rounded-xl border transition-all duration-300",
-      isFocused ? "shadow-card-hover border-primary/30" : "border-border"
+      "transition-all duration-300",
+      isFocused && "bg-muted/20 -mx-4 px-4 py-2 rounded-2xl"
     )}>
       <div className="flex gap-3">
-        <Avatar className="h-10 w-10 flex-shrink-0">
+        <Avatar className="h-11 w-11 flex-shrink-0 ring-2 ring-transparent">
           <AvatarImage src={profile?.avatar_url || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
+          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
             {getInitials(profile?.display_name || 'U')}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
           <Textarea
-            placeholder="What's happening?"
+            placeholder="What's on your mind?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="min-h-[60px] border-0 bg-transparent resize-none focus-visible:ring-0 p-0 text-base placeholder:text-muted-foreground/70"
+            className="min-h-[50px] border-0 bg-transparent resize-none focus-visible:ring-0 p-0 text-[15px] placeholder:text-muted-foreground/60"
           />
 
           {/* Media Previews */}
           {mediaFiles.length > 0 && (
             <div className={cn(
-              "grid gap-2 mt-3",
+              "grid gap-1 mt-3 rounded-2xl overflow-hidden",
               mediaFiles.length === 1 && "grid-cols-1",
               mediaFiles.length === 2 && "grid-cols-2",
               mediaFiles.length >= 3 && "grid-cols-2"
@@ -215,7 +212,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                 <div 
                   key={index} 
                   className={cn(
-                    "relative rounded-lg overflow-hidden bg-muted",
+                    "relative bg-muted",
                     mediaFiles.length === 3 && index === 0 && "row-span-2"
                   )}
                 >
@@ -234,9 +231,9 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                   )}
                   <button
                     onClick={() => removeMedia(index)}
-                    className="absolute top-2 right-2 p-1.5 bg-background/80 backdrop-blur rounded-full hover:bg-background transition-colors"
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur rounded-full hover:bg-black/80 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-white" />
                   </button>
                 </div>
               ))}
@@ -245,8 +242,8 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
 
           {/* Actions Bar */}
           {(isFocused || content || mediaFiles.length > 0) && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+              <div className="flex items-center gap-0.5">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -255,45 +252,45 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 w-9 p-0 text-muted-foreground hover:text-primary"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={mediaFiles.length >= 4}
+                  className="p-2.5 rounded-full text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 >
                   <Image className="h-5 w-5" />
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 w-9 p-0 text-muted-foreground hover:text-primary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={mediaFiles.length >= 4}
+                  className="p-2.5 rounded-full text-primary hover:bg-primary/10 transition-colors"
                 >
-                  <Video className="h-5 w-5" />
-                </Button>
+                  <Smile className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2.5 rounded-full text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <MapPin className="h-5 w-5" />
+                </button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                    <button className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-primary hover:bg-primary/10 transition-colors">
                       <selectedVisibility.icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{selectedVisibility.label}</span>
+                      <span className="hidden sm:inline text-[13px]">{selectedVisibility.label}</span>
                       <ChevronDown className="h-3 w-3" />
-                    </Button>
+                    </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
+                  <DropdownMenuContent align="start" className="w-48">
                     {visibilityOptions.map((option) => (
                       <DropdownMenuItem
                         key={option.value}
                         onClick={() => setVisibility(option.value)}
                         className="gap-3"
                       >
-                        <option.icon className="h-4 w-4" />
+                        <option.icon className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{option.label}</p>
+                          <p className="font-medium text-sm">{option.label}</p>
                           <p className="text-xs text-muted-foreground">{option.description}</p>
                         </div>
                       </DropdownMenuItem>
@@ -303,29 +300,52 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
               </div>
 
               <div className="flex items-center gap-3">
-                {content.length > 0 && (
-                  <span className={cn(
-                    "text-xs",
-                    isOverLimit ? "text-destructive" : "text-muted-foreground"
-                  )}>
-                    {charCount}/5000
-                  </span>
+                {content.length > 4500 && (
+                  <div className="relative w-8 h-8">
+                    <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="text-muted"
+                      />
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeDasharray={2 * Math.PI * 14}
+                        strokeDashoffset={2 * Math.PI * 14 * (1 - Math.min(charCount / 5000, 1))}
+                        className={cn(
+                          "transition-all",
+                          isOverLimit ? "text-destructive" : charCount > 4800 ? "text-amber-500" : "text-primary"
+                        )}
+                      />
+                    </svg>
+                    {charCount > 4800 && (
+                      <span className={cn(
+                        "absolute inset-0 flex items-center justify-center text-[10px] font-medium",
+                        isOverLimit ? "text-destructive" : "text-muted-foreground"
+                      )}>
+                        {5000 - charCount}
+                      </span>
+                    )}
+                  </div>
                 )}
                 <Button 
                   onClick={handleSubmit} 
                   disabled={!canPost}
-                  className="btn-gradient gap-2"
+                  className="btn-gradient rounded-full h-9 px-5 font-semibold"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Posting...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Post
-                    </>
+                    'Post'
                   )}
                 </Button>
               </div>

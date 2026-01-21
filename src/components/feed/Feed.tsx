@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import PostCard from './PostCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PostProfile {
   username: string;
@@ -40,9 +40,10 @@ type FeedType = 'all' | 'following';
 interface FeedProps {
   userId?: string;
   refreshTrigger?: number;
+  onRefreshComplete?: () => void;
 }
 
-export default function Feed({ userId, refreshTrigger }: FeedProps) {
+export default function Feed({ userId, refreshTrigger, onRefreshComplete }: FeedProps) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +94,6 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
       if (userId) {
         query = query.eq('user_id', userId);
       } else if (feedType === 'following' && user) {
-        // Get posts from followed users
         const { data: followedUsers } = await supabase
           .from('follows')
           .select('following_id')
@@ -107,6 +107,7 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
           setHasMore(false);
           setLoading(false);
           setLoadingMore(false);
+          onRefreshComplete?.();
           return;
         }
         
@@ -127,7 +128,6 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
         post_media: post.post_media || [],
       })) as Post[];
 
-      // Check if current user has starred each post
       if (user && transformedPosts.length > 0) {
         const postIds = transformedPosts.map(p => p.id);
         const { data: stars } = await supabase
@@ -155,39 +155,26 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      onRefreshComplete?.();
     }
-  }, [userId, user, feedType, posts.length]);
+  }, [userId, user, feedType, posts.length, onRefreshComplete]);
 
-  // Initial load and when dependencies change
   useEffect(() => {
     fetchPosts();
   }, [userId, refreshTrigger, feedType]);
 
-  // Set up realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('posts-realtime')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'posts',
-        },
-        () => {
-          fetchPosts();
-        }
+        { event: 'INSERT', schema: 'public', table: 'posts' },
+        () => fetchPosts()
       )
       .on(
         'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'posts',
-        },
-        (payload) => {
-          setPosts(prev => prev.filter(p => p.id !== payload.old.id));
-        }
+        { event: 'DELETE', schema: 'public', table: 'posts' },
+        (payload) => setPosts(prev => prev.filter(p => p.id !== payload.old.id))
       )
       .subscribe();
 
@@ -197,34 +184,29 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
   }, []);
 
   const handlePostDeleted = () => {};
-
-  const handleStarChange = () => {
-    fetchPosts();
-  };
+  const handleStarChange = () => fetchPosts();
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-1">
         {showFeedTabs && (
-          <Tabs value={feedType} className="mb-4">
-            <TabsList>
-              <TabsTrigger value="all" disabled>For You</TabsTrigger>
-              <TabsTrigger value="following" disabled>Following</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex gap-1 p-1 bg-muted/30 rounded-full mb-4 w-fit">
+            <div className="px-4 py-2 rounded-full bg-primary/20 text-sm font-medium">For You</div>
+            <div className="px-4 py-2 rounded-full text-sm font-medium text-muted-foreground">Following</div>
+          </div>
         )}
         {[1, 2, 3].map((i) => (
-          <div key={i} className="p-4 bg-card rounded-xl border border-border">
+          <div key={i} className="p-4 bg-card/50 border-b border-border/30">
             <div className="flex items-start gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-11 w-11 rounded-full" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
               </div>
-            </div>
-            <div className="mt-3 pl-[52px] space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
             </div>
           </div>
         ))}
@@ -234,9 +216,13 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive mb-4">Failed to load posts</p>
-        <Button onClick={() => fetchPosts()} variant="outline" className="gap-2">
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+          <RefreshCw className="h-8 w-8 text-destructive" />
+        </div>
+        <p className="text-destructive font-medium mb-2">Failed to load posts</p>
+        <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
+        <Button onClick={() => fetchPosts()} variant="outline" className="gap-2 rounded-full">
           <RefreshCw className="h-4 w-4" />
           Try again
         </Button>
@@ -245,49 +231,71 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div>
+      {/* Feed Type Tabs - Pill Style */}
       {showFeedTabs && (
-        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as FeedType)}>
-          <TabsList>
-            <TabsTrigger value="all">For You</TabsTrigger>
-            <TabsTrigger value="following">Following</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex gap-1 p-1 bg-muted/30 rounded-full mb-4 w-fit">
+          <button
+            onClick={() => setFeedType('all')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200",
+              feedType === 'all'
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            For You
+          </button>
+          <button
+            onClick={() => setFeedType('following')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200",
+              feedType === 'following'
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            Following
+          </button>
+        </div>
       )}
 
+      {/* Posts */}
       {posts.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="font-medium">
-            {feedType === 'following' 
-              ? 'No posts from people you follow'
-              : 'No posts yet'
-            }
+        <div className="text-center py-16">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="h-10 w-10 text-primary" />
+          </div>
+          <p className="font-semibold text-lg mb-1">
+            {feedType === 'following' ? 'Your feed is empty' : 'No posts yet'}
           </p>
-          <p className="text-sm mt-1">
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
             {feedType === 'following'
               ? 'Follow some people to see their posts here!'
-              : 'Be the first to post something!'
-            }
+              : 'Be the first to share something with the community!'}
           </p>
         </div>
       ) : (
-        posts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onPostDeleted={handlePostDeleted}
-            onStarChange={handleStarChange}
-          />
-        ))
+        <div className="divide-y divide-border/30">
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onPostDeleted={handlePostDeleted}
+              onStarChange={handleStarChange}
+            />
+          ))}
+        </div>
       )}
 
+      {/* Load More */}
       {hasMore && posts.length > 0 && (
-        <div className="text-center py-4">
+        <div className="text-center py-6">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => fetchPosts(true)}
             disabled={loadingMore}
-            className="gap-2"
+            className="gap-2 rounded-full text-muted-foreground hover:text-foreground"
           >
             {loadingMore ? (
               <>
@@ -295,7 +303,7 @@ export default function Feed({ userId, refreshTrigger }: FeedProps) {
                 Loading...
               </>
             ) : (
-              'Load more'
+              'Show more'
             )}
           </Button>
         </div>

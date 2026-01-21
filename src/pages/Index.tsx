@@ -1,21 +1,43 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import PostComposer from '@/components/feed/PostComposer';
 import Feed from '@/components/feed/Feed';
 import StoriesBar from '@/components/stories/StoriesBar';
+import PullToRefresh from '@/components/feed/PullToRefresh';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, ArrowRight, Camera, Heart, MessageCircle, Users, Play } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function Index() {
   const { user, loading } = useAuth();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
 
   const handlePostCreated = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshingFeed(true);
+    setRefreshTrigger(prev => prev + 1);
+    // Wait a bit for the feed to refresh
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setIsRefreshingFeed(false);
+  }, []);
+
+  const {
+    containerRef,
+    pullDistance,
+    isRefreshing,
+    progress,
+    shouldRefresh,
+  } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+  });
 
   if (loading) {
     return (
@@ -28,21 +50,37 @@ export default function Index() {
     );
   }
 
-  // Logged in - show feed
+  // Logged in - show feed with pull-to-refresh
   if (user) {
     return (
       <MainLayout>
-        <div className="container max-w-2xl py-6 px-4 pb-24 lg:pb-8">
-          {/* Stories Bar */}
-          <div className="-mx-4 mb-4">
-            <StoriesBar />
+        <PullToRefresh
+          ref={containerRef}
+          pullDistance={pullDistance}
+          isRefreshing={isRefreshing}
+          progress={progress}
+          shouldRefresh={shouldRefresh}
+        >
+          <div className="max-w-2xl mx-auto pb-24 lg:pb-8">
+            {/* Stories Bar - Full bleed on mobile */}
+            <div className="border-b border-border/30">
+              <StoriesBar />
+            </div>
+            
+            {/* Post Composer */}
+            <div className="p-4 border-b border-border/30">
+              <PostComposer onPostCreated={handlePostCreated} />
+            </div>
+            
+            {/* Feed */}
+            <div className="px-4 py-4">
+              <Feed 
+                refreshTrigger={refreshTrigger} 
+                onRefreshComplete={() => setIsRefreshingFeed(false)}
+              />
+            </div>
           </div>
-          
-          <PostComposer onPostCreated={handlePostCreated} />
-          <div className="mt-6">
-            <Feed refreshTrigger={refreshTrigger} />
-          </div>
-        </div>
+        </PullToRefresh>
       </MainLayout>
     );
   }
@@ -133,7 +171,7 @@ export default function Index() {
           ].map((post, i) => (
             <div key={i} className="p-4">
               <div className="flex gap-3">
-                <Avatar className="w-10 h-10">
+                <Avatar className="w-11 h-11">
                   <AvatarFallback className={`bg-gradient-to-br ${post.gradient} text-white text-sm font-medium`}>
                     {post.user[0]}
                   </AvatarFallback>
@@ -144,19 +182,19 @@ export default function Index() {
                     <span className="text-muted-foreground text-sm">{post.handle}</span>
                     <span className="text-muted-foreground text-xs">· 2h</span>
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed">{post.content}</p>
+                  <p className="mt-1.5 text-[15px] leading-relaxed">{post.content}</p>
                   {post.hasImage && (
-                    <div className="mt-3 rounded-xl bg-gradient-to-br from-muted/50 to-muted h-48 flex items-center justify-center">
+                    <div className="mt-3 rounded-2xl bg-gradient-to-br from-muted/50 to-muted h-48 flex items-center justify-center">
                       <Camera className="w-8 h-8 text-muted-foreground/50" />
                     </div>
                   )}
                   <div className="flex items-center gap-6 mt-3">
                     <button className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-pink-500 transition-colors">
-                      <Heart className="w-4 h-4" />
+                      <Heart className="w-[18px] h-[18px]" />
                       <span>{post.likes}</span>
                     </button>
                     <button className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-primary transition-colors">
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className="w-[18px] h-[18px]" />
                       <span>{post.comments}</span>
                     </button>
                   </div>

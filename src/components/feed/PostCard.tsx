@@ -14,7 +14,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import CommentSection from '@/components/comments/CommentSection';
@@ -30,6 +29,7 @@ import {
   Globe,
   Users,
   Lock,
+  Bookmark,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -104,7 +104,6 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
     
     try {
       if (isStarred) {
-        // Remove star
         await supabase
           .from('stars')
           .delete()
@@ -114,7 +113,6 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
         setIsStarred(false);
         setStarCount(prev => Math.max(0, prev - 1));
       } else {
-        // Add star
         await supabase
           .from('stars')
           .insert({
@@ -195,164 +193,175 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
   const VisibilityIcon = visibilityIcons[post.visibility];
 
   return (
-    <article className="p-4 bg-card rounded-xl border border-border feed-card">
+    <article className="py-4 transition-colors hover:bg-muted/20">
       {/* Post Header */}
       <div className="flex items-start gap-3">
         <Link to={`/profile/${post.profiles.username}`}>
-          <Avatar className="h-10 w-10 hover:opacity-90 transition-opacity">
+          <Avatar className="h-11 w-11 hover:opacity-90 transition-opacity ring-2 ring-transparent hover:ring-primary/20">
             <AvatarImage src={post.profiles.avatar_url || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
+            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
               {getInitials(post.profiles.display_name)}
             </AvatarFallback>
           </Avatar>
         </Link>
 
         <div className="flex-1 min-w-0">
+          {/* User Info Row */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Link 
               to={`/profile/${post.profiles.username}`}
-              className="font-semibold hover:underline truncate"
+              className="font-semibold text-[15px] hover:underline truncate"
             >
               {post.profiles.display_name}
             </Link>
             {post.profiles.is_verified && (
-              <BadgeCheck className="h-4 w-4 text-verified flex-shrink-0" />
+              <BadgeCheck className="h-[18px] w-[18px] text-verified flex-shrink-0" />
             )}
+            <span className="text-muted-foreground text-sm">@{post.profiles.username}</span>
             <span className="text-muted-foreground">·</span>
-            <Link 
-              to={`/profile/${post.profiles.username}`}
-              className="text-muted-foreground hover:underline text-sm truncate"
+            <time 
+              dateTime={post.created_at}
+              className="text-muted-foreground text-sm hover:underline cursor-pointer"
             >
-              @{post.profiles.username}
-            </Link>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <time dateTime={post.created_at}>
-              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+              {formatDistanceToNow(new Date(post.created_at), { addSuffix: false })}
             </time>
-            <span>·</span>
-            <VisibilityIcon className="h-3 w-3" />
+            <VisibilityIcon className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-        </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {isOwnPost ? (
-              <>
-                <DropdownMenuItem className="gap-2">
-                  <Pin className="h-4 w-4" />
-                  Pin to profile
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="gap-2 text-destructive focus:text-destructive"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete post
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem className="gap-2">
-                <Flag className="h-4 w-4" />
-                Report post
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+          {/* Post Content */}
+          <div className="mt-1.5">
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">{post.content}</p>
 
-      {/* Post Content */}
-      <div className="mt-3 pl-[52px]">
-        <p className="text-foreground whitespace-pre-wrap break-words">{post.content}</p>
-
-        {/* Media Grid */}
-        {post.post_media && post.post_media.length > 0 && (
-          <div className={cn(
-            "grid gap-2 mt-3 rounded-xl overflow-hidden",
-            post.post_media.length === 1 && "grid-cols-1",
-            post.post_media.length === 2 && "grid-cols-2",
-            post.post_media.length >= 3 && "grid-cols-2"
-          )}>
-            {post.post_media.map((media, index) => (
-              <div 
-                key={media.id} 
-                className={cn(
-                  "relative bg-muted",
-                  post.post_media.length === 3 && index === 0 && "row-span-2"
-                )}
-              >
-                {media.type === 'image' ? (
-                  <img 
-                    src={media.url} 
-                    alt={media.alt_text || 'Post image'} 
-                    className="w-full h-full object-cover max-h-96"
-                    loading="lazy"
-                  />
-                ) : (
-                  <video 
-                    src={media.url} 
-                    className="w-full h-full object-cover max-h-96"
-                    controls
-                  />
-                )}
+            {/* Media Grid */}
+            {post.post_media && post.post_media.length > 0 && (
+              <div className={cn(
+                "grid gap-0.5 mt-3 rounded-2xl overflow-hidden border border-border/50",
+                post.post_media.length === 1 && "grid-cols-1",
+                post.post_media.length === 2 && "grid-cols-2",
+                post.post_media.length >= 3 && "grid-cols-2"
+              )}>
+                {post.post_media.map((media, index) => (
+                  <div 
+                    key={media.id} 
+                    className={cn(
+                      "relative bg-muted cursor-pointer",
+                      post.post_media.length === 3 && index === 0 && "row-span-2"
+                    )}
+                  >
+                    {media.type === 'image' ? (
+                      <img 
+                        src={media.url} 
+                        alt={media.alt_text || 'Post image'} 
+                        className="w-full h-full object-cover max-h-[400px] hover:opacity-95 transition-opacity"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <video 
+                        src={media.url} 
+                        className="w-full h-full object-cover max-h-[400px]"
+                        controls
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Actions Bar */}
+            <div className="flex items-center justify-between mt-3 -ml-2">
+              <div className="flex items-center gap-1">
+                {/* Star Button */}
+                <button
+                  onClick={handleStar}
+                  disabled={isStarring}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all group",
+                    isStarred 
+                      ? "text-star" 
+                      : "text-muted-foreground hover:text-star hover:bg-star/10"
+                  )}
+                >
+                  <Star 
+                    className={cn(
+                      "h-[18px] w-[18px] transition-transform",
+                      isStarred && "fill-star scale-110"
+                    )} 
+                  />
+                  <span className="text-[13px] tabular-nums">{starCount > 0 ? starCount : ''}</span>
+                </button>
+
+                {/* Comment Button */}
+                <button 
+                  onClick={() => setShowComments(!showComments)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all",
+                    showComments 
+                      ? "text-primary bg-primary/10" 
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  )}
+                >
+                  <MessageCircle className={cn("h-[18px] w-[18px]", showComments && "fill-primary/30")} />
+                  <span className="text-[13px] tabular-nums">{commentCount > 0 ? commentCount : ''}</span>
+                </button>
+
+                {/* Share Button */}
+                <button 
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                >
+                  <Share2 className="h-[18px] w-[18px]" />
+                </button>
+              </div>
+
+              {/* Right Actions */}
+              <div className="flex items-center gap-1">
+                <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
+                  <Bookmark className="h-[18px] w-[18px]" />
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                      <MoreHorizontal className="h-[18px] w-[18px]" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {isOwnPost ? (
+                      <>
+                        <DropdownMenuItem className="gap-2">
+                          <Pin className="h-4 w-4" />
+                          Pin to profile
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive focus:text-destructive"
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete post
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem className="gap-2">
+                        <Flag className="h-4 w-4" />
+                        Report post
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Comments Section */}
+            <Collapsible open={showComments} onOpenChange={setShowComments}>
+              <CollapsibleContent>
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <CommentSection postId={post.id} />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-        )}
-
-        {/* Actions Bar */}
-        <div className="flex items-center gap-6 mt-4">
-          <button
-            onClick={handleStar}
-            disabled={isStarring}
-            className={cn(
-              "flex items-center gap-1.5 text-sm transition-all group",
-              isStarred 
-                ? "text-star" 
-                : "text-muted-foreground hover:text-star"
-            )}
-          >
-            <Star 
-              className={cn(
-                "h-5 w-5 transition-transform star-burst",
-                isStarred && "fill-star animate-star-pop"
-              )} 
-            />
-            <span className="group-hover:text-star">{starCount > 0 && starCount}</span>
-          </button>
-
-          <button 
-            onClick={() => setShowComments(!showComments)}
-            className={cn(
-              "flex items-center gap-1.5 text-sm transition-colors",
-              showComments ? "text-primary" : "text-muted-foreground hover:text-primary"
-            )}
-          >
-            <MessageCircle className={cn("h-5 w-5", showComments && "fill-primary/20")} />
-            <span>{commentCount > 0 && commentCount}</span>
-          </button>
-
-          <button 
-            onClick={handleShare}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Share2 className="h-5 w-5" />
-          </button>
         </div>
-
-        {/* Comments Section */}
-        <Collapsible open={showComments} onOpenChange={setShowComments}>
-          <CollapsibleContent>
-            <CommentSection postId={post.id} />
-          </CollapsibleContent>
-        </Collapsible>
       </div>
     </article>
   );
