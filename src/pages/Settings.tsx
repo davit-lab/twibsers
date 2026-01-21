@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useLoginSessions } from '@/hooks/useLoginSessions';
+import { supabase } from '@/integrations/supabase/client';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, Camera, User, Bell, Lock, Shield, Palette, Eye, 
   Accessibility, Globe, Monitor, Moon, Sun, Smartphone, Laptop, 
-  MapPin, LogOut, Trash2, Key, AlertTriangle, Check
+  MapPin, LogOut, Trash2, Key, AlertTriangle, Check, Mail, Upload
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -57,8 +59,19 @@ export default function Settings() {
   const { preferences, loading: prefsLoading, saving: prefsSaving, updatePreferences } = useUserPreferences();
   const { sessions, loading: sessionsLoading, revokeSession, revokeAllOtherSessions } = useLoginSessions();
   const { toast } = useToast();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordMode, setPasswordMode] = useState<'password' | 'email'>('password');
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  
   const [formData, setFormData] = useState({
     display_name: '',
     username: '',
@@ -114,9 +127,128 @@ export default function Settings() {
       });
     } else {
       toast({
-        title: 'Settings saved',
+        title: 'Settings saved ✨',
         description: 'Your profile has been updated successfully.',
       });
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Please select an image file.',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'File too large',
+        description: 'Maximum file size is 5MB.',
+      });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      await updateProfile({ avatar_url: urlData.publicUrl });
+      
+      toast({
+        title: 'Photo updated! 📸',
+        description: 'Your profile picture has been changed.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload photo.',
+      });
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwordMode === 'password') {
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        toast({
+          variant: 'destructive',
+          title: 'Passwords do not match',
+          description: 'Please make sure both passwords are the same.',
+        });
+        return;
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        toast({
+          variant: 'destructive',
+          title: 'Password too short',
+          description: 'Password must be at least 6 characters.',
+        });
+        return;
+      }
+
+      setPasswordLoading(true);
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword,
+      });
+      setPasswordLoading(false);
+
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to change password',
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: 'Password changed! 🔐',
+          description: 'Your password has been updated successfully.',
+        });
+        setPasswordDialogOpen(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      }
+    } else {
+      // Send password reset email
+      setPasswordLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+        redirectTo: `${window.location.origin}/settings`,
+      });
+      setPasswordLoading(false);
+
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to send email',
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: 'Email sent! 📧',
+          description: 'Check your email for the password reset link.',
+        });
+        setPasswordDialogOpen(false);
+      }
     }
   };
 
@@ -192,31 +324,55 @@ export default function Settings() {
 
           {/* Profile Tab */}
           <TabsContent value="profile">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Profile Information
+                </CardTitle>
                 <CardDescription>Update your public profile details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <Avatar className="h-24 w-24 border-4 border-primary/20">
+                  <div className="relative group">
+                    <Avatar className="h-24 w-24 border-4 border-primary/20 ring-4 ring-primary/10">
                       <AvatarImage src={profile?.avatar_url || undefined} />
                       <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl">
                         {getInitials(formData.display_name || 'U')}
                       </AvatarFallback>
                     </Avatar>
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full shadow-lg"
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
-                      <Camera className="h-4 w-4" />
-                    </Button>
+                      {uploadingAvatar ? (
+                        <Loader2 className="h-6 w-6 text-white animate-spin" />
+                      ) : (
+                        <Camera className="h-6 w-6 text-white" />
+                      )}
+                    </button>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
                   </div>
                   <div>
-                    <h3 className="font-medium">Profile Photo</h3>
-                    <p className="text-sm text-muted-foreground">Click to upload a new photo</p>
+                    <h3 className="font-medium">Profile Photo 📷</h3>
+                    <p className="text-sm text-muted-foreground">Hover over the photo to change it</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-2"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Photo
+                    </Button>
                   </div>
                 </div>
 
@@ -713,20 +869,42 @@ export default function Settings() {
           <TabsContent value="security">
             <div className="space-y-6">
               {/* Account Security */}
-              <Card>
+              <Card className="glass-card">
                 <CardHeader>
-                  <CardTitle>Account Security</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Account Security
+                  </CardTitle>
                   <CardDescription>Manage your security settings</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="p-4 rounded-lg bg-muted/50 border">
-                    <h3 className="font-medium mb-1">Email Address</h3>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Mail className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Email Address</h3>
+                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Password</Label>
-                    <Button variant="outline" className="gap-2">
+                  <div className="p-4 rounded-xl border border-border/50 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Key className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">Password</h3>
+                        <p className="text-sm text-muted-foreground">Change your account password</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-2"
+                      onClick={() => setPasswordDialogOpen(true)}
+                    >
                       <Key className="h-4 w-4" />
                       Change Password
                     </Button>
@@ -869,6 +1047,101 @@ export default function Settings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              Change Password
+            </DialogTitle>
+            <DialogDescription>
+              Choose how you want to change your password
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Mode Selection */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setPasswordMode('password')}
+                className={cn(
+                  "p-4 rounded-xl border-2 text-center transition-all",
+                  passwordMode === 'password'
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40"
+                )}
+              >
+                <Key className="h-6 w-6 mx-auto mb-2" />
+                <p className="font-medium text-sm">Use Password</p>
+                <p className="text-xs text-muted-foreground">Enter new password</p>
+              </button>
+              <button
+                onClick={() => setPasswordMode('email')}
+                className={cn(
+                  "p-4 rounded-xl border-2 text-center transition-all",
+                  passwordMode === 'email'
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40"
+                )}
+              >
+                <Mail className="h-6 w-6 mx-auto mb-2" />
+                <p className="font-medium text-sm">Email Link</p>
+                <p className="text-xs text-muted-foreground">Reset via email</p>
+              </button>
+            </div>
+
+            {passwordMode === 'password' ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-muted/50 text-center">
+                <Mail className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  We'll send a password reset link to <strong>{user?.email}</strong>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasswordChange} disabled={passwordLoading} className="btn-gradient">
+              {passwordLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {passwordMode === 'password' ? 'Changing...' : 'Sending...'}
+                </>
+              ) : (
+                passwordMode === 'password' ? 'Change Password' : 'Send Reset Link'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

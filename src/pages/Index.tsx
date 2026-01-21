@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import PostComposer from '@/components/feed/PostComposer';
 import Feed from '@/components/feed/Feed';
+import StoriesBar from '@/components/stories/StoriesBar';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, ArrowRight, Users, MessageCircle, BookOpen, Play, Star } from 'lucide-react';
 
@@ -31,6 +32,11 @@ export default function Index() {
     return (
       <MainLayout>
         <div className="container max-w-2xl py-6 px-4 pb-24 lg:pb-8">
+          {/* Stories Bar */}
+          <div className="-mx-4 mb-4">
+            <StoriesBar />
+          </div>
+          
           <PostComposer onPostCreated={handlePostCreated} />
           <div className="mt-6">
             <Feed refreshTrigger={refreshTrigger} />
