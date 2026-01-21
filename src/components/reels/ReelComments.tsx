@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReelComments } from '@/hooks/useReels';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Send, Loader2, X, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2, X, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import defaultAvatar from '@/assets/default-avatar.png';
@@ -110,12 +110,64 @@ export default function ReelCommentsSheet({ reelId, open, onOpenChange }: ReelCo
 
 function CommentsContent({ reelId }: { reelId: string }) {
   const { user } = useAuth();
-  const { comments, loading, addComment, likeComment } = useReelComments(reelId);
+  const { comments, loading, addComment, likeComment, refetch } = useReelComments(reelId);
   const [newComment, setNewComment] = useState('');
   const [sending, setSending] = useState(false);
   const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+  const pullStartY = useRef(0);
+  const threshold = 60;
+  const maxPull = 100;
+
+  const handlePullStart = useCallback((e: React.TouchEvent) => {
+    if (scrollRef.current && scrollRef.current.scrollTop <= 0) {
+      pullStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, []);
+
+  const handlePullMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing) return;
+    if (scrollRef.current && scrollRef.current.scrollTop > 0) {
+      setPullDistance(0);
+      return;
+    }
+
+    const delta = e.touches[0].clientY - pullStartY.current;
+    if (delta > 0) {
+      const resistance = 0.4;
+      const pull = Math.min(delta * resistance, maxPull);
+      setPullDistance(pull);
+    }
+  }, [isPulling, isRefreshing]);
+
+  const handlePullEnd = useCallback(async () => {
+    if (!isPulling) return;
+    setIsPulling(false);
+
+    if (pullDistance >= threshold && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullDistance(threshold);
+
+      try {
+        await refetch();
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  }, [isPulling, pullDistance, isRefreshing, refetch]);
+
+  const progress = Math.min(pullDistance / threshold, 1);
+  const shouldRefresh = pullDistance >= threshold;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,12 +230,59 @@ function CommentsContent({ reelId }: { reelId: string }) {
       {/* Scrollable comments area with smooth momentum */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+        className="flex-1 overflow-y-auto overscroll-contain relative"
         style={{ 
           scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch'
         }}
+        onTouchStart={handlePullStart}
+        onTouchMove={handlePullMove}
+        onTouchEnd={handlePullEnd}
       >
+        {/* Pull-to-refresh indicator */}
+        <div
+          className={cn(
+            "absolute left-0 right-0 flex items-center justify-center transition-opacity duration-300 z-10 pointer-events-none",
+            pullDistance > 0 || isRefreshing ? "opacity-100" : "opacity-0"
+          )}
+          style={{
+            top: 0,
+            height: 60,
+            transform: `translateY(${Math.min(pullDistance - 60, 0)}px)`,
+          }}
+        >
+          <div
+            className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
+              shouldRefresh || isRefreshing
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                : "bg-white/10 text-white/60"
+            )}
+            style={{
+              transform: `scale(${0.5 + progress * 0.5}) rotate(${progress * 180}deg)`,
+            }}
+          >
+            {isRefreshing ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ArrowDown
+                className={cn(
+                  "w-5 h-5 transition-transform duration-200",
+                  shouldRefresh && "rotate-180"
+                )}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Content with pull transform */}
+        <div 
+          className="px-5 py-4"
+          style={{
+            transform: `translateY(${pullDistance}px)`,
+            transition: pullDistance === 0 ? 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+          }}
+        >
         {comments.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-5">
@@ -266,6 +365,7 @@ function CommentsContent({ reelId }: { reelId: string }) {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* Input area with frosted glass effect */}
