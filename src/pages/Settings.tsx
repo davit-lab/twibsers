@@ -26,17 +26,9 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getAllLanguages } from '@/lib/languageDetection';
 
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'pt', name: 'Português' },
-  { code: 'ja', name: '日本語' },
-  { code: 'ko', name: '한국어' },
-  { code: 'zh', name: '中文' },
-];
+const LANGUAGES = getAllLanguages();
 
 const CONTENT_FILTERS = [
   { value: 'strict', label: 'Strict', description: 'Hide all potentially sensitive content' },
