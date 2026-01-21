@@ -1,20 +1,21 @@
 import { useRef, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
   Heart, 
   MessageCircle, 
-  Share2, 
   Bookmark, 
   BookmarkCheck,
   Music2,
   BadgeCheck,
   Play,
-  Pause
+  Pause,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Reel } from '@/hooks/useReels';
+import ReelShareMenu from './ReelShareMenu';
 
 interface ReelCardProps {
   reel: Reel;
@@ -27,7 +28,8 @@ interface ReelCardProps {
   onDoubleTap: () => void;
   onLike: () => void;
   onComment: () => void;
-  onShare: () => void;
+  onShareToStory: () => Promise<void>;
+  onCopyLink: () => void;
   onSave: () => void;
   onViewIncrement: () => void;
 }
@@ -43,13 +45,21 @@ export default function ReelCard({
   onDoubleTap,
   onLike,
   onComment,
-  onShare,
+  onShareToStory,
+  onCopyLink,
   onSave,
   onViewIncrement,
 }: ReelCardProps) {
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [progress, setProgress] = useState(0);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  
+  // Swipe detection refs
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const isSwipingRef = useRef(false);
   
   // Handle video playback
   useEffect(() => {
@@ -91,7 +101,49 @@ export default function ReelCard({
     return () => video.removeEventListener('timeupdate', handleTimeUpdate);
   }, []);
   
+  // Swipe left gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
+    isSwipingRef.current = false;
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    
+    const deltaX = touchStartRef.current.x - e.touches[0].clientX;
+    const deltaY = Math.abs(touchStartRef.current.y - e.touches[0].clientY);
+    
+    // Only track horizontal swipes (more horizontal than vertical)
+    if (deltaX > 20 && deltaX > deltaY) {
+      isSwipingRef.current = true;
+      setSwipeOffset(Math.min(deltaX, 150));
+      setShowSwipeHint(deltaX > 50);
+    }
+  };
+  
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current) return;
+    
+    // If swiped left enough, navigate to profile
+    if (swipeOffset > 100 && reel.profile?.username) {
+      navigate(`/profile/${reel.profile.username}`);
+    }
+    
+    // Reset
+    setSwipeOffset(0);
+    setShowSwipeHint(false);
+    touchStartRef.current = null;
+    isSwipingRef.current = false;
+  };
+  
   const handleClick = () => {
+    // Don't trigger if user was swiping
+    if (isSwipingRef.current) return;
+    
     setShowPlayIcon(true);
     setTimeout(() => setShowPlayIcon(false), 600);
     onTogglePause();
@@ -108,18 +160,61 @@ export default function ReelCard({
   };
   
   return (
-    <div className="h-screen w-full relative flex items-center justify-center bg-black">
-      {/* Video */}
-      <video
-        ref={videoRef}
-        src={reel.video_url}
-        className="h-full w-full object-cover"
-        loop
-        muted={isMuted}
-        playsInline
-        onClick={handleClick}
-        onDoubleClick={onDoubleTap}
-      />
+    <div 
+      className="h-screen w-full relative flex items-center justify-center bg-black overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Video container with swipe animation */}
+      <div 
+        className="h-full w-full transition-transform duration-200"
+        style={{ transform: `translateX(-${swipeOffset * 0.3}px)` }}
+      >
+        <video
+          ref={videoRef}
+          src={reel.video_url}
+          className="h-full w-full object-cover"
+          loop
+          muted={isMuted}
+          playsInline
+          onClick={handleClick}
+          onDoubleClick={onDoubleTap}
+        />
+      </div>
+      
+      {/* Swipe hint overlay */}
+      {showSwipeHint && (
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-primary/40 to-transparent flex items-center justify-end pr-4 pointer-events-none z-30 animate-fade-in"
+        >
+          <div className="flex items-center gap-2 text-white">
+            <span className="text-sm font-medium">Profile</span>
+            <ChevronRight className="h-5 w-5 animate-pulse" />
+          </div>
+        </div>
+      )}
+      
+      {/* Profile preview on swipe */}
+      {swipeOffset > 50 && (
+        <div 
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-30 pointer-events-none animate-scale-in"
+          style={{ opacity: Math.min(swipeOffset / 100, 1) }}
+        >
+          <div className="bg-black/80 backdrop-blur-xl rounded-2xl p-4 border border-white/20 flex flex-col items-center gap-3">
+            <Avatar className="h-16 w-16 ring-2 ring-primary/50">
+              <AvatarImage src={reel.profile?.avatar_url || undefined} className="object-cover" />
+              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-lg font-semibold">
+                {getInitials(reel.profile?.display_name || 'U')}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-center">
+              <p className="text-white font-semibold text-sm">{reel.profile?.display_name}</p>
+              <p className="text-white/60 text-xs">@{reel.profile?.username}</p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Cinematic gradient overlays */}
       <div className="absolute inset-0 pointer-events-none">
@@ -156,7 +251,7 @@ export default function ReelCard({
       )}
       
       {/* Creator info */}
-      <div className="absolute bottom-0 left-0 right-20 p-5 pb-10">
+      <div className="absolute bottom-0 left-0 right-20 p-5 pb-12">
         {/* User info row */}
         <div className="flex items-center gap-3 mb-4">
           <Link to={`/profile/${reel.profile?.username}`}>
@@ -214,7 +309,7 @@ export default function ReelCard({
       </div>
       
       {/* Action buttons - Right side */}
-      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-6">
+      <div className="absolute right-3 bottom-36 flex flex-col items-center gap-6">
         {/* Like */}
         <ActionButton
           icon={Heart}
@@ -231,11 +326,13 @@ export default function ReelCard({
           onClick={onComment}
         />
         
-        {/* Share */}
-        <ActionButton
-          icon={Share2}
-          count={formatCount(reel.share_count)}
-          onClick={onShare}
+        {/* Share - Enhanced menu */}
+        <ReelShareMenu
+          reelId={reel.id}
+          shareCount={reel.share_count}
+          creatorUsername={reel.profile?.username || ''}
+          onShareToStory={onShareToStory}
+          onCopyLink={onCopyLink}
         />
         
         {/* Save */}

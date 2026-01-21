@@ -238,7 +238,8 @@ export default function Reels() {
             onDoubleTap={() => handleDoubleTap(reel.id)}
             onLike={() => likeReel(reel.id)}
             onComment={() => openComments(reel.id)}
-            onShare={() => handleShareToStory(reel)}
+            onShareToStory={() => handleShareToStory(reel)}
+            onCopyLink={() => handleCopyLink(reel.id)}
             onSave={() => handleSaveReel(reel.id)}
             onViewIncrement={() => incrementView(reel.id)}
           />
@@ -252,7 +253,6 @@ export default function Reels() {
         isMuted={muted}
         isRefreshing={refreshing}
         onMuteToggle={() => setMuted(!muted)}
-        onNavigate={handleScroll}
         onRefresh={() => refetch()}
       />
 
