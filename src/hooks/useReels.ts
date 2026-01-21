@@ -43,6 +43,7 @@ export interface ReelComment {
     display_name: string;
     avatar_url: string | null;
   };
+  replies?: ReelComment[];
 }
 
 export type ReelsFeedType = 'foryou' | 'following';
@@ -309,14 +310,34 @@ export function useReelComments(reelId: string) {
       }
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
-      const enrichedComments = (data || []).map(comment => ({
-        ...comment,
-        like_count: comment.like_count ?? 0,
-        is_liked: userLikes.includes(comment.id),
-        profile: profileMap.get(comment.user_id),
-      })) as ReelComment[];
+      
+      // Build threaded structure
+      const commentMap = new Map<string, ReelComment>();
+      const rootComments: ReelComment[] = [];
 
-      setComments(enrichedComments);
+      // First pass: create all comment objects
+      (data || []).forEach(comment => {
+        const enrichedComment: ReelComment = {
+          ...comment,
+          like_count: comment.like_count ?? 0,
+          is_liked: userLikes.includes(comment.id),
+          profile: profileMap.get(comment.user_id),
+          replies: [],
+        };
+        commentMap.set(comment.id, enrichedComment);
+      });
+
+      // Second pass: organize into tree
+      (data || []).forEach(comment => {
+        const enrichedComment = commentMap.get(comment.id)!;
+        if (comment.parent_id && commentMap.has(comment.parent_id)) {
+          commentMap.get(comment.parent_id)!.replies!.push(enrichedComment);
+        } else if (!comment.parent_id) {
+          rootComments.push(enrichedComment);
+        }
+      });
+
+      setComments(rootComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
@@ -328,7 +349,7 @@ export function useReelComments(reelId: string) {
     fetchComments();
   }, [fetchComments]);
 
-  const addComment = async (content: string) => {
+  const addComment = async (content: string, parentId?: string) => {
     if (!user) return;
 
     try {
@@ -338,6 +359,7 @@ export function useReelComments(reelId: string) {
           reel_id: reelId,
           user_id: user.id,
           content,
+          parent_id: parentId || null,
         })
         .select()
         .single();
