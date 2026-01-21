@@ -51,7 +51,7 @@ const navItems = [
 const mobileNavItems = [
   { icon: Home, label: 'Home', href: '/', id: 'home' },
   { icon: Compass, label: 'Explore', href: '/explore', id: 'explore' },
-  { icon: PlusSquare, label: 'Create', href: '#create', id: 'create' },
+  { icon: Clapperboard, label: 'Reels', href: '/reels', id: 'reels' },
   { icon: BookOpen, label: 'Library', href: '/library', id: 'library' },
   { icon: User, label: 'Profile', href: '/profile', id: 'profile' },
 ];
