@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMessages, Message } from '@/hooks/useMessages';
 import { useMessageReactions } from '@/hooks/useMessageReactions';
+import { useCallBlocks } from '@/hooks/useCallBlocks';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Send, 
   Loader2, 
@@ -25,7 +33,10 @@ import {
   Mic,
   X,
   Image as ImageIcon,
-  Lock
+  Lock,
+  PhoneOff,
+  UserX,
+  User
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -62,6 +73,7 @@ export default function MessageThread({
   const { user } = useAuth();
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
   const { toggleReaction, getReactionsForMessage } = useMessageReactions(conversationId);
+  const { blockUser, unblockUser, isUserBlocked } = useCallBlocks();
   const { callState, startCall, answerCall, endCall, toggleAudio, toggleVideo, toggleScreenShare, retryCall } = useWebRTC(conversationId, otherUserId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -72,6 +84,7 @@ export default function MessageThread({
   const [reactionPickerPosition, setReactionPickerPosition] = useState<'left' | 'right'>('left');
   const [canCall, setCanCall] = useState(true);
   const [callBlockReason, setCallBlockReason] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -81,6 +94,10 @@ export default function MessageThread({
   useEffect(() => {
     const checkCallPermission = async () => {
       if (!user || !otherUserId) return;
+
+      // Check if user is blocked from calling
+      const blocked = isUserBlocked(otherUserId);
+      setIsBlocked(blocked);
 
       // Check other user's privacy setting
       const { data: otherProfile } = await supabase
@@ -120,7 +137,17 @@ export default function MessageThread({
     };
 
     checkCallPermission();
-  }, [user, otherUserId]);
+  }, [user, otherUserId, isUserBlocked]);
+
+  const handleToggleBlock = async () => {
+    if (isBlocked) {
+      await unblockUser(otherUserId);
+      setIsBlocked(false);
+    } else {
+      await blockUser(otherUserId);
+      setIsBlocked(true);
+    }
+  };
 
   // Derive active call type from callState session
   const activeCallType = callState.session?.call_type || null;
@@ -410,9 +437,36 @@ export default function MessageThread({
                 <Maximize2 className="h-5 w-5" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted transition-colors">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted transition-colors">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => window.open(`/profile/${otherUser.username}`, '_blank')}>
+                  <User className="h-4 w-4 mr-2" />
+                  View Profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleToggleBlock}
+                  className={isBlocked ? "text-green-600" : "text-red-600"}
+                >
+                  {isBlocked ? (
+                    <>
+                      <Phone className="h-4 w-4 mr-2" />
+                      Unblock Calls
+                    </>
+                  ) : (
+                    <>
+                      <PhoneOff className="h-4 w-4 mr-2" />
+                      Block from Calling
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

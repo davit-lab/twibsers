@@ -59,6 +59,27 @@ export type Database = {
         }
         Relationships: []
       }
+      call_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       call_sessions: {
         Row: {
           call_type: string
@@ -1160,6 +1181,7 @@ export type Database = {
           content_filter: string | null
           created_at: string
           display_density: string | null
+          do_not_disturb: boolean | null
           font_size: string | null
           high_contrast: boolean | null
           id: string
@@ -1179,6 +1201,7 @@ export type Database = {
           content_filter?: string | null
           created_at?: string
           display_density?: string | null
+          do_not_disturb?: boolean | null
           font_size?: string | null
           high_contrast?: boolean | null
           id?: string
@@ -1198,6 +1221,7 @@ export type Database = {
           content_filter?: string | null
           created_at?: string
           display_density?: string | null
+          do_not_disturb?: boolean | null
           font_size?: string | null
           high_contrast?: boolean | null
           id?: string
