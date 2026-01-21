@@ -224,77 +224,46 @@
     );
   }
 
-  /* Primary gradient button */
+  /* Primary solid button */
   .btn-gradient {
-    @apply relative overflow-hidden;
-    background: linear-gradient(135deg, 
-      hsl(270 75% 55%), 
-      hsl(300 70% 50%),
-      hsl(320 80% 55%)
-    );
-    background-size: 200% 200%;
-    animation: gradient-shift 3s ease infinite;
-    box-shadow: 
-      0 4px 20px hsl(270 80% 50% / 0.35),
-      0 2px 8px hsl(320 70% 50% / 0.25),
-      inset 0 1px 0 hsl(0 0% 100% / 0.2);
-    @apply transition-all duration-300;
+    @apply relative overflow-hidden transition-all duration-300;
+    background: hsl(var(--primary));
   }
 
   .btn-gradient:hover {
     transform: translateY(-2px);
-    box-shadow: 
-      0 8px 30px hsl(270 80% 50% / 0.45),
-      0 4px 12px hsl(320 70% 50% / 0.35),
-      inset 0 1px 0 hsl(0 0% 100% / 0.3);
+    background: hsl(270 75% 50%);
   }
 
-  @keyframes gradient-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-
-  /* Call buttons */
+  /* Call buttons - solid colors */
   .btn-call {
     @apply relative rounded-full p-3 transition-all duration-300;
-    background: linear-gradient(135deg, 
-      hsl(var(--call-active)), 
-      hsl(175 80% 45%)
-    );
-    box-shadow: 0 4px 20px hsl(var(--call-active) / 0.4);
+    background: hsl(var(--call-active));
   }
 
   .btn-call:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 25px hsl(var(--call-active) / 0.5);
+    background: hsl(160 80% 45%);
   }
 
   .btn-call-end {
     @apply relative rounded-full p-3 transition-all duration-300;
-    background: linear-gradient(135deg, 
-      hsl(var(--call-end)), 
-      hsl(15 80% 50%)
-    );
-    box-shadow: 0 4px 20px hsl(var(--call-end) / 0.4);
+    background: hsl(var(--call-end));
   }
 
   .btn-call-end:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 25px hsl(var(--call-end) / 0.5);
+    background: hsl(0 75% 50%);
   }
 
   .btn-call-accept {
     @apply relative rounded-full p-3 transition-all duration-300;
-    background: linear-gradient(135deg, 
-      hsl(var(--call-active)), 
-      hsl(175 80% 45%)
-    );
-    box-shadow: 0 4px 20px hsl(var(--call-active) / 0.4);
+    background: hsl(var(--call-active));
   }
 
   .btn-call-accept:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 25px hsl(var(--call-active) / 0.5);
+    background: hsl(160 80% 45%);
   }
 
   /* Video mirror effect for self-view */
