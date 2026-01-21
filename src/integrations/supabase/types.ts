@@ -22,6 +22,9 @@ export type Database = {
           description: string | null
           genre: string | null
           id: string
+          is_free: boolean | null
+          pdf_url: string | null
+          price: number | null
           published_at: string | null
           status: Database["public"]["Enums"]["book_status"]
           tags: string[] | null
@@ -36,6 +39,9 @@ export type Database = {
           description?: string | null
           genre?: string | null
           id?: string
+          is_free?: boolean | null
+          pdf_url?: string | null
+          price?: number | null
           published_at?: string | null
           status?: Database["public"]["Enums"]["book_status"]
           tags?: string[] | null
@@ -50,6 +56,9 @@ export type Database = {
           description?: string | null
           genre?: string | null
           id?: string
+          is_free?: boolean | null
+          pdf_url?: string | null
+          price?: number | null
           published_at?: string | null
           status?: Database["public"]["Enums"]["book_status"]
           tags?: string[] | null
