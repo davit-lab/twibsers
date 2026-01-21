@@ -2,12 +2,10 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
-import { useWebRTC, useIncomingCalls } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
 import MainLayout from '@/components/layout/MainLayout';
 import ConversationList from '@/components/messaging/ConversationList';
 import MessageThread from '@/components/messaging/MessageThread';
-import IncomingCallModal from '@/components/messaging/IncomingCallModal';
 import CallHistory from '@/components/messaging/CallHistory';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,23 +27,35 @@ export default function Messages() {
   
   const selectedConvId = searchParams.get('conv');
   const newUserId = searchParams.get('new');
+  const answerCallId = searchParams.get('answer');
   const [activeTab, setActiveTab] = useState<string>('messages');
   
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [lastReadAt, setLastReadAt] = useState<string | null>(null);
   const [pendingAnswerCall, setPendingAnswerCall] = useState<any>(null);
-  
-  // Incoming calls handler
-  const { incomingCall, callerProfile, clearIncomingCall } = useIncomingCalls();
-  
-  // For declining calls only - we don't use answerCall here anymore
-  const declineCallHandler = async (sessionId: string) => {
-    await supabase
-      .from('call_sessions')
-      .update({ status: 'declined' })
-      .eq('id', sessionId);
-  };
+
+  // Handle answering call from global provider via URL param
+  useEffect(() => {
+    if (answerCallId && selectedConvId) {
+      // Fetch the call session to pass to MessageThread
+      const fetchCallSession = async () => {
+        const { data } = await supabase
+          .from('call_sessions')
+          .select('*')
+          .eq('id', answerCallId)
+          .single();
+        
+        if (data) {
+          setPendingAnswerCall(data);
+        }
+        
+        // Clear the answer param from URL
+        setSearchParams({ conv: selectedConvId });
+      };
+      fetchCallSession();
+    }
+  }, [answerCallId, selectedConvId]);
 
   // Handle starting new conversation from profile page
   useEffect(() => {
@@ -136,23 +146,6 @@ export default function Messages() {
     return null;
   }
 
-  const handleAnswerCall = async () => {
-    if (incomingCall) {
-      // Store the call to be answered by MessageThread
-      setPendingAnswerCall(incomingCall);
-      // Navigate to the conversation first, so MessageThread can handle the answer
-      setSearchParams({ conv: incomingCall.conversation_id });
-      clearIncomingCall();
-    }
-  };
-
-  const handleDeclineCall = async () => {
-    if (incomingCall) {
-      await declineCallHandler(incomingCall.id);
-      clearIncomingCall();
-    }
-  };
-
   const handleSelectConversation = (convId: string) => {
     setSearchParams({ conv: convId });
   };
@@ -163,15 +156,6 @@ export default function Messages() {
 
   return (
     <MainLayout>
-      {/* Incoming call modal */}
-      {incomingCall && callerProfile && (
-        <IncomingCallModal
-          session={incomingCall}
-          callerProfile={callerProfile}
-          onAnswer={handleAnswerCall}
-          onDecline={handleDeclineCall}
-        />
-      )}
       <div className="container max-w-5xl py-0 px-0 pb-24 lg:pb-0 h-[calc(100vh-4rem)]">
         <div className="flex h-full">
           {/* Conversation List - hidden on mobile when conversation selected */}

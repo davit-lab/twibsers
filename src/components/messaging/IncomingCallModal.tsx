@@ -112,27 +112,27 @@ export default function IncomingCallModal({
         <div className="flex items-center gap-8">
           {/* Decline */}
           <div className="flex flex-col items-center gap-2">
-            <Button
+            <button
               onClick={handleDecline}
-              className="btn-call-end h-16 w-16"
+              className="h-16 w-16 rounded-full bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 shadow-lg shadow-red-500/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <PhoneOff className="h-7 w-7 text-white" />
-            </Button>
+            </button>
             <span className="text-sm text-white/60">Decline</span>
           </div>
 
           {/* Answer */}
           <div className="flex flex-col items-center gap-2">
-            <Button
+            <button
               onClick={handleAnswer}
-              className="btn-call-accept h-16 w-16"
+              className="h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 shadow-lg shadow-green-500/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 animate-pulse"
             >
               {session.call_type === 'video' ? (
                 <Video className="h-7 w-7 text-white" />
               ) : (
                 <Phone className="h-7 w-7 text-white" />
               )}
-            </Button>
+            </button>
             <span className="text-sm text-white/60">Answer</span>
           </div>
         </div>
