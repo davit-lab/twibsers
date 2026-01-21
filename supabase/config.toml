@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.create-connect-account]
+verify_jwt = false
+
+[functions.check-connect-status]
+verify_jwt = false
+
+[functions.create-book-checkout]
+verify_jwt = false
+
+[functions.get-pdf-access]
+verify_jwt = false
