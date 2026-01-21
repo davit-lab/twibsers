@@ -55,6 +55,7 @@ interface MusicTrack {
   url: string | null;
   duration: number;
   isCustom?: boolean;
+  scope?: 'library' | 'mine';
 }
 
 const FILTERS = [
@@ -137,6 +138,7 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
   const [selectedMusic, setSelectedMusic] = useState('none');
   const [musicVolume, setMusicVolume] = useState(50);
   const [uploadingMusic, setUploadingMusic] = useState(false);
+  const [musicTab, setMusicTab] = useState<'library' | 'mine'>('library');
   
   // Thumbnail state
   const [thumbnails, setThumbnails] = useState<string[]>([]);
@@ -173,25 +175,47 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase.storage
-        .from('reel-music')
-        .list(user.id, { limit: 50 });
+      const [{ data: libData, error: libError }, { data: mineData, error: mineError }] = await Promise.all([
+        supabase.storage.from('reel-music').list('library', { limit: 50 }),
+        supabase.storage.from('reel-music').list(user.id, { limit: 50 }),
+      ]);
+
+      if (libError) console.error('Error loading library tracks:', libError);
+      if (mineError) console.error('Error loading my tracks:', mineError);
       
-      if (error) throw error;
-      
-      const customTracks: MusicTrack[] = (data || []).map(file => ({
-        id: file.id,
-        name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-        url: supabase.storage.from('reel-music').getPublicUrl(`${user.id}/${file.name}`).data.publicUrl,
-        duration: 0,
-        isCustom: true,
-      }));
-      
-      setMusicTracks([...DEFAULT_MUSIC_TRACKS, ...customTracks]);
+      const libraryTracks: MusicTrack[] = (libData || [])
+        .filter((f) => f.name)
+        .map((file) => ({
+          id: `library/${file.name}`,
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          url: supabase.storage.from('reel-music').getPublicUrl(`library/${file.name}`).data.publicUrl,
+          duration: 0,
+          scope: 'library',
+        }));
+
+      const customTracks: MusicTrack[] = (mineData || [])
+        .filter((f) => f.name)
+        .map((file) => ({
+          id: `${user.id}/${file.name}`,
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          url: supabase.storage.from('reel-music').getPublicUrl(`${user.id}/${file.name}`).data.publicUrl,
+          duration: 0,
+          isCustom: true,
+          scope: 'mine',
+        }));
+
+      setMusicTracks([...DEFAULT_MUSIC_TRACKS, ...libraryTracks, ...customTracks]);
     } catch (error) {
       console.error('Error loading music tracks:', error);
     }
   };
+
+  // Apply music volume
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.max(0, Math.min(1, musicVolume / 100));
+    }
+  }, [musicVolume, selectedMusic]);
 
   // Generate thumbnails from video
   const generateThumbnails = useCallback(async (video: HTMLVideoElement) => {
@@ -306,16 +330,14 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
     if (!user || !track.isCustom) return;
 
     try {
-      const path = track.url?.split('/reel-music/')[1];
-      if (path) {
-        await supabase.storage.from('reel-music').remove([decodeURIComponent(path)]);
+      // For custom tracks we store the storage path as the id: `${user.id}/${file.name}`
+      await supabase.storage.from('reel-music').remove([track.id]);
         await loadCustomMusicTracks();
         if (selectedMusic === track.id) setSelectedMusic('none');
         toast({
           title: 'Track deleted',
           description: 'Music track has been removed.',
         });
-      }
     } catch (error) {
       console.error('Error deleting track:', error);
     }
@@ -511,9 +533,19 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 500);
 
-      await uploadReel(videoFile, caption, (progress) => {
-        setUploadProgress(progress);
-      });
+      await uploadReel(
+        videoFile,
+        caption,
+        {
+          duration: Math.round(Math.max(0, trimEnd - trimStart)),
+          isPublished: true,
+          audioName: selectedMusicTrack && selectedMusicTrack.id !== 'none' ? selectedMusicTrack.name : null,
+          audioUrl: selectedMusicTrack && selectedMusicTrack.id !== 'none' ? selectedMusicTrack.url : null,
+        },
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -593,6 +625,12 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
   };
 
   const selectedMusicTrack = musicTracks.find(t => t.id === selectedMusic);
+
+  const visibleTracks = musicTracks.filter((t) => {
+    if (t.id === 'none') return true;
+    if (musicTab === 'library') return t.scope === 'library';
+    return t.scope === 'mine';
+  });
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -1097,28 +1135,73 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                           </p>
                         </div>
 
-                        {/* Upload music */}
-                        <Button
-                          variant="outline"
-                          onClick={() => musicInputRef.current?.click()}
-                          disabled={uploadingMusic}
-                          className="w-full"
-                        >
-                          {uploadingMusic ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-4 w-4 mr-2" />
-                              Upload Your Music
-                            </>
-                          )}
-                        </Button>
+                        <Tabs value={musicTab} onValueChange={(v) => setMusicTab(v as any)}>
+                          <TabsList className="w-full">
+                            <TabsTrigger value="library" className="flex-1">Music Library</TabsTrigger>
+                            <TabsTrigger value="mine" className="flex-1">My Uploads</TabsTrigger>
+                          </TabsList>
 
-                        <div className="space-y-2">
-                          {musicTracks.map((track) => (
+                          <TabsContent value="library" className="mt-4">
+                            <div className="space-y-2">
+                              {visibleTracks.length === 0 ? (
+                                <div className="text-sm text-muted-foreground p-3 bg-muted/40 rounded-lg">
+                                  No library tracks yet.
+                                </div>
+                              ) : (
+                                visibleTracks.map((track) => (
+                                  <div
+                                    key={track.id}
+                                    className={cn(
+                                      "flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer",
+                                      selectedMusic === track.id
+                                        ? "bg-primary/10 border border-primary/30"
+                                        : "bg-muted/50 hover:bg-muted"
+                                    )}
+                                    onClick={() => setSelectedMusic(track.id)}
+                                  >
+                                    <div className={cn(
+                                      "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                                      selectedMusic === track.id
+                                        ? "bg-primary text-white"
+                                        : "bg-muted-foreground/20"
+                                    )}>
+                                      <Music className="h-5 w-5" />
+                                    </div>
+                                    <span className="flex-1 text-left font-medium truncate">
+                                      {track.name}
+                                    </span>
+                                    {selectedMusic === track.id && (
+                                      <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="mine" className="mt-4 space-y-3">
+                            {/* Upload music */}
+                            <Button
+                              variant="outline"
+                              onClick={() => musicInputRef.current?.click()}
+                              disabled={uploadingMusic}
+                              className="w-full"
+                            >
+                              {uploadingMusic ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload Music
+                                </>
+                              )}
+                            </Button>
+
+                            <div className="space-y-2">
+                              {[...DEFAULT_MUSIC_TRACKS, ...visibleTracks.filter(t => t.id !== 'none')].map((track) => (
                             <div
                               key={track.id}
                               className={cn(
@@ -1157,8 +1240,10 @@ export default function ReelCreator({ open, onOpenChange }: ReelCreatorProps) {
                                 <Check className="h-5 w-5 text-primary flex-shrink-0" />
                               )}
                             </div>
-                          ))}
-                        </div>
+                              ))}
+                            </div>
+                          </TabsContent>
+                        </Tabs>
 
                         {selectedMusic !== 'none' && (
                           <div className="space-y-2 pt-2">

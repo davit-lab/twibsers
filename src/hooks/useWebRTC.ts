@@ -298,8 +298,35 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       console.log('[WebRTC] Answering call, session:', session.id);
       setCallState(prev => ({ ...prev, isConnecting: true, error: null, session }));
 
+      // The incoming call INSERT event can arrive before the caller has stored the SDP offer.
+      // Fetch/poll the latest session to ensure we have sdp_offer before creating an answer.
+      let latestSession: CallSession | null = null;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const { data } = await supabase
+          .from('call_sessions')
+          .select('*')
+          .eq('id', session.id)
+          .single();
+
+        if (data) {
+          latestSession = data as CallSession;
+          if (latestSession.status !== 'ringing') {
+            console.warn('[WebRTC] Call no longer ringing, abort answer:', latestSession.status);
+            return;
+          }
+          if (latestSession.sdp_offer) break;
+        }
+
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      const sessionToAnswer = latestSession ?? session;
+      if (!sessionToAnswer.sdp_offer) {
+        throw new Error('Call offer not ready yet. Please try again.');
+      }
+
       // Get local stream
-      const localStream = await getUserMedia(session.call_type);
+      const localStream = await getUserMedia(sessionToAnswer.call_type);
       localStreamRef.current = localStream;
       setCallState(prev => ({ ...prev, localStream }));
 
@@ -313,15 +340,13 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       });
 
       // Set remote description (the offer)
-      if (session.sdp_offer) {
-        const offer = JSON.parse(session.sdp_offer);
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        console.log('[WebRTC] Set remote offer');
+      const offer = JSON.parse(sessionToAnswer.sdp_offer);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log('[WebRTC] Set remote offer');
 
-        // Process any pending ICE candidates
-        await processPendingIceCandidates();
-        await addIceCandidates(session.caller_ice_candidates || []);
-      }
+      // Process any pending ICE candidates
+      await processPendingIceCandidates();
+      await addIceCandidates(sessionToAnswer.caller_ice_candidates || []);
 
       // Create answer
       const answer = await pc.createAnswer();

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { CallSession } from '@/hooks/useWebRTC';
+import { createRingtone } from '@/lib/ringtone';
 
 interface IncomingCallModalProps {
   session: CallSession;
@@ -22,8 +23,12 @@ export default function IncomingCallModal({
   onDecline,
 }: IncomingCallModalProps) {
   const [ringDuration, setRingDuration] = useState(0);
+  const ringtoneRef = useRef<ReturnType<typeof createRingtone> | null>(null);
 
   useEffect(() => {
+    ringtoneRef.current = createRingtone();
+    ringtoneRef.current.start();
+
     // Auto-decline after 30 seconds
     const timer = setInterval(() => {
       setRingDuration(prev => {
@@ -35,9 +40,24 @@ export default function IncomingCallModal({
       });
     }, 1000);
 
-    // Play ringtone (we'll use CSS animation instead)
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      ringtoneRef.current?.stop();
+      ringtoneRef.current = null;
+    };
   }, [onDecline]);
+
+  const handleAnswer = () => {
+    ringtoneRef.current?.stop();
+    ringtoneRef.current = null;
+    onAnswer();
+  };
+
+  const handleDecline = () => {
+    ringtoneRef.current?.stop();
+    ringtoneRef.current = null;
+    onDecline();
+  };
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -93,7 +113,7 @@ export default function IncomingCallModal({
           {/* Decline */}
           <div className="flex flex-col items-center gap-2">
             <Button
-              onClick={onDecline}
+              onClick={handleDecline}
               className="btn-call-end h-16 w-16"
             >
               <PhoneOff className="h-7 w-7 text-white" />
@@ -104,7 +124,7 @@ export default function IncomingCallModal({
           {/* Answer */}
           <div className="flex flex-col items-center gap-2">
             <Button
-              onClick={onAnswer}
+              onClick={handleAnswer}
               className="btn-call-accept h-16 w-16"
             >
               {session.call_type === 'video' ? (
