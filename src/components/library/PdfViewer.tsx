@@ -3,10 +3,52 @@ import { useGetPdfAccess } from '@/hooks/useBookPurchase';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, RefreshCw, X, Maximize2, Minimize2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+// PDF.js types
+interface PDFDocumentProxy {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PDFPageProxy>;
+}
+
+interface PDFPageProxy {
+  getViewport: (params: { scale: number }) => PDFViewport;
+  render: (params: { canvasContext: CanvasRenderingContext2D; viewport: PDFViewport }) => PDFRenderTask;
+}
+
+interface PDFViewport {
+  width: number;
+  height: number;
+}
+
+interface PDFRenderTask {
+  promise: Promise<void>;
+  cancel: () => void;
+}
+
+interface PDFJSStatic {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (params: { url: string }) => { promise: Promise<PDFDocumentProxy> };
+}
+
+// Load PDF.js from CDN
+const loadPdfJs = (): Promise<PDFJSStatic> => {
+  return new Promise((resolve, reject) => {
+    if ((window as unknown as { pdfjsLib?: PDFJSStatic }).pdfjsLib) {
+      resolve((window as unknown as { pdfjsLib: PDFJSStatic }).pdfjsLib);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const pdfjsLib = (window as unknown as { pdfjsLib: PDFJSStatic }).pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
 
 interface PdfViewerProps {
   bookId: string;
@@ -21,13 +63,27 @@ export default function PdfViewer({ bookId, bookTitle, onClose }: PdfViewerProps
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.2);
   const [isRendering, setIsRendering] = useState(false);
-  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
+  const [pdfjsLib, setPdfjsLib] = useState<PDFJSStatic | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const renderTaskRef = useRef<PDFRenderTask | null>(null);
   
   const getPdfAccess = useGetPdfAccess();
+
+  // Load PDF.js library
+  useEffect(() => {
+    loadPdfJs()
+      .then((lib) => {
+        setPdfjsLib(lib);
+        setPdfJsLoaded(true);
+      })
+      .catch((error) => {
+        console.error('Failed to load PDF.js:', error);
+      });
+  }, []);
 
   const loadPdf = useCallback(async () => {
     try {
@@ -42,17 +98,13 @@ export default function PdfViewer({ bookId, bookTitle, onClose }: PdfViewerProps
     loadPdf();
   }, [bookId]);
 
-  // Load PDF document when URL is available
+  // Load PDF document when URL and library are available
   useEffect(() => {
-    if (!pdfUrl) return;
+    if (!pdfUrl || !pdfJsLoaded || !pdfjsLib) return;
 
     const loadDocument = async () => {
       try {
-        const loadingTask = pdfjsLib.getDocument({
-          url: pdfUrl,
-          disableAutoFetch: true,
-          disableStream: true,
-        });
+        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
         const doc = await loadingTask.promise;
         setPdfDoc(doc);
         setTotalPages(doc.numPages);
@@ -63,7 +115,7 @@ export default function PdfViewer({ bookId, bookTitle, onClose }: PdfViewerProps
     };
 
     loadDocument();
-  }, [pdfUrl]);
+  }, [pdfUrl, pdfJsLoaded, pdfjsLib]);
 
   // Render current page
   useEffect(() => {
@@ -100,7 +152,7 @@ export default function PdfViewer({ bookId, bookTitle, onClose }: PdfViewerProps
         await renderTaskRef.current.promise;
       } catch (error: unknown) {
         // Ignore cancelled render errors
-        if (error instanceof Error && error.message !== 'Rendering cancelled') {
+        if (error instanceof Error && !error.message.includes('cancelled')) {
           console.error('Failed to render page:', error);
         }
       } finally {
@@ -146,7 +198,7 @@ export default function PdfViewer({ bookId, bookTitle, onClose }: PdfViewerProps
     e.preventDefault();
   };
 
-  if (getPdfAccess.isPending) {
+  if (getPdfAccess.isPending || !pdfJsLoaded) {
     return (
       <div className="flex flex-col items-center justify-center h-[600px] bg-muted/50 rounded-lg">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
