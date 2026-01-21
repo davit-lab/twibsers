@@ -42,12 +42,82 @@ serve(async (req) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.supabase_user_id;
+        const metadata = session.metadata || {};
+        
+        // Check if this is a book purchase
+        if (metadata.type === "book_purchase") {
+          const bookId = metadata.book_id;
+          const buyerId = metadata.buyer_id;
+          const authorId = metadata.author_id;
+
+          if (!bookId || !buyerId) {
+            console.error("Missing book purchase metadata");
+            break;
+          }
+
+          // Update purchase status
+          const { error: purchaseError } = await supabaseAdmin
+            .from("book_purchases")
+            .update({
+              status: "completed",
+              stripe_payment_intent_id: session.payment_intent as string,
+            })
+            .eq("stripe_session_id", session.id);
+
+          if (purchaseError) {
+            console.error("Error updating book purchase:", purchaseError);
+          } else {
+            console.log("Book purchase completed:", bookId, "buyer:", buyerId);
+          }
+
+          // Update author earnings
+          const { data: purchase } = await supabaseAdmin
+            .from("book_purchases")
+            .select("amount_paid, platform_fee, author_earnings")
+            .eq("stripe_session_id", session.id)
+            .single();
+
+          if (purchase) {
+            // Upsert author earnings
+            const { data: existingEarnings } = await supabaseAdmin
+              .from("author_earnings")
+              .select("*")
+              .eq("user_id", authorId)
+              .maybeSingle();
+
+            if (existingEarnings) {
+              await supabaseAdmin
+                .from("author_earnings")
+                .update({
+                  total_sales: existingEarnings.total_sales + 1,
+                  total_revenue: existingEarnings.total_revenue + purchase.amount_paid,
+                  total_platform_fees: existingEarnings.total_platform_fees + purchase.platform_fee,
+                  total_author_earnings: existingEarnings.total_author_earnings + purchase.author_earnings,
+                })
+                .eq("user_id", authorId);
+            } else {
+              await supabaseAdmin
+                .from("author_earnings")
+                .insert({
+                  user_id: authorId,
+                  total_sales: 1,
+                  total_revenue: purchase.amount_paid,
+                  total_platform_fees: purchase.platform_fee,
+                  total_author_earnings: purchase.author_earnings,
+                });
+            }
+            console.log("Author earnings updated for:", authorId);
+          }
+          break;
+        }
+
+        // Handle subscription checkout
+        const userId = metadata.supabase_user_id;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
-        if (!userId) {
-          console.error("No user ID in session metadata");
+        if (!userId || !subscriptionId) {
+          console.log("Not a subscription checkout, skipping");
           break;
         }
 

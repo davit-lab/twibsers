@@ -14,6 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
+      author_earnings: {
+        Row: {
+          created_at: string
+          id: string
+          last_payout_at: string | null
+          pending_payout: number
+          total_author_earnings: number
+          total_platform_fees: number
+          total_revenue: number
+          total_sales: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_payout_at?: string | null
+          pending_payout?: number
+          total_author_earnings?: number
+          total_platform_fees?: number
+          total_revenue?: number
+          total_sales?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_payout_at?: string | null
+          pending_payout?: number
+          total_author_earnings?: number
+          total_platform_fees?: number
+          total_revenue?: number
+          total_sales?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      author_stripe_accounts: {
+        Row: {
+          charges_enabled: boolean
+          created_at: string
+          id: string
+          onboarding_complete: boolean
+          payouts_enabled: boolean
+          stripe_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          charges_enabled?: boolean
+          created_at?: string
+          id?: string
+          onboarding_complete?: boolean
+          payouts_enabled?: boolean
+          stripe_account_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          charges_enabled?: boolean
+          created_at?: string
+          id?: string
+          onboarding_complete?: boolean
+          payouts_enabled?: boolean
+          stripe_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      book_purchases: {
+        Row: {
+          amount_paid: number
+          author_earnings: number
+          author_id: string
+          book_id: string
+          buyer_id: string
+          created_at: string
+          id: string
+          platform_fee: number
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_paid: number
+          author_earnings: number
+          author_id: string
+          book_id: string
+          buyer_id: string
+          created_at?: string
+          id?: string
+          platform_fee: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          author_earnings?: number
+          author_id?: string
+          book_id?: string
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          platform_fee?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_purchases_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           author_id: string
@@ -1346,6 +1471,10 @@ export type Database = {
       }
       is_user_banned: { Args: { _user_id: string }; Returns: boolean }
       is_verified_author: { Args: { _user_id: string }; Returns: boolean }
+      user_owns_book: {
+        Args: { _book_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       account_privacy: "public" | "private"

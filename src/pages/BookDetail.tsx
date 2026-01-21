@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { useBook, useBookActions } from '@/hooks/useBooks';
+import { useBookPurchaseStatus } from '@/hooks/useBookPurchase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import BookPurchaseButton from '@/components/library/BookPurchaseButton';
+import PdfViewer from '@/components/library/PdfViewer';
 import {
   Book,
   BookOpen,
@@ -21,22 +25,50 @@ import {
   ChevronRight,
   Clock,
   CheckCircle2,
+  FileText,
+  DollarSign,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function BookDetail() {
   const { bookId } = useParams<{ bookId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, profile: currentProfile } = useAuth();
   const { book, chapters, progress, isInLibrary, isLoading, refetch, setIsInLibrary } = useBook(bookId);
   const { addToLibrary, removeFromLibrary } = useBookActions();
+  const { data: purchaseStatus } = useBookPurchaseStatus(bookId);
   const [isUpdatingLibrary, setIsUpdatingLibrary] = useState(false);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
 
   const isAuthor = user && book?.author_id === user.id;
   const completedCount = progress?.completed_chapters?.length || 0;
   const totalChapters = chapters.length;
   const progressPercent = totalChapters > 0 ? (completedCount / totalChapters) * 100 : 0;
+
+  // Check for purchase success/cancel from URL
+  useEffect(() => {
+    if (searchParams.get('purchased') === 'true') {
+      toast({
+        title: 'Purchase successful!',
+        description: 'You now have access to this book.',
+      });
+      refetch();
+    } else if (searchParams.get('canceled') === 'true') {
+      toast({
+        variant: 'destructive',
+        title: 'Purchase canceled',
+        description: 'You can try again when you\'re ready.',
+      });
+    }
+  }, [searchParams]);
+
+  // Book pricing info
+  const isFree = book?.is_free || !book?.price || book?.price === 0;
+  const hasPdf = !!book?.pdf_url;
+  const hasAccess = isAuthor || isFree || purchaseStatus?.hasPurchased;
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -129,10 +161,22 @@ export default function BookDetail() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold">{book.title}</h1>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {book.genre && <Badge variant="secondary">{book.genre}</Badge>}
                   {book.status !== 'published' && (
                     <Badge variant="outline">{book.status}</Badge>
+                  )}
+                  {hasPdf && (
+                    <Badge variant="outline" className="gap-1">
+                      <FileText className="h-3 w-3" />
+                      PDF
+                    </Badge>
+                  )}
+                  {!isFree && (
+                    <Badge variant="default" className="gap-1 bg-green-600">
+                      <DollarSign className="h-3 w-3" />
+                      ${((book.price || 0) / 100).toFixed(2)}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -209,11 +253,35 @@ export default function BookDetail() {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 pt-2">
-              {totalChapters > 0 && (
-                <Button onClick={handleStartReading}>
+              {/* PDF/Purchase Button */}
+              {hasPdf && (
+                <BookPurchaseButton
+                  bookId={bookId!}
+                  price={book.price || 0}
+                  isFree={isFree}
+                  isAuthor={!!isAuthor}
+                  hasPdf={hasPdf}
+                  onReadPdf={() => setShowPdfViewer(true)}
+                />
+              )}
+
+              {/* Chapter reading button - only show if has access or is free */}
+              {totalChapters > 0 && hasAccess && (
+                <Button onClick={handleStartReading} variant={hasPdf ? 'outline' : 'default'}>
                   <Play className="h-4 w-4 mr-2" />
-                  {progress ? 'Continue Reading' : 'Start Reading'}
+                  {progress ? 'Continue Reading' : 'Read Chapters'}
                 </Button>
+              )}
+
+              {/* Buy button for chapter-only books (no PDF) */}
+              {!hasPdf && !isFree && !isAuthor && (
+                <BookPurchaseButton
+                  bookId={bookId!}
+                  price={book.price || 0}
+                  isFree={false}
+                  isAuthor={false}
+                  hasPdf={false}
+                />
               )}
               
               {user && !isAuthor && (
@@ -238,6 +306,17 @@ export default function BookDetail() {
             </div>
           </div>
         </div>
+
+        {/* PDF Viewer */}
+        {showPdfViewer && hasPdf && hasAccess && (
+          <div className="mb-8">
+            <PdfViewer
+              bookId={bookId!}
+              bookTitle={book.title}
+              onClose={() => setShowPdfViewer(false)}
+            />
+          </div>
+        )}
 
         {/* Chapters List */}
         <div className="space-y-4">
