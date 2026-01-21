@@ -37,6 +37,10 @@ export interface CallState {
   isConnected: boolean;
   isScreenSharing: boolean;
   error: string | null;
+  // Diagnostics
+  connectionState: RTCPeerConnectionState | null;
+  iceState: RTCIceConnectionState | null;
+  isFailed: boolean;
 }
 
 export function useWebRTC(conversationId: string | null, otherUserId: string | null) {
@@ -50,6 +54,9 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     isConnected: false,
     isScreenSharing: false,
     error: null,
+    connectionState: null,
+    iceState: null,
+    isFailed: false,
   });
 
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -99,6 +106,9 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       isConnected: false,
       isScreenSharing: false,
       error: null,
+      connectionState: null,
+      iceState: null,
+      isFailed: false,
     });
   }, []);
 
@@ -164,16 +174,47 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
       
+      setCallState(prev => ({
+        ...prev,
+        connectionState: pc.connectionState,
+      }));
+      
       if (pc.connectionState === 'connected') {
         setCallState(prev => ({
           ...prev,
           isConnecting: false,
           isConnected: true,
+          isFailed: false,
+          error: null,
         }));
-      } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+      } else if (pc.connectionState === 'failed') {
+        setCallState(prev => ({
+          ...prev,
+          error: 'Connection failed',
+          isFailed: true,
+          isConnecting: false,
+        }));
+      } else if (pc.connectionState === 'disconnected') {
         setCallState(prev => ({
           ...prev,
           error: 'Connection lost',
+          isFailed: true,
+        }));
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      setCallState(prev => ({
+        ...prev,
+        iceState: pc.iceConnectionState,
+      }));
+      
+      if (pc.iceConnectionState === 'failed') {
+        setCallState(prev => ({
+          ...prev,
+          error: 'ICE connection failed',
+          isFailed: true,
         }));
       }
     };
@@ -570,6 +611,18 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     };
   }, []);
 
+  // Retry failed call
+  const retryCall = async () => {
+    const session = callState.session;
+    if (!session) return;
+    
+    // Clean up current failed connection
+    cleanup();
+    
+    // Start a new call
+    await startCall(session.call_type);
+  };
+
   return {
     callState,
     startCall,
@@ -579,6 +632,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
+    retryCall,
   };
 }
 

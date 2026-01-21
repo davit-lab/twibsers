@@ -14,7 +14,13 @@ import {
   MoreVertical,
   X,
   Monitor,
-  MonitorOff
+  MonitorOff,
+  RefreshCw,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallState } from '@/hooks/useWebRTC';
@@ -31,6 +37,7 @@ interface CallOverlayProps {
   onToggleAudio: () => boolean;
   onToggleVideo: () => boolean;
   onToggleScreenShare: () => Promise<boolean>;
+  onRetry?: () => void;
 }
 
 export default function CallOverlay({ 
@@ -41,16 +48,54 @@ export default function CallOverlay({
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
+  onRetry,
 }: CallOverlayProps) {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSpeakerOff, setIsSpeakerOff] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Connection state formatting
+  const getConnectionStateLabel = (state: RTCPeerConnectionState | null): string => {
+    if (!state) return 'Not started';
+    const labels: Record<string, string> = {
+      new: 'Initializing',
+      connecting: 'Connecting',
+      connected: 'Connected',
+      disconnected: 'Disconnected',
+      failed: 'Failed',
+      closed: 'Closed',
+    };
+    return labels[state] || state;
+  };
+
+  const getIceStateLabel = (state: RTCIceConnectionState | null): string => {
+    if (!state) return 'Not started';
+    const labels: Record<string, string> = {
+      new: 'Gathering',
+      checking: 'Checking',
+      connected: 'Connected',
+      completed: 'Completed',
+      failed: 'Failed',
+      disconnected: 'Disconnected',
+      closed: 'Closed',
+    };
+    return labels[state] || state;
+  };
+
+  const getStateColor = (state: string | null): string => {
+    if (!state) return 'text-muted-foreground';
+    if (state === 'connected' || state === 'completed') return 'text-green-400';
+    if (state === 'failed' || state === 'disconnected') return 'text-destructive';
+    if (state === 'connecting' || state === 'checking') return 'text-yellow-400';
+    return 'text-muted-foreground';
+  };
 
   // Attach local stream to video element
   useEffect(() => {
@@ -242,28 +287,81 @@ export default function CallOverlay({
       )}
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-20">
-        <div className="flex items-center gap-4">
-          {callState.isConnected && (
-            <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full">
-              <div className="w-2 h-2 bg-online rounded-full animate-pulse" />
-              <span className="text-white font-medium">{formatDuration(duration)}</span>
-            </div>
-          )}
-          {callState.error && (
-            <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full border border-destructive/50">
-              <span className="text-destructive font-medium">{callState.error}</span>
-            </div>
-          )}
+      <div className="absolute top-0 left-0 right-0 p-6 flex flex-col gap-3 z-20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {callState.isConnected && (
+              <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full">
+                <div className="w-2 h-2 bg-online rounded-full animate-pulse" />
+                <span className="text-white font-medium">{formatDuration(duration)}</span>
+              </div>
+            )}
+            {callState.error && (
+              <div className="flex items-center gap-3 glass-premium px-4 py-2 rounded-full border border-destructive/50">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-destructive font-medium">{callState.error}</span>
+              </div>
+            )}
+            {/* Diagnostics toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className="rounded-full bg-white/10 hover:bg-white/20 text-white text-xs gap-2"
+            >
+              <Wifi className="h-3 w-3" />
+              Diagnostics
+              {showDiagnostics ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onEnd}
+            className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20 text-white"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onEnd}
-          className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20 text-white"
-        >
-          <X className="h-5 w-5" />
-        </Button>
+
+        {/* Diagnostics panel */}
+        {showDiagnostics && (
+          <div className="glass-premium px-4 py-3 rounded-xl border border-white/10">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-white/60">Connection:</span>
+                <span className={cn('font-medium', getStateColor(callState.connectionState))}>
+                  {getConnectionStateLabel(callState.connectionState)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/60">ICE:</span>
+                <span className={cn('font-medium', getStateColor(callState.iceState))}>
+                  {getIceStateLabel(callState.iceState)}
+                </span>
+              </div>
+              {callState.error && (
+                <div className="col-span-2 flex items-center gap-2">
+                  <span className="text-white/60">Error:</span>
+                  <span className="text-destructive font-medium">{callState.error}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Retry button when call fails */}
+        {callState.isFailed && onRetry && (
+          <div className="flex justify-center">
+            <Button
+              onClick={onRetry}
+              className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-full px-6"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry Call
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Call controls */}
