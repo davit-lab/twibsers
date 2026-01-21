@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from 'next-themes';
+import { detectCountryFromIP, detectBrowserLanguage } from '@/lib/languageDetection';
 
 export interface UserPreferences {
   id?: string;
@@ -73,8 +74,16 @@ export function useUserPreferences() {
         // Apply accessibility settings
         applyAccessibilitySettings(data);
       } else {
-        // Create default preferences
-        const newPreferences = { ...defaultPreferences, user_id: user.id };
+        // Detect language from IP/browser for new users
+        let detectedLanguage = detectBrowserLanguage();
+        try {
+          detectedLanguage = await detectCountryFromIP();
+        } catch (e) {
+          console.log('Using browser language fallback');
+        }
+        
+        // Create default preferences with detected language
+        const newPreferences = { ...defaultPreferences, user_id: user.id, language: detectedLanguage };
         const { data: created, error: createError } = await supabase
           .from('user_preferences')
           .insert(newPreferences)

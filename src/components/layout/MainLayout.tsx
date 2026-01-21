@@ -1,10 +1,11 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
+import CreateDialog from '@/components/create/CreateDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,7 @@ const navItems = [
 export default function MainLayout({ children }: MainLayoutProps) {
   const { user, profile, signOut, isAdmin, isModerator } = useAuth();
   const location = useLocation();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -94,7 +96,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {user && (
               <>
                 <NotificationDropdown className="hidden md:flex" />
-                <Button className="btn-gradient rounded-full gap-2 hidden sm:flex h-10 px-5">
+                <Button 
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="btn-gradient rounded-full gap-2 hidden sm:flex h-10 px-5"
+                >
                   <Plus className="h-4 w-4" />
                   <span className="font-medium">Create</span>
                 </Button>
@@ -261,6 +266,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </div>
         </nav>
       )}
+
+      {/* Create Dialog */}
+      <CreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
     </div>
   );
 }
