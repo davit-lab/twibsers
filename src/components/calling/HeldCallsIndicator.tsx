@@ -1,18 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Play, PauseCircle } from 'lucide-react';
-import { CallSession } from '@/hooks/useWebRTC';
+import { HeldCall } from '@/hooks/useIncomingCalls';
 import { cn } from '@/lib/utils';
-
-interface HeldCall {
-  session: CallSession;
-  callerProfile: {
-    display_name: string;
-    username: string;
-    avatar_url: string | null;
-  } | null;
-  isActive: boolean;
-}
 
 interface HeldCallsIndicatorProps {
   heldCalls: HeldCall[];

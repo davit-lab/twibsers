@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { CallSession } from '@/hooks/useWebRTC';
 import { createRingtone } from '@/lib/ringtone';
@@ -24,40 +23,60 @@ export default function IncomingCallModal({
 }: IncomingCallModalProps) {
   const [ringDuration, setRingDuration] = useState(0);
   const ringtoneRef = useRef<ReturnType<typeof createRingtone> | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasAutoDeclinedRef = useRef(false);
 
+  // Start ringtone on mount
   useEffect(() => {
+    console.log('[IncomingCall] Modal mounted, starting ringtone');
+    
+    // Create and start ringtone
     ringtoneRef.current = createRingtone();
     ringtoneRef.current.start();
 
-    // Auto-decline after 30 seconds
-    const timer = setInterval(() => {
+    // Auto-decline timer (30 seconds)
+    timerRef.current = setInterval(() => {
       setRingDuration(prev => {
-        if (prev >= 30) {
+        const newDuration = prev + 1;
+        if (newDuration >= 30 && !hasAutoDeclinedRef.current) {
+          hasAutoDeclinedRef.current = true;
+          console.log('[IncomingCall] Auto-declining after 30s');
           onDecline();
-          return prev;
         }
-        return prev + 1;
+        return newDuration;
       });
     }, 1000);
 
     return () => {
-      clearInterval(timer);
-      ringtoneRef.current?.stop();
-      ringtoneRef.current = null;
+      console.log('[IncomingCall] Modal unmounting, stopping ringtone');
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (ringtoneRef.current) {
+        ringtoneRef.current.stop();
+        ringtoneRef.current = null;
+      }
     };
   }, [onDecline]);
 
-  const handleAnswer = () => {
-    ringtoneRef.current?.stop();
-    ringtoneRef.current = null;
+  const handleAnswer = useCallback(() => {
+    console.log('[IncomingCall] Answer clicked');
+    if (ringtoneRef.current) {
+      ringtoneRef.current.stop();
+      ringtoneRef.current = null;
+    }
     onAnswer();
-  };
+  }, [onAnswer]);
 
-  const handleDecline = () => {
-    ringtoneRef.current?.stop();
-    ringtoneRef.current = null;
+  const handleDecline = useCallback(() => {
+    console.log('[IncomingCall] Decline clicked');
+    if (ringtoneRef.current) {
+      ringtoneRef.current.stop();
+      ringtoneRef.current = null;
+    }
     onDecline();
-  };
+  }, [onDecline]);
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -106,7 +125,12 @@ export default function IncomingCallModal({
         <h2 className="text-3xl font-display font-bold text-white mb-2">
           {callerProfile?.display_name || 'Unknown'}
         </h2>
-        <p className="text-white/50 mb-8">@{callerProfile?.username || 'user'}</p>
+        <p className="text-white/50 mb-2">@{callerProfile?.username || 'user'}</p>
+        
+        {/* Ring timer */}
+        <p className="text-xs text-white/30 mb-8">
+          {ringDuration > 0 && `Ringing for ${ringDuration}s...`}
+        </p>
 
         {/* Action buttons */}
         <div className="flex items-center gap-8">

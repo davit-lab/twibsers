@@ -27,7 +27,9 @@ export default function GlobalCallProvider() {
   const handleAnswerCall = useCallback(async () => {
     if (!incomingCall) return;
     
-    // Navigate to messages with the conversation and a flag to answer the call
+    console.log('[GlobalCall] Answering call:', incomingCall.id);
+    
+    // Navigate to messages with the conversation and answer flag
     navigate(`/messages?conv=${incomingCall.conversation_id}&answer=${incomingCall.id}`);
     clearIncomingCall();
   }, [incomingCall, navigate, clearIncomingCall]);
@@ -35,12 +37,15 @@ export default function GlobalCallProvider() {
   const handleDeclineCall = useCallback(async () => {
     if (!incomingCall) return;
     
+    console.log('[GlobalCall] Declining call:', incomingCall.id);
+    
     try {
+      const now = new Date().toISOString();
       await supabase
         .from('call_sessions')
         .update({
           status: 'declined',
-          ended_at: new Date().toISOString(),
+          ended_at: now,
         })
         .eq('id', incomingCall.id);
     } catch (error) {
@@ -54,11 +59,12 @@ export default function GlobalCallProvider() {
     const queuedCall = callQueue.find(c => c.session.id === sessionId);
     if (!queuedCall) return;
 
-    // Navigate to answer the queued call
+    console.log('[GlobalCall] Answering queued call:', sessionId);
     navigate(`/messages?conv=${queuedCall.session.conversation_id}&answer=${sessionId}`);
   }, [callQueue, navigate]);
 
   const handleDeclineQueuedCall = useCallback(async (sessionId: string) => {
+    console.log('[GlobalCall] Declining queued call:', sessionId);
     await declineQueuedCall(sessionId);
   }, [declineQueuedCall]);
 
@@ -66,11 +72,12 @@ export default function GlobalCallProvider() {
     const heldCall = heldCalls.find(c => c.session.id === sessionId);
     if (!heldCall) return;
 
-    // Navigate to resume the held call
+    console.log('[GlobalCall] Resuming held call:', sessionId);
     navigate(`/messages?conv=${heldCall.session.conversation_id}&resume=${sessionId}`);
   }, [heldCalls, navigate]);
 
   const handleEndHeldCall = useCallback(async (sessionId: string) => {
+    console.log('[GlobalCall] Ending held call:', sessionId);
     await endHeldCall(sessionId);
   }, [endHeldCall]);
 

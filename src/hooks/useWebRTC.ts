@@ -1,19 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { showIncomingCallNotification, closeNotification } from '@/lib/pushNotifications';
 
-// STUN + TURN servers for better NAT traversal
-// Using Open Relay Project free TURN servers + Google STUN
+// STUN + TURN servers for NAT traversal
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // STUN servers
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    // Open Relay Project free TURN servers
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
@@ -58,98 +51,126 @@ export interface CallState {
   isConnected: boolean;
   isScreenSharing: boolean;
   error: string | null;
-  // Diagnostics
   connectionState: RTCPeerConnectionState | null;
   iceState: RTCIceConnectionState | null;
   isFailed: boolean;
 }
 
+const initialCallState: CallState = {
+  session: null,
+  localStream: null,
+  remoteStream: null,
+  screenStream: null,
+  isConnecting: false,
+  isConnected: false,
+  isScreenSharing: false,
+  error: null,
+  connectionState: null,
+  iceState: null,
+  isFailed: false,
+};
+
 export function useWebRTC(conversationId: string | null, otherUserId: string | null) {
   const { user } = useAuth();
-  const [callState, setCallState] = useState<CallState>({
-    session: null,
-    localStream: null,
-    remoteStream: null,
-    screenStream: null,
-    isConnecting: false,
-    isConnected: false,
-    isScreenSharing: false,
-    error: null,
-    connectionState: null,
-    iceState: null,
-    isFailed: false,
-  });
-
-  const screenStreamRef = useRef<MediaStream | null>(null);
+  const [callState, setCallState] = useState<CallState>(initialCallState);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  // Track refs for streams to avoid stale closure issues
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
+  const isCleaningUpRef = useRef(false);
 
   // Cleanup function
   const cleanup = useCallback(() => {
+    if (isCleaningUpRef.current) return;
+    isCleaningUpRef.current = true;
+    
     console.log('[WebRTC] Cleaning up...');
     
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
+    try {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        track.stop();
-        console.log('[WebRTC] Stopped track:', track.kind);
-      });
-      localStreamRef.current = null;
-    }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log('[WebRTC] Stopped track:', track.kind);
+        });
+        localStreamRef.current = null;
+      }
 
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(track => track.stop());
-      screenStreamRef.current = null;
-    }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+      }
 
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
 
-    pendingIceCandidatesRef.current = [];
-    
-    setCallState({
-      session: null,
-      localStream: null,
-      remoteStream: null,
-      screenStream: null,
-      isConnecting: false,
-      isConnected: false,
-      isScreenSharing: false,
-      error: null,
-      connectionState: null,
-      iceState: null,
-      isFailed: false,
-    });
+      pendingIceCandidatesRef.current = [];
+      setCallState(initialCallState);
+    } finally {
+      isCleaningUpRef.current = false;
+    }
   }, []);
 
   // Get user media
   const getUserMedia = async (type: 'audio' | 'video'): Promise<MediaStream> => {
     const constraints: MediaStreamConstraints = {
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
       video: type === 'video' ? { 
-        width: { ideal: 1280 }, 
-        height: { ideal: 720 } 
+        width: { ideal: 1280, max: 1920 }, 
+        height: { ideal: 720, max: 1080 },
+        facingMode: 'user',
       } : false,
     };
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('[WebRTC] Got local stream:', stream.getTracks().map(t => t.kind));
+      console.log('[WebRTC] Got local stream:', stream.getTracks().map(t => `${t.kind}:${t.enabled}`));
       return stream;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[WebRTC] Failed to get media:', error);
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Camera/microphone access denied. Please allow permissions and try again.');
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('No camera or microphone found. Please connect a device and try again.');
+      }
       throw new Error('Could not access camera/microphone. Please check permissions.');
+    }
+  };
+
+  // Store ICE candidate in database
+  const storeIceCandidate = async (sessionId: string, candidate: RTCIceCandidate, isCaller: boolean) => {
+    const candidateField = isCaller ? 'caller_ice_candidates' : 'receiver_ice_candidates';
+    
+    try {
+      const { data: currentSession } = await supabase
+        .from('call_sessions')
+        .select(candidateField)
+        .eq('id', sessionId)
+        .single();
+
+      if (currentSession) {
+        const currentCandidates = (currentSession as any)[candidateField] || [];
+        const updatedCandidates = [...currentCandidates, candidate.toJSON()];
+        
+        await supabase
+          .from('call_sessions')
+          .update({ [candidateField]: updatedCandidates })
+          .eq('id', sessionId);
+      }
+    } catch (error) {
+      console.error('[WebRTC] Failed to store ICE candidate:', error);
     }
   };
 
@@ -159,37 +180,21 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    pc.onicecandidate = async (event) => {
+    pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('[WebRTC] New ICE candidate');
-        
-        // Store ICE candidate in the database
-        const candidateField = isCaller ? 'caller_ice_candidates' : 'receiver_ice_candidates';
-        
-        const { data: currentSession } = await supabase
-          .from('call_sessions')
-          .select(candidateField)
-          .eq('id', sessionId)
-          .single();
-
-        if (currentSession) {
-          const currentCandidates = (currentSession as any)[candidateField] || [];
-          const updatedCandidates = [...currentCandidates, event.candidate.toJSON()];
-          
-          await supabase
-            .from('call_sessions')
-            .update({ [candidateField]: updatedCandidates })
-            .eq('id', sessionId);
-        }
+        console.log('[WebRTC] New ICE candidate:', event.candidate.type);
+        storeIceCandidate(sessionId, event.candidate, isCaller);
       }
     };
 
     pc.ontrack = (event) => {
-      console.log('[WebRTC] Remote track received:', event.track.kind);
-      setCallState(prev => ({
-        ...prev,
-        remoteStream: event.streams[0],
-      }));
+      console.log('[WebRTC] Remote track received:', event.track.kind, event.streams.length);
+      if (event.streams[0]) {
+        setCallState(prev => ({
+          ...prev,
+          remoteStream: event.streams[0],
+        }));
+      }
     };
 
     pc.onconnectionstatechange = () => {
@@ -198,46 +203,22 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       setCallState(prev => ({
         ...prev,
         connectionState: pc.connectionState,
+        isConnecting: pc.connectionState === 'connecting' || pc.connectionState === 'new',
+        isConnected: pc.connectionState === 'connected',
+        isFailed: pc.connectionState === 'failed' || pc.connectionState === 'disconnected',
+        error: pc.connectionState === 'failed' ? 'Connection failed. Please try again.' : 
+               pc.connectionState === 'disconnected' ? 'Connection lost.' : prev.error,
       }));
-      
-      if (pc.connectionState === 'connected') {
-        setCallState(prev => ({
-          ...prev,
-          isConnecting: false,
-          isConnected: true,
-          isFailed: false,
-          error: null,
-        }));
-      } else if (pc.connectionState === 'failed') {
-        setCallState(prev => ({
-          ...prev,
-          error: 'Connection failed',
-          isFailed: true,
-          isConnecting: false,
-        }));
-      } else if (pc.connectionState === 'disconnected') {
-        setCallState(prev => ({
-          ...prev,
-          error: 'Connection lost',
-          isFailed: true,
-        }));
-      }
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      console.log('[WebRTC] ICE state:', pc.iceConnectionState);
       setCallState(prev => ({
         ...prev,
         iceState: pc.iceConnectionState,
+        isFailed: prev.isFailed || pc.iceConnectionState === 'failed',
+        error: pc.iceConnectionState === 'failed' ? 'Network connection failed.' : prev.error,
       }));
-      
-      if (pc.iceConnectionState === 'failed') {
-        setCallState(prev => ({
-          ...prev,
-          error: 'ICE connection failed',
-          isFailed: true,
-        }));
-      }
     };
 
     pc.onicegatheringstatechange = () => {
@@ -259,6 +240,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
           console.log('[WebRTC] Added ICE candidate');
         } else {
           pendingIceCandidatesRef.current.push(new RTCIceCandidate(candidate));
+          console.log('[WebRTC] Queued ICE candidate (no remote description yet)');
         }
       } catch (error) {
         console.error('[WebRTC] Failed to add ICE candidate:', error);
@@ -266,15 +248,16 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     }
   };
 
-  // Process pending ICE candidates
+  // Process pending ICE candidates after setting remote description
   const processPendingIceCandidates = async () => {
     const pc = peerConnectionRef.current;
-    if (!pc || !pc.remoteDescription) return;
+    if (!pc?.remoteDescription) return;
 
+    console.log('[WebRTC] Processing', pendingIceCandidatesRef.current.length, 'pending ICE candidates');
+    
     for (const candidate of pendingIceCandidatesRef.current) {
       try {
         await pc.addIceCandidate(candidate);
-        console.log('[WebRTC] Added pending ICE candidate');
       } catch (error) {
         console.error('[WebRTC] Failed to add pending ICE candidate:', error);
       }
@@ -282,22 +265,90 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     pendingIceCandidatesRef.current = [];
   };
 
+  // Subscribe to session updates for signaling
+  const subscribeToSession = (sessionId: string, isCaller: boolean) => {
+    console.log('[WebRTC] Subscribing to session:', sessionId);
+
+    const channel = supabase
+      .channel(`call-signaling-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'call_sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        async (payload) => {
+          const updated = payload.new as CallSession;
+          console.log('[WebRTC] Session updated:', updated.status);
+
+          setCallState(prev => ({ ...prev, session: updated }));
+
+          // Handle call ended/declined
+          if (updated.status === 'declined' || updated.status === 'ended') {
+            console.log('[WebRTC] Call ended by remote');
+            cleanup();
+            return;
+          }
+
+          const pc = peerConnectionRef.current;
+          if (!pc) return;
+
+          // Caller: handle answer from receiver
+          if (isCaller && updated.sdp_answer && !pc.remoteDescription) {
+            try {
+              console.log('[WebRTC] Setting remote answer');
+              const answer = JSON.parse(updated.sdp_answer);
+              await pc.setRemoteDescription(new RTCSessionDescription(answer));
+              await processPendingIceCandidates();
+              
+              // Process receiver's ICE candidates
+              if (updated.receiver_ice_candidates?.length) {
+                await addIceCandidates(updated.receiver_ice_candidates);
+              }
+            } catch (error) {
+              console.error('[WebRTC] Failed to set remote answer:', error);
+              setCallState(prev => ({ ...prev, error: 'Failed to establish connection.' }));
+            }
+          }
+
+          // Process new ICE candidates from the other party
+          const candidatesField = isCaller ? 'receiver_ice_candidates' : 'caller_ice_candidates';
+          const candidates = (updated as any)[candidatesField] || [];
+          if (candidates.length > 0 && pc.remoteDescription) {
+            await addIceCandidates(candidates);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+  };
+
   // Start a call (caller)
   const startCall = async (type: 'audio' | 'video') => {
     if (!user || !conversationId || !otherUserId) {
       console.error('[WebRTC] Missing required data for call');
+      setCallState(prev => ({ ...prev, error: 'Missing conversation data.' }));
+      return null;
+    }
+
+    // Prevent starting while already in a call
+    if (callState.session) {
+      console.warn('[WebRTC] Already in a call');
       return null;
     }
 
     try {
-      setCallState(prev => ({ ...prev, isConnecting: true, error: null }));
+      setCallState(prev => ({ ...prev, isConnecting: true, error: null, isFailed: false }));
 
-      // Get local stream
+      // Get local media first
       const localStream = await getUserMedia(type);
       localStreamRef.current = localStream;
       setCallState(prev => ({ ...prev, localStream }));
 
-      // Create call session in database
+      // Create call session
       const { data: session, error } = await supabase
         .from('call_sessions')
         .insert({
@@ -306,12 +357,14 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
           receiver_id: otherUserId,
           call_type: type,
           status: 'ringing',
+          caller_ice_candidates: [],
+          receiver_ice_candidates: [],
         })
         .select()
         .single();
 
       if (error || !session) {
-        throw new Error('Failed to create call session');
+        throw new Error('Failed to create call. Please try again.');
       }
 
       console.log('[WebRTC] Call session created:', session.id);
@@ -324,11 +377,16 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       // Add local tracks
       localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream);
+        console.log('[WebRTC] Added local track:', track.kind);
       });
 
-      // Create offer
-      const offer = await pc.createOffer();
+      // Create and set offer
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: type === 'video',
+      });
       await pc.setLocalDescription(offer);
+      console.log('[WebRTC] Created offer');
 
       // Store offer in database
       await supabase
@@ -345,7 +403,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       setCallState(prev => ({
         ...prev,
         isConnecting: false,
-        error: error.message || 'Failed to start call',
+        error: error.message || 'Failed to start call.',
       }));
       cleanup();
       return null;
@@ -357,13 +415,16 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     if (!user) return;
 
     try {
-      console.log('[WebRTC] Answering call, session:', session.id);
-      setCallState(prev => ({ ...prev, isConnecting: true, error: null, session }));
+      console.log('[WebRTC] Answering call:', session.id);
+      setCallState(prev => ({ ...prev, isConnecting: true, error: null, isFailed: false, session }));
 
-      // The incoming call INSERT event can arrive before the caller has stored the SDP offer.
-      // Fetch/poll the latest session to ensure we have sdp_offer before creating an answer.
-      let latestSession: CallSession | null = null;
-      for (let attempt = 0; attempt < 15; attempt++) {
+      // Wait for SDP offer if not present (polling with timeout)
+      let latestSession = session;
+      let attempts = 0;
+      const maxAttempts = 20;
+      
+      while (!latestSession.sdp_offer && attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, 250));
         const { data } = await supabase
           .from('call_sessions')
           .select('*')
@@ -373,22 +434,20 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
         if (data) {
           latestSession = data as CallSession;
           if (latestSession.status !== 'ringing') {
-            console.warn('[WebRTC] Call no longer ringing, abort answer:', latestSession.status);
+            console.warn('[WebRTC] Call no longer ringing:', latestSession.status);
+            cleanup();
             return;
           }
-          if (latestSession.sdp_offer) break;
         }
-
-        await new Promise((r) => setTimeout(r, 250));
+        attempts++;
       }
 
-      const sessionToAnswer = latestSession ?? session;
-      if (!sessionToAnswer.sdp_offer) {
-        throw new Error('Call offer not ready yet. Please try again.');
+      if (!latestSession.sdp_offer) {
+        throw new Error('Call connection timed out. Please try again.');
       }
 
-      // Get local stream
-      const localStream = await getUserMedia(sessionToAnswer.call_type);
+      // Get local media
+      const localStream = await getUserMedia(latestSession.call_type);
       localStreamRef.current = localStream;
       setCallState(prev => ({ ...prev, localStream }));
 
@@ -399,30 +458,40 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       // Add local tracks
       localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream);
+        console.log('[WebRTC] Added local track:', track.kind);
       });
 
       // Set remote description (the offer)
-      const offer = JSON.parse(sessionToAnswer.sdp_offer);
+      const offer = JSON.parse(latestSession.sdp_offer);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       console.log('[WebRTC] Set remote offer');
 
-      // Process any pending ICE candidates
+      // Process any pending and existing ICE candidates
       await processPendingIceCandidates();
-      await addIceCandidates(sessionToAnswer.caller_ice_candidates || []);
+      if (latestSession.caller_ice_candidates?.length) {
+        await addIceCandidates(latestSession.caller_ice_candidates);
+      }
 
-      // Create answer
+      // Create and set answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      console.log('[WebRTC] Created answer');
 
       // Update session with answer and status
+      const now = new Date().toISOString();
       await supabase
         .from('call_sessions')
         .update({
           sdp_answer: JSON.stringify(answer),
           status: 'accepted',
-          started_at: new Date().toISOString(),
+          started_at: now,
         })
         .eq('id', session.id);
+
+      setCallState(prev => ({
+        ...prev,
+        session: { ...latestSession, status: 'accepted', started_at: now },
+      }));
 
       // Subscribe to session updates
       subscribeToSession(session.id, false);
@@ -431,64 +500,10 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       setCallState(prev => ({
         ...prev,
         isConnecting: false,
-        error: error.message || 'Failed to answer call',
+        error: error.message || 'Failed to answer call.',
       }));
       cleanup();
     }
-  };
-
-  // Subscribe to session updates for signaling
-  const subscribeToSession = (sessionId: string, isCaller: boolean) => {
-    console.log('[WebRTC] Subscribing to session:', sessionId);
-
-    const channel = supabase
-      .channel(`call-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'call_sessions',
-          filter: `id=eq.${sessionId}`,
-        },
-        async (payload) => {
-          const updated = payload.new as CallSession;
-          console.log('[WebRTC] Session updated:', updated.status);
-
-          setCallState(prev => ({ ...prev, session: updated }));
-
-          const pc = peerConnectionRef.current;
-          if (!pc) return;
-
-          // Handle status changes
-          if (updated.status === 'declined' || updated.status === 'ended') {
-            cleanup();
-            return;
-          }
-
-          // Caller: process answer when receiver accepts
-          if (isCaller && updated.sdp_answer && !pc.remoteDescription) {
-            try {
-              const answer = JSON.parse(updated.sdp_answer);
-              await pc.setRemoteDescription(new RTCSessionDescription(answer));
-              console.log('[WebRTC] Set remote answer');
-              await processPendingIceCandidates();
-            } catch (error) {
-              console.error('[WebRTC] Failed to set remote answer:', error);
-            }
-          }
-
-          // Process new ICE candidates
-          const candidatesField = isCaller ? 'receiver_ice_candidates' : 'caller_ice_candidates';
-          const candidates = (updated as any)[candidatesField] || [];
-          if (candidates.length > 0) {
-            await addIceCandidates(candidates);
-          }
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
   };
 
   // End the call
@@ -496,13 +511,19 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     const session = callState.session;
     
     if (session) {
-      await supabase
-        .from('call_sessions')
-        .update({
-          status: 'ended',
-          ended_at: new Date().toISOString(),
-        })
-        .eq('id', session.id);
+      try {
+        const now = new Date().toISOString();
+        await supabase
+          .from('call_sessions')
+          .update({
+            status: 'ended',
+            ended_at: now,
+          })
+          .eq('id', session.id);
+        console.log('[WebRTC] Call ended:', session.id);
+      } catch (error) {
+        console.error('[WebRTC] Failed to update call status:', error);
+      }
     }
 
     cleanup();
@@ -510,119 +531,108 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
 
   // Decline a call
   const declineCall = async (sessionId: string) => {
-    await supabase
-      .from('call_sessions')
-      .update({ status: 'declined' })
-      .eq('id', sessionId);
+    try {
+      const now = new Date().toISOString();
+      await supabase
+        .from('call_sessions')
+        .update({ 
+          status: 'declined',
+          ended_at: now,
+        })
+        .eq('id', sessionId);
+      console.log('[WebRTC] Call declined:', sessionId);
+    } catch (error) {
+      console.error('[WebRTC] Failed to decline call:', error);
+    }
   };
 
-  // Toggle audio
+  // Toggle audio mute
   const toggleAudio = () => {
-    if (callState.localStream) {
-      const audioTrack = callState.localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        return !audioTrack.enabled; // Return muted state
-      }
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      console.log('[WebRTC] Audio muted:', !audioTrack.enabled);
+      return !audioTrack.enabled;
     }
     return false;
   };
 
   // Toggle video
   const toggleVideo = () => {
-    if (callState.localStream) {
-      const videoTrack = callState.localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        return !videoTrack.enabled; // Return video off state
-      }
+    const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      console.log('[WebRTC] Video off:', !videoTrack.enabled);
+      return !videoTrack.enabled;
     }
     return false;
   };
 
-  // Start screen sharing
-  const startScreenShare = async () => {
+  // Screen sharing
+  const toggleScreenShare = async () => {
     const pc = peerConnectionRef.current;
     if (!pc) return false;
 
-    try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: true,
-      });
-
-      screenStreamRef.current = screenStream;
-
-      // Replace video track with screen track
-      const screenTrack = screenStream.getVideoTracks()[0];
-      const senders = pc.getSenders();
-      const videoSender = senders.find(s => s.track?.kind === 'video');
-
-      if (videoSender) {
-        await videoSender.replaceTrack(screenTrack);
-      } else {
-        pc.addTrack(screenTrack, screenStream);
+    if (callState.isScreenSharing) {
+      // Stop screen share
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
       }
 
-      // Handle when user stops sharing via browser UI
-      screenTrack.onended = () => {
-        stopScreenShare();
-      };
-
-      setCallState(prev => ({
-        ...prev,
-        screenStream,
-        isScreenSharing: true,
-      }));
-
-      console.log('[WebRTC] Screen sharing started');
-      return true;
-    } catch (error) {
-      console.error('[WebRTC] Failed to start screen share:', error);
-      return false;
-    }
-  };
-
-  // Stop screen sharing
-  const stopScreenShare = async () => {
-    const pc = peerConnectionRef.current;
-    
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-
-    // Restore camera video track
-    if (pc && callState.localStream) {
-      const cameraTrack = callState.localStream.getVideoTracks()[0];
-      const senders = pc.getSenders();
-      const videoSender = senders.find(s => s.track?.kind === 'video');
+      // Restore camera track
+      const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
+      const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
 
       if (videoSender && cameraTrack) {
         await videoSender.replaceTrack(cameraTrack);
       }
-    }
 
-    screenStreamRef.current = null;
-    setCallState(prev => ({
-      ...prev,
-      screenStream: null,
-      isScreenSharing: false,
-    }));
-
-    console.log('[WebRTC] Screen sharing stopped');
-  };
-
-  // Toggle screen sharing
-  const toggleScreenShare = async () => {
-    if (callState.isScreenSharing) {
-      await stopScreenShare();
+      screenStreamRef.current = null;
+      setCallState(prev => ({ ...prev, screenStream: null, isScreenSharing: false }));
+      console.log('[WebRTC] Screen sharing stopped');
       return false;
     } else {
-      return await startScreenShare();
+      // Start screen share
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
+
+        screenStreamRef.current = screenStream;
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+
+        if (videoSender) {
+          await videoSender.replaceTrack(screenTrack);
+        }
+
+        // Handle browser stop
+        screenTrack.onended = () => {
+          toggleScreenShare();
+        };
+
+        setCallState(prev => ({ ...prev, screenStream, isScreenSharing: true }));
+        console.log('[WebRTC] Screen sharing started');
+        return true;
+      } catch (error) {
+        console.error('[WebRTC] Failed to start screen share:', error);
+        return false;
+      }
     }
+  };
+
+  // Retry failed call
+  const retryCall = async () => {
+    const session = callState.session;
+    if (!session) return;
+    
+    const callType = session.call_type;
+    cleanup();
+    
+    // Small delay before retry
+    await new Promise(r => setTimeout(r, 500));
+    await startCall(callType);
   };
 
   // Cleanup on unmount
@@ -630,19 +640,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     return () => {
       cleanup();
     };
-  }, []);
-
-  // Retry failed call
-  const retryCall = async () => {
-    const session = callState.session;
-    if (!session) return;
-    
-    // Clean up current failed connection
-    cleanup();
-    
-    // Start a new call
-    await startCall(session.call_type);
-  };
+  }, [cleanup]);
 
   return {
     callState,
@@ -655,104 +653,4 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     toggleScreenShare,
     retryCall,
   };
-}
-
-// Hook to listen for incoming calls
-export function useIncomingCalls() {
-  const { user } = useAuth();
-  const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
-  const [callerProfile, setCallerProfile] = useState<{
-    display_name: string;
-    username: string;
-    avatar_url: string | null;
-  } | null>(null);
-  const notificationRef = useRef<Notification | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    console.log('[WebRTC] Listening for incoming calls for user:', user.id);
-
-    // Subscribe to new call sessions where user is the receiver
-    const channel = supabase
-      .channel('incoming-calls')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'call_sessions',
-        },
-        async (payload) => {
-          const session = payload.new as CallSession;
-          
-          // Only show if we're the receiver and call is ringing
-          if (session.receiver_id === user.id && session.status === 'ringing') {
-            console.log('[WebRTC] Incoming call:', session);
-            
-            // Fetch caller profile
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('display_name, username, avatar_url')
-              .eq('user_id', session.caller_id)
-              .single();
-
-            setCallerProfile(profile);
-            setIncomingCall(session);
-
-            // Show push notification for the call
-            if (profile) {
-              const notification = await showIncomingCallNotification(
-                profile.display_name,
-                session.call_type,
-                session.conversation_id,
-                profile.avatar_url
-              );
-              notificationRef.current = notification;
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'call_sessions',
-        },
-        (payload) => {
-          const session = payload.new as CallSession;
-          
-          // Clear incoming call if it was answered, declined, or ended
-          if (incomingCall?.id === session.id && session.status !== 'ringing') {
-            setIncomingCall(null);
-            setCallerProfile(null);
-            
-            // Close the notification
-            if (notificationRef.current) {
-              notificationRef.current.close();
-              notificationRef.current = null;
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, incomingCall?.id]);
-
-  const clearIncomingCall = () => {
-    setIncomingCall(null);
-    setCallerProfile(null);
-    
-    // Close notification
-    if (notificationRef.current) {
-      notificationRef.current.close();
-      notificationRef.current = null;
-    }
-  };
-
-  return { incomingCall, callerProfile, clearIncomingCall };
 }
