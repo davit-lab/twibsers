@@ -10,12 +10,12 @@ interface CallerProfile {
   avatar_url: string | null;
 }
 
-interface QueuedCall {
+export interface QueuedCall {
   session: CallSession;
   callerProfile: CallerProfile | null;
 }
 
-interface HeldCall {
+export interface HeldCall {
   session: CallSession;
   callerProfile: CallerProfile | null;
   isActive: boolean;
@@ -30,6 +30,7 @@ export function useIncomingCalls() {
   const [isOnActiveCall, setIsOnActiveCall] = useState(false);
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const notificationRef = useRef<Notification | null>(null);
+  const processedCallsRef = useRef<Set<string>>(new Set());
 
   // Fetch DND status
   useEffect(() => {
@@ -40,7 +41,7 @@ export function useIncomingCalls() {
         .from('user_preferences')
         .select('do_not_disturb')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (data) {
         setDoNotDisturb(data.do_not_disturb ?? false);
@@ -49,9 +50,8 @@ export function useIncomingCalls() {
 
     fetchDND();
 
-    // Subscribe to DND changes
     const channel = supabase
-      .channel('dnd-preference')
+      .channel('dnd-preference-updates')
       .on(
         'postgres_changes',
         {
@@ -78,7 +78,7 @@ export function useIncomingCalls() {
   const isCallerBlocked = useCallback(async (callerId: string): Promise<boolean> => {
     if (!user) return false;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('call_blocks')
       .select('id')
       .eq('blocker_id', user.id)
@@ -107,23 +107,24 @@ export function useIncomingCalls() {
         target_id: conversationId,
         is_read: false,
       });
+      console.log('[IncomingCalls] Created missed call notification');
     } catch (error) {
       console.error('[IncomingCalls] Failed to create missed call notification:', error);
     }
   }, [user]);
 
-  // Auto-decline call (for DND or blocked)
+  // Auto-decline call
   const autoDeclineCall = useCallback(async (session: CallSession, reason: 'dnd' | 'blocked') => {
     try {
+      const now = new Date().toISOString();
       await supabase
         .from('call_sessions')
         .update({
           status: 'declined',
-          ended_at: new Date().toISOString(),
+          ended_at: now,
         })
         .eq('id', session.id);
 
-      // Create missed call notification
       await createMissedCallNotification(
         session.caller_id,
         session.call_type,
@@ -136,22 +137,14 @@ export function useIncomingCalls() {
     }
   }, [createMissedCallNotification]);
 
-  // Handle when a call times out or is declined
-  const handleCallMissed = useCallback(async (session: CallSession) => {
-    await createMissedCallNotification(
-      session.caller_id,
-      session.call_type,
-      session.conversation_id
-    );
-  }, [createMissedCallNotification]);
-
+  // Handle incoming calls subscription
   useEffect(() => {
     if (!user) return;
 
     console.log('[IncomingCalls] Listening for incoming calls for user:', user.id);
 
     const channel = supabase
-      .channel('incoming-calls-global')
+      .channel('global-incoming-calls')
       .on(
         'postgres_changes',
         {
@@ -162,59 +155,67 @@ export function useIncomingCalls() {
         async (payload) => {
           const session = payload.new as CallSession;
           
-          if (session.receiver_id === user.id && session.status === 'ringing') {
-            console.log('[IncomingCalls] Incoming call:', session);
+          // Only handle calls where we are the receiver and it's ringing
+          if (session.receiver_id !== user.id || session.status !== 'ringing') {
+            return;
+          }
 
-            // Check if caller is blocked
-            const blocked = await isCallerBlocked(session.caller_id);
-            if (blocked) {
-              console.log('[IncomingCalls] Caller is blocked, auto-declining');
-              await autoDeclineCall(session, 'blocked');
-              return;
-            }
+          // Prevent processing the same call twice
+          if (processedCallsRef.current.has(session.id)) {
+            return;
+          }
+          processedCallsRef.current.add(session.id);
 
-            // Check DND mode
-            if (doNotDisturb) {
-              console.log('[IncomingCalls] DND is on, auto-declining');
-              await autoDeclineCall(session, 'dnd');
-              return;
-            }
+          console.log('[IncomingCalls] Incoming call:', session.id, session.call_type);
+
+          // Check if caller is blocked
+          const blocked = await isCallerBlocked(session.caller_id);
+          if (blocked) {
+            console.log('[IncomingCalls] Caller is blocked, auto-declining');
+            await autoDeclineCall(session, 'blocked');
+            return;
+          }
+
+          // Check DND mode
+          if (doNotDisturb) {
+            console.log('[IncomingCalls] DND is on, auto-declining');
+            await autoDeclineCall(session, 'dnd');
+            return;
+          }
+          
+          // Fetch caller profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, username, avatar_url')
+            .eq('user_id', session.caller_id)
+            .single();
+
+          // If already handling a call, add to queue
+          if (isOnActiveCall || incomingCall) {
+            console.log('[IncomingCalls] Adding call to queue');
+            setCallQueue(prev => [...prev, { session, callerProfile: profile }]);
             
-            // Fetch caller profile
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('display_name, username, avatar_url')
-              .eq('user_id', session.caller_id)
-              .single();
+            if (profile) {
+              await showIncomingCallNotification(
+                profile.display_name,
+                session.call_type,
+                session.conversation_id,
+                profile.avatar_url
+              );
+            }
+          } else {
+            // Set as current incoming call
+            setCallerProfile(profile);
+            setIncomingCall(session);
 
-            // If already on a call, add to queue
-            if (isOnActiveCall || incomingCall) {
-              console.log('[IncomingCalls] Adding call to queue (already on call)');
-              setCallQueue(prev => [...prev, { session, callerProfile: profile }]);
-              
-              // Show push notification for queued call
-              if (profile) {
-                await showIncomingCallNotification(
-                  profile.display_name,
-                  session.call_type,
-                  session.conversation_id,
-                  profile.avatar_url
-                );
-              }
-            } else {
-              setCallerProfile(profile);
-              setIncomingCall(session);
-
-              // Show push notification
-              if (profile) {
-                const notification = await showIncomingCallNotification(
-                  profile.display_name,
-                  session.call_type,
-                  session.conversation_id,
-                  profile.avatar_url
-                );
-                notificationRef.current = notification;
-              }
+            if (profile) {
+              const notification = await showIncomingCallNotification(
+                profile.display_name,
+                session.call_type,
+                session.conversation_id,
+                profile.avatar_url
+              );
+              notificationRef.current = notification;
             }
           }
         }
@@ -231,19 +232,26 @@ export function useIncomingCalls() {
           
           // Handle current incoming call status change
           if (incomingCall?.id === session.id && session.status !== 'ringing') {
-            // If call timed out (auto-declined after 30s), create missed notification
+            console.log('[IncomingCalls] Current call status changed:', session.status);
+            
+            // Check if it was a missed call (unanswered for ~30s)
             if (session.status === 'declined' && session.receiver_id === user.id) {
-              const declinedAt = session.ended_at ? new Date(session.ended_at) : new Date();
+              const endedAt = session.ended_at ? new Date(session.ended_at) : new Date();
               const createdAt = new Date(session.created_at);
-              const duration = (declinedAt.getTime() - createdAt.getTime()) / 1000;
+              const duration = (endedAt.getTime() - createdAt.getTime()) / 1000;
               
-              if (duration >= 28) {
-                await handleCallMissed(session);
+              if (duration >= 25) {
+                await createMissedCallNotification(
+                  session.caller_id,
+                  session.call_type,
+                  session.conversation_id
+                );
               }
             }
             
             setIncomingCall(null);
             setCallerProfile(null);
+            processedCallsRef.current.delete(session.id);
             
             if (notificationRef.current) {
               notificationRef.current.close();
@@ -261,18 +269,13 @@ export function useIncomingCalls() {
           
           // Handle queued call status changes
           if (session.status !== 'ringing') {
-            setCallQueue(prev => prev.filter(c => c.session.id !== session.id));
-            
-            // Create missed call notification for declined queued calls
-            if (session.status === 'declined' && session.receiver_id === user.id) {
-              const declinedAt = session.ended_at ? new Date(session.ended_at) : new Date();
-              const createdAt = new Date(session.created_at);
-              const duration = (declinedAt.getTime() - createdAt.getTime()) / 1000;
-              
-              if (duration >= 28) {
-                await handleCallMissed(session);
+            setCallQueue(prev => {
+              const filtered = prev.filter(c => c.session.id !== session.id);
+              if (filtered.length !== prev.length) {
+                processedCallsRef.current.delete(session.id);
               }
-            }
+              return filtered;
+            });
           }
         }
       )
@@ -281,9 +284,13 @@ export function useIncomingCalls() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, incomingCall?.id, isOnActiveCall, callQueue, handleCallMissed, doNotDisturb, isCallerBlocked, autoDeclineCall]);
+  }, [user, incomingCall?.id, isOnActiveCall, callQueue.length, doNotDisturb, isCallerBlocked, autoDeclineCall, createMissedCallNotification]);
 
   const clearIncomingCall = useCallback(() => {
+    if (incomingCall) {
+      processedCallsRef.current.delete(incomingCall.id);
+    }
+    
     setIncomingCall(null);
     setCallerProfile(null);
     
@@ -299,22 +306,20 @@ export function useIncomingCalls() {
       setCallerProfile(nextCall.callerProfile);
       setCallQueue(rest);
     }
-  }, [callQueue]);
+  }, [callQueue, incomingCall]);
 
   const setActiveCall = useCallback((active: boolean) => {
     setIsOnActiveCall(active);
   }, []);
 
   const declineQueuedCall = useCallback(async (sessionId: string) => {
-    const queuedCall = callQueue.find(c => c.session.id === sessionId);
-    if (!queuedCall) return;
-
     try {
+      const now = new Date().toISOString();
       await supabase
         .from('call_sessions')
         .update({
           status: 'declined',
-          ended_at: new Date().toISOString(),
+          ended_at: now,
         })
         .eq('id', sessionId);
     } catch (error) {
@@ -322,22 +327,20 @@ export function useIncomingCalls() {
     }
     
     setCallQueue(prev => prev.filter(c => c.session.id !== sessionId));
-  }, [callQueue]);
+    processedCallsRef.current.delete(sessionId);
+  }, []);
 
-  // Put current call on hold and switch to a queued/held call
   const holdAndSwitch = useCallback((
     currentSession: CallSession | null,
     currentProfile: CallerProfile | null,
     targetSessionId: string
   ) => {
-    // Find the target call in queue or held calls
     const queuedCall = callQueue.find(c => c.session.id === targetSessionId);
     const heldCall = heldCalls.find(c => c.session.id === targetSessionId);
     
     const targetCall = queuedCall || heldCall;
     if (!targetCall) return null;
 
-    // Put current call on hold if it exists
     if (currentSession && currentProfile) {
       setHeldCalls(prev => [
         ...prev.filter(c => c.session.id !== currentSession.id),
@@ -345,7 +348,6 @@ export function useIncomingCalls() {
       ]);
     }
 
-    // Remove target from queue/held
     if (queuedCall) {
       setCallQueue(prev => prev.filter(c => c.session.id !== targetSessionId));
     } else {
@@ -355,7 +357,6 @@ export function useIncomingCalls() {
     return targetCall;
   }, [callQueue, heldCalls]);
 
-  // Resume a held call
   const resumeHeldCall = useCallback((sessionId: string) => {
     const heldCall = heldCalls.find(c => c.session.id === sessionId);
     if (!heldCall) return null;
@@ -364,14 +365,14 @@ export function useIncomingCalls() {
     return heldCall;
   }, [heldCalls]);
 
-  // End a held call
   const endHeldCall = useCallback(async (sessionId: string) => {
     try {
+      const now = new Date().toISOString();
       await supabase
         .from('call_sessions')
         .update({
           status: 'ended',
-          ended_at: new Date().toISOString(),
+          ended_at: now,
         })
         .eq('id', sessionId);
     } catch (error) {
