@@ -290,106 +290,195 @@ export default function Settings() {
 
           {/* Appearance Tab */}
           <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appearance</CardTitle>
-                <CardDescription>Customize how Twibsers looks for you</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Theme */}
-                <div className="space-y-3">
-                  <Label>Theme</Label>
-                  <RadioGroup 
-                    value={preferences?.theme || 'system'}
-                    onValueChange={(value) => updatePreferences({ theme: value })}
-                    className="grid grid-cols-3 gap-4"
-                  >
+            <div className="space-y-6">
+              {/* Theme Selection Card */}
+              <Card className="glass-card overflow-hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-primary/10">
+                      <Palette className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Theme 🎨</CardTitle>
+                      <CardDescription>Choose your preferred appearance</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
                     {[
-                      { value: 'light', icon: Sun, label: 'Light' },
-                      { value: 'dark', icon: Moon, label: 'Dark' },
-                      { value: 'system', icon: Monitor, label: 'System' },
-                    ].map(({ value, icon: Icon, label }) => (
-                      <Label
+                      { value: 'light', icon: Sun, label: 'Light', emoji: '☀️', desc: 'Bright & clean' },
+                      { value: 'dark', icon: Moon, label: 'Dark', emoji: '🌙', desc: 'Easy on eyes' },
+                      { value: 'system', icon: Monitor, label: 'Auto', emoji: '💻', desc: 'Match device' },
+                    ].map(({ value, icon: Icon, label, emoji, desc }) => (
+                      <button
                         key={value}
-                        htmlFor={`theme-${value}`}
+                        onClick={() => updatePreferences({ theme: value })}
                         className={cn(
-                          "flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                          "group relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300",
                           preferences?.theme === value 
-                            ? "border-primary bg-primary/5" 
-                            : "border-border hover:border-primary/50"
+                            ? "border-primary bg-gradient-to-br from-primary/10 to-accent/5 shadow-lg shadow-primary/10" 
+                            : "border-border/50 hover:border-primary/40 hover:bg-muted/30"
                         )}
                       >
-                        <RadioGroupItem value={value} id={`theme-${value}`} className="sr-only" />
-                        <Icon className="h-6 w-6" />
-                        <span className="text-sm font-medium">{label}</span>
-                      </Label>
+                        <div className={cn(
+                          "p-3 rounded-xl transition-all duration-300",
+                          preferences?.theme === value 
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" 
+                            : "bg-muted group-hover:bg-primary/10"
+                        )}>
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <div className="text-center">
+                          <span className="text-xl mb-1">{emoji}</span>
+                          <p className="font-semibold text-sm">{label}</p>
+                          <p className="text-xs text-muted-foreground">{desc}</p>
+                        </div>
+                        {preferences?.theme === value && (
+                          <div className="absolute top-2 right-2">
+                            <Check className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                      </button>
                     ))}
-                  </RadioGroup>
-                </div>
-
-                {/* Font Size */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Font Size</Label>
-                    <span className="text-sm text-muted-foreground capitalize">{preferences?.font_size}</span>
                   </div>
-                  <Slider
-                    value={[['small', 'medium', 'large', 'xlarge'].indexOf(preferences?.font_size || 'medium')]}
-                    onValueChange={([v]) => updatePreferences({ font_size: ['small', 'medium', 'large', 'xlarge'][v] })}
-                    max={3}
-                    step={1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Small</span>
-                    <span>Medium</span>
-                    <span>Large</span>
-                    <span>X-Large</span>
+                </CardContent>
+              </Card>
+
+              {/* Font Size & Density Card */}
+              <Card className="glass-card">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-accent/10">
+                      <span className="text-lg">Aa</span>
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Typography ✍️</CardTitle>
+                      <CardDescription>Adjust text size and spacing</CardDescription>
+                    </div>
                   </div>
-                </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Font Size */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium">Font Size</Label>
+                      <Badge variant="secondary" className="capitalize">{preferences?.font_size || 'medium'}</Badge>
+                    </div>
+                    <div className="px-2">
+                      <Slider
+                        value={[['small', 'medium', 'large', 'xlarge'].indexOf(preferences?.font_size || 'medium')]}
+                        onValueChange={([v]) => updatePreferences({ font_size: ['small', 'medium', 'large', 'xlarge'][v] })}
+                        max={3}
+                        step={1}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex justify-between px-1">
+                      {['Small', 'Medium', 'Large', 'X-Large'].map((size, i) => (
+                        <button
+                          key={size}
+                          onClick={() => updatePreferences({ font_size: ['small', 'medium', 'large', 'xlarge'][i] })}
+                          className={cn(
+                            "text-xs px-2 py-1 rounded-lg transition-colors",
+                            ['small', 'medium', 'large', 'xlarge'].indexOf(preferences?.font_size || 'medium') === i
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Preview */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                      <p className="text-muted-foreground text-xs mb-2">Preview</p>
+                      <p className="transition-all" style={{ 
+                        fontSize: preferences?.font_size === 'small' ? '14px' : 
+                                  preferences?.font_size === 'large' ? '18px' : 
+                                  preferences?.font_size === 'xlarge' ? '20px' : '16px' 
+                      }}>
+                        The quick brown fox jumps over the lazy dog 🦊
+                      </p>
+                    </div>
+                  </div>
 
-                {/* Display Density */}
-                <div className="space-y-3">
-                  <Label>Display Density</Label>
-                  <Select 
-                    value={preferences?.display_density || 'comfortable'}
-                    onValueChange={(value) => updatePreferences({ display_density: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="compact">Compact - More content, less spacing</SelectItem>
-                      <SelectItem value="comfortable">Comfortable - Balanced layout</SelectItem>
-                      <SelectItem value="spacious">Spacious - More breathing room</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  {/* Display Density */}
+                  <div className="space-y-3 pt-2">
+                    <Label className="text-base font-medium">Display Density</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'compact', label: 'Compact', icon: '📱', desc: 'More content' },
+                        { value: 'comfortable', label: 'Comfortable', icon: '💻', desc: 'Balanced' },
+                        { value: 'spacious', label: 'Spacious', icon: '🖥️', desc: 'More space' },
+                      ].map(({ value, label, icon, desc }) => (
+                        <button
+                          key={value}
+                          onClick={() => updatePreferences({ display_density: value })}
+                          className={cn(
+                            "p-4 rounded-xl border-2 text-center transition-all",
+                            preferences?.display_density === value 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border/50 hover:border-primary/30"
+                          )}
+                        >
+                          <span className="text-2xl block mb-1">{icon}</span>
+                          <p className="font-medium text-sm">{label}</p>
+                          <p className="text-xs text-muted-foreground">{desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Color Accent */}
-                <div className="space-y-3">
-                  <Label>Accent Color</Label>
-                  <div className="flex gap-3 flex-wrap">
+              {/* Accent Color Card */}
+              <Card className="glass-card">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
+                      <span className="text-white text-lg">🌈</span>
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Accent Color ✨</CardTitle>
+                      <CardDescription>Personalize your color theme</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-6 gap-4">
                     {COLOR_ACCENTS.map(({ value, color, label }) => (
                       <button
                         key={value}
                         onClick={() => updatePreferences({ color_accent: value })}
                         className={cn(
-                          "w-12 h-12 rounded-full transition-all flex items-center justify-center",
-                          preferences?.color_accent === value && "ring-2 ring-offset-2 ring-offset-background"
+                          "relative aspect-square rounded-2xl transition-all duration-300 flex items-center justify-center group",
+                          preferences?.color_accent === value 
+                            ? "ring-4 ring-offset-4 ring-offset-background scale-110 shadow-lg" 
+                            : "hover:scale-105"
                         )}
-                        style={{ backgroundColor: color, '--tw-ring-color': color } as any}
+                        style={{ 
+                          backgroundColor: color, 
+                          '--tw-ring-color': color,
+                          boxShadow: preferences?.color_accent === value ? `0 8px 30px ${color}50` : undefined
+                        } as React.CSSProperties}
                         title={label}
                       >
                         {preferences?.color_accent === value && (
-                          <Check className="h-5 w-5 text-white" />
+                          <Check className="h-6 w-6 text-white drop-shadow-md" />
                         )}
+                        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                          {label}
+                        </span>
                       </button>
                     ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <p className="text-sm text-muted-foreground mt-8 text-center">
+                    Selected: <span className="font-medium capitalize">{preferences?.color_accent || 'purple'}</span>
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Content & Feed Tab */}
