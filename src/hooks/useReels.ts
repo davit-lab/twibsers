@@ -44,13 +44,15 @@ export interface ReelComment {
   };
 }
 
-export function useReels() {
+export type ReelsFeedType = 'foryou' | 'following';
+
+export function useReels(feedType: ReelsFeedType = 'foryou') {
   const { user } = useAuth();
   const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const queryClient = useQueryClient();
 
-  const queryKey = ['reels', user?.id ?? null];
+  const queryKey = ['reels', feedType, user?.id ?? null];
 
   const {
     data: reels = [],
@@ -61,12 +63,36 @@ export function useReels() {
   } = useQuery({
     queryKey,
     queryFn: async () => {
-      const { data: reelsData, error: reelsError } = await supabase
+      // For 'following' feed, first get users we follow
+      let followedIds: string[] = [];
+      if (feedType === 'following' && user) {
+        const { data: followedUsers } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id)
+          .eq('status', 'accepted');
+        
+        followedIds = followedUsers?.map(f => f.following_id) || [];
+        
+        // If not following anyone, return empty
+        if (followedIds.length === 0) {
+          return [] as Reel[];
+        }
+      }
+
+      let query = supabase
         .from('reels')
         .select('*')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(50);
+      
+      // Filter by followed users if in following mode
+      if (feedType === 'following' && followedIds.length > 0) {
+        query = query.in('user_id', followedIds);
+      }
+      
+      const { data: reelsData, error: reelsError } = await query;
 
       if (reelsError) {
         console.error('[Reels] Fetch error:', reelsError);
