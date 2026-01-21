@@ -10,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Heart, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import defaultAvatar from '@/assets/default-avatar.png';
 
 interface ReelCommentsSheetProps {
   reelId: string | null;
@@ -32,9 +34,10 @@ export default function ReelCommentsSheet({ reelId, open, onOpenChange }: ReelCo
 
 function CommentsContent({ reelId }: { reelId: string }) {
   const { user } = useAuth();
-  const { comments, loading, addComment } = useReelComments(reelId);
+  const { comments, loading, addComment, likeComment } = useReelComments(reelId);
   const [newComment, setNewComment] = useState('');
   const [sending, setSending] = useState(false);
+  const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,8 +59,26 @@ function CommentsContent({ reelId }: { reelId: string }) {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  const handleLike = async (commentId: string) => {
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to like comments',
+      });
+      return;
+    }
+
+    // Trigger animation
+    setAnimatingHearts(prev => new Set(prev).add(commentId));
+    setTimeout(() => {
+      setAnimatingHearts(prev => {
+        const next = new Set(prev);
+        next.delete(commentId);
+        return next;
+      });
+    }, 400);
+
+    await likeComment(commentId);
   };
 
   if (loading) {
@@ -80,14 +101,14 @@ function CommentsContent({ reelId }: { reelId: string }) {
             <p className="text-sm">Start the conversation!</p>
           </div>
         ) : (
-          <div className="space-y-5 px-1">
+          <div className="space-y-4 px-1">
             {comments.map(comment => (
               <div key={comment.id} className="flex gap-3 group">
                 <Link to={`/profile/${comment.profile?.username}`}>
                   <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-                    <AvatarImage src={comment.profile?.avatar_url || undefined} className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-xs font-semibold">
-                      {getInitials(comment.profile?.display_name || 'U')}
+                    <AvatarImage src={comment.profile?.avatar_url || defaultAvatar} className="object-cover" />
+                    <AvatarFallback className="bg-muted text-xs">
+                      {comment.profile?.display_name?.[0] || 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
@@ -104,10 +125,38 @@ function CommentsContent({ reelId }: { reelId: string }) {
                     </span>
                   </div>
                   <p className="text-sm text-foreground/90 leading-relaxed">{comment.content}</p>
-                  <div className="flex items-center gap-5 mt-2">
-                    <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
-                      <Heart className="h-3.5 w-3.5" />
-                      {comment.like_count > 0 && <span>{comment.like_count}</span>}
+                  <div className="flex items-center gap-4 mt-2">
+                    {/* Like button with animation */}
+                    <button 
+                      onClick={() => handleLike(comment.id)}
+                      className="flex items-center gap-1.5 text-xs transition-colors group/like"
+                    >
+                      <span className="relative">
+                        <Heart 
+                          className={cn(
+                            "h-4 w-4 transition-all duration-200",
+                            comment.is_liked 
+                              ? "text-red-500 fill-red-500" 
+                              : "text-muted-foreground group-hover/like:text-red-500",
+                            animatingHearts.has(comment.id) && "animate-like-pop"
+                          )}
+                        />
+                        {/* Burst particles on like */}
+                        {animatingHearts.has(comment.id) && !comment.is_liked && (
+                          <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-1" />
+                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-2" />
+                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-3" />
+                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-4" />
+                          </span>
+                        )}
+                      </span>
+                      <span className={cn(
+                        "tabular-nums transition-colors",
+                        comment.is_liked ? "text-red-500" : "text-muted-foreground"
+                      )}>
+                        {comment.like_count > 0 ? comment.like_count : ''}
+                      </span>
                     </button>
                     <button className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
                       Reply
@@ -124,9 +173,9 @@ function CommentsContent({ reelId }: { reelId: string }) {
       {user ? (
         <form onSubmit={handleSubmit} className="flex items-center gap-3 p-4 border-t border-border/30 bg-background/50">
           <Avatar className="h-9 w-9 flex-shrink-0">
-            <AvatarImage src={user.user_metadata?.avatar_url} className="object-cover" />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-xs">
-              {getInitials(user.user_metadata?.display_name || 'U')}
+            <AvatarImage src={user.user_metadata?.avatar_url || defaultAvatar} className="object-cover" />
+            <AvatarFallback className="bg-muted text-xs">
+              {user.user_metadata?.display_name?.[0] || 'U'}
             </AvatarFallback>
           </Avatar>
           <Input
@@ -139,7 +188,7 @@ function CommentsContent({ reelId }: { reelId: string }) {
             type="submit" 
             size="icon" 
             disabled={!newComment.trim() || sending}
-            className="rounded-full btn-gradient h-11 w-11 flex-shrink-0"
+            className="rounded-full h-11 w-11 flex-shrink-0 bg-primary hover:bg-primary/90"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

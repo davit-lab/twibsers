@@ -37,6 +37,7 @@ export interface ReelComment {
   parent_id: string | null;
   like_count: number;
   created_at: string;
+  is_liked?: boolean;
   profile?: {
     username: string;
     display_name: string;
@@ -297,9 +298,21 @@ export function useReelComments(reelId: string) {
         .select('user_id, username, display_name, avatar_url')
         .in('user_id', userIds);
 
+      // Fetch user's likes if logged in
+      let userLikes: string[] = [];
+      if (user) {
+        const { data: likesData } = await supabase
+          .from('reel_comment_likes')
+          .select('comment_id')
+          .eq('user_id', user.id);
+        userLikes = (likesData || []).map(l => l.comment_id);
+      }
+
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
       const enrichedComments = (data || []).map(comment => ({
         ...comment,
+        like_count: comment.like_count ?? 0,
+        is_liked: userLikes.includes(comment.id),
         profile: profileMap.get(comment.user_id),
       })) as ReelComment[];
 
@@ -309,7 +322,7 @@ export function useReelComments(reelId: string) {
     } finally {
       setLoading(false);
     }
-  }, [reelId]);
+  }, [reelId, user]);
 
   useEffect(() => {
     fetchComments();
@@ -338,10 +351,46 @@ export function useReelComments(reelId: string) {
     }
   };
 
+  const likeComment = async (commentId: string) => {
+    if (!user) return;
+
+    try {
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) return;
+
+      if (comment.is_liked) {
+        await supabase
+          .from('reel_comment_likes')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', user.id);
+      } else {
+        await supabase
+          .from('reel_comment_likes')
+          .insert({ comment_id: commentId, user_id: user.id });
+      }
+
+      // Optimistic update
+      setComments(prev => prev.map(c => 
+        c.id === commentId 
+          ? { 
+              ...c, 
+              is_liked: !c.is_liked, 
+              like_count: c.is_liked ? Math.max(0, c.like_count - 1) : c.like_count + 1 
+            }
+          : c
+      ));
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      await fetchComments(); // Rollback on error
+    }
+  };
+
   return {
     comments,
     loading,
     addComment,
+    likeComment,
     refetch: fetchComments,
   };
 }
