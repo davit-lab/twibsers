@@ -1207,6 +1207,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_user: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
+      admin_purge_all_users: {
+        Args: { keep_user_id?: string }
+        Returns: number
+      }
       get_active_ban: {
         Args: { _user_id: string }
         Returns: {
