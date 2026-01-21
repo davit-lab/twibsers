@@ -12,7 +12,9 @@ import {
   VolumeX,
   Maximize2,
   MoreVertical,
-  X
+  X,
+  Monitor,
+  MonitorOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CallState } from '@/hooks/useWebRTC';
@@ -28,6 +30,7 @@ interface CallOverlayProps {
   onEnd: () => void;
   onToggleAudio: () => boolean;
   onToggleVideo: () => boolean;
+  onToggleScreenShare: () => Promise<boolean>;
 }
 
 export default function CallOverlay({ 
@@ -37,6 +40,7 @@ export default function CallOverlay({
   onEnd, 
   onToggleAudio,
   onToggleVideo,
+  onToggleScreenShare,
 }: CallOverlayProps) {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -46,6 +50,7 @@ export default function CallOverlay({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const screenVideoRef = useRef<HTMLVideoElement>(null);
 
   // Attach local stream to video element
   useEffect(() => {
@@ -53,6 +58,13 @@ export default function CallOverlay({
       localVideoRef.current.srcObject = callState.localStream;
     }
   }, [callState.localStream]);
+
+  // Attach screen stream to video element
+  useEffect(() => {
+    if (screenVideoRef.current && callState.screenStream) {
+      screenVideoRef.current.srcObject = callState.screenStream;
+    }
+  }, [callState.screenStream]);
 
   // Attach remote stream to video/audio element
   useEffect(() => {
@@ -102,6 +114,10 @@ export default function CallOverlay({
     if (remoteAudioRef.current) {
       remoteAudioRef.current.muted = !isSpeakerOff;
     }
+  };
+
+  const handleToggleScreenShare = async () => {
+    await onToggleScreenShare();
   };
 
   const getCallStatus = () => {
@@ -161,8 +177,25 @@ export default function CallOverlay({
             </div>
           )}
 
+          {/* Screen share preview (when sharing) */}
+          {callState.isScreenSharing && callState.screenStream && (
+            <div className="absolute top-20 left-6 w-64 h-36 rounded-2xl overflow-hidden glass-premium border border-white/10 shadow-glow">
+              <video
+                ref={screenVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-primary/80 text-white text-xs font-medium flex items-center gap-1">
+                <Monitor className="h-3 w-3" />
+                Sharing screen
+              </div>
+            </div>
+          )}
+
           {/* Local video preview (picture-in-picture) */}
-          {callState.localStream && !isVideoOff && (
+          {callState.localStream && !isVideoOff && !callState.isScreenSharing && (
             <div className="absolute bottom-32 right-6 w-40 h-56 rounded-2xl overflow-hidden glass-premium border border-white/10 shadow-glow">
               <video
                 ref={localVideoRef}
@@ -275,6 +308,23 @@ export default function CallOverlay({
           >
             <PhoneOff className="h-7 w-7 text-white" />
           </Button>
+
+          {/* Screen share toggle (only for video calls) */}
+          {type === 'video' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleToggleScreenShare}
+              className={cn(
+                "rounded-full h-14 w-14 transition-all duration-300",
+                callState.isScreenSharing 
+                  ? "bg-primary/30 text-white" 
+                  : "bg-white/10 text-white hover:bg-white/20"
+              )}
+            >
+              {callState.isScreenSharing ? <MonitorOff className="h-6 w-6" /> : <Monitor className="h-6 w-6" />}
+            </Button>
+          )}
 
           {/* Speaker */}
           <Button

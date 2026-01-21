@@ -8,8 +8,10 @@ import MainLayout from '@/components/layout/MainLayout';
 import ConversationList from '@/components/messaging/ConversationList';
 import MessageThread from '@/components/messaging/MessageThread';
 import IncomingCallModal from '@/components/messaging/IncomingCallModal';
+import CallHistory from '@/components/messaging/CallHistory';
 import { Card } from '@/components/ui/card';
-import { MessageSquare } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageSquare, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface OtherUser {
@@ -27,6 +29,7 @@ export default function Messages() {
   
   const selectedConvId = searchParams.get('conv');
   const newUserId = searchParams.get('new');
+  const [activeTab, setActiveTab] = useState<string>('messages');
   
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -170,17 +173,33 @@ export default function Messages() {
             'w-full md:w-80 lg:w-96 border-r rounded-none md:rounded-l-xl overflow-hidden flex flex-col',
             selectedConvId ? 'hidden md:flex' : 'flex'
           )}>
-            <div className="p-4 border-b border-border">
-              <h1 className="text-xl font-display font-bold">Messages</h1>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <ConversationList
-                conversations={conversations}
-                loading={convsLoading}
-                selectedId={selectedConvId || undefined}
-                onSelect={handleSelectConversation}
-              />
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+              <div className="p-4 border-b border-border">
+                <TabsList className="w-full grid grid-cols-2">
+                  <TabsTrigger value="messages" className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Chats
+                  </TabsTrigger>
+                  <TabsTrigger value="calls" className="flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Calls
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="messages" className="flex-1 overflow-y-auto m-0">
+                <ConversationList
+                  conversations={conversations}
+                  loading={convsLoading}
+                  selectedId={selectedConvId || undefined}
+                  onSelect={handleSelectConversation}
+                />
+              </TabsContent>
+              
+              <TabsContent value="calls" className="flex-1 overflow-y-auto m-0">
+                <CallHistory />
+              </TabsContent>
+            </Tabs>
           </Card>
 
           {/* Message Thread */}
