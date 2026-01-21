@@ -14,6 +14,7 @@ interface FollowButtonProps {
   isPrivateAccount?: boolean;
   className?: string;
   onFollowChange?: () => void;
+  size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 export default function FollowButton({
@@ -22,6 +23,7 @@ export default function FollowButton({
   isPrivateAccount = false,
   className,
   onFollowChange,
+  size = 'default',
 }: FollowButtonProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -148,7 +150,7 @@ export default function FollowButton({
 
   if (loading) {
     return (
-      <Button variant="outline" disabled className={className}>
+      <Button variant="outline" size={size} disabled className={className}>
         <Loader2 className="h-4 w-4 animate-spin" />
       </Button>
     );
@@ -163,6 +165,7 @@ export default function FollowButton({
     return (
       <Button
         variant="outline"
+        size={size}
         onClick={handleUnfollow}
         disabled={actionLoading}
         className={cn('group hover:border-destructive hover:text-destructive', className)}
@@ -182,6 +185,7 @@ export default function FollowButton({
     return (
       <Button
         variant="outline"
+        size={size}
         onClick={handleUnfollow}
         disabled={actionLoading}
         className={cn('group', className)}
@@ -199,6 +203,7 @@ export default function FollowButton({
 
   return (
     <Button
+      size={size}
       onClick={handleFollow}
       disabled={actionLoading}
       className={cn('btn-gradient', className)}

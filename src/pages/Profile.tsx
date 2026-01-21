@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import Feed from '@/components/feed/Feed';
 import FollowButton from '@/components/social/FollowButton';
+import FollowersFollowingModal from '@/components/social/FollowersFollowingModal';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { useStories } from '@/hooks/useStories';
 import { useMutualConnections } from '@/hooks/useMutualConnections';
@@ -86,6 +87,10 @@ export default function Profile() {
     profileUserId: profileData?.user_id 
   });
   const [reelCount, setReelCount] = useState(0);
+  
+  // Modal states
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
 
   const hasStories = groupedStories.length > 0 && groupedStories[0]?.stories.length > 0;
   const currentGroup = groupedStories[0];
@@ -507,13 +512,25 @@ export default function Profile() {
                   </span>
                   <span className="text-sm text-muted-foreground ml-1.5">reels</span>
                 </Link>
-                <button className="group">
+                <button 
+                  className="group"
+                  onClick={() => {
+                    setFollowModalType('followers');
+                    setFollowModalOpen(true);
+                  }}
+                >
                   <span className="text-xl font-bold group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.followers.toLocaleString()}
                   </span>
                   <span className="text-sm text-muted-foreground ml-1.5">followers</span>
                 </button>
-                <button className="group">
+                <button 
+                  className="group"
+                  onClick={() => {
+                    setFollowModalType('following');
+                    setFollowModalOpen(true);
+                  }}
+                >
                   <span className="text-xl font-bold group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.following.toLocaleString()}
                   </span>
@@ -742,6 +759,15 @@ export default function Profile() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Followers/Following Modal */}
+      <FollowersFollowingModal
+        open={followModalOpen}
+        onOpenChange={setFollowModalOpen}
+        userId={profileData.user_id}
+        type={followModalType}
+        username={profileData.username}
+      />
 
       <style>{`
         @keyframes story-progress {
