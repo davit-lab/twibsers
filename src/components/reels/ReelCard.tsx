@@ -1,5 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,7 +15,9 @@ import {
   Play,
   Pause,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  UserCheck,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Reel } from '@/hooks/useReels';
@@ -53,6 +58,8 @@ export default function ReelCard({
   onSave,
   onViewIncrement,
 }: ReelCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [progress, setProgress] = useState(0);
@@ -61,9 +68,84 @@ export default function ReelCard({
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showLikersModal, setShowLikersModal] = useState(false);
   
+  // Follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [showFollowAnimation, setShowFollowAnimation] = useState(false);
+  
   // Swipe detection refs
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const isSwipingRef = useRef(false);
+  
+  // Check follow status on mount
+  useEffect(() => {
+    if (!user || !reel.user_id || user.id === reel.user_id) return;
+    
+    const checkFollowStatus = async () => {
+      const { data } = await supabase
+        .from('follows')
+        .select('status')
+        .eq('follower_id', user.id)
+        .eq('following_id', reel.user_id)
+        .maybeSingle();
+      
+      if (data && data.status === 'accepted') {
+        setIsFollowing(true);
+      }
+    };
+    
+    checkFollowStatus();
+  }, [user, reel.user_id]);
+  
+  const handleFollow = async () => {
+    if (!user) {
+      toast({ title: 'Sign in required', description: 'Please sign in to follow.' });
+      return;
+    }
+    
+    if (user.id === reel.user_id) return;
+    
+    setFollowLoading(true);
+    
+    try {
+      if (isFollowing) {
+        // Unfollow
+        await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', reel.user_id);
+        
+        setIsFollowing(false);
+        toast({ title: 'Unfollowed', description: `You unfollowed @${reel.profile?.username}` });
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('follows')
+          .insert({
+            follower_id: user.id,
+            following_id: reel.user_id,
+            status: 'accepted',
+          });
+        
+        if (error && error.code === '23505') {
+          setIsFollowing(true);
+        } else if (error) {
+          throw error;
+        } else {
+          setIsFollowing(true);
+          setShowFollowAnimation(true);
+          setTimeout(() => setShowFollowAnimation(false), 1500);
+          toast({ title: 'Following!', description: `You are now following @${reel.profile?.username}` });
+        }
+      }
+    } catch (error) {
+      console.error('Follow error:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to follow user.' });
+    } finally {
+      setFollowLoading(false);
+    }
+  };
   
   // Handle video playback
   useEffect(() => {
@@ -247,6 +329,20 @@ export default function ReelCard({
         </div>
       )}
       
+      {/* Follow animation overlay */}
+      {showFollowAnimation && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="flex flex-col items-center gap-3 animate-scale-in">
+            <div className="w-24 h-24 rounded-full bg-primary/20 backdrop-blur-xl flex items-center justify-center animate-pulse">
+              <UserCheck className="h-12 w-12 text-primary" />
+            </div>
+            <div className="bg-black/60 backdrop-blur-sm rounded-full px-4 py-2">
+              <span className="text-white font-semibold text-sm">Following @{reel.profile?.username}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Creator info */}
       <div className="absolute bottom-0 left-0 right-16 p-4 pb-8">
         {/* User info row */}
@@ -272,14 +368,29 @@ export default function ReelCard({
             <p className="text-white/50 text-xs">@{reel.profile?.username}</p>
           </div>
           
-          <Button 
-            size="sm" 
-            variant="pill"
-            className="gap-1.5 px-4 h-8 text-xs"
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            Follow
-          </Button>
+          {/* Only show follow button if not own reel */}
+          {user?.id !== reel.user_id && (
+            <Button 
+              size="sm" 
+              variant={isFollowing ? "outline" : "pill"}
+              onClick={handleFollow}
+              disabled={followLoading}
+              className={cn(
+                "gap-1.5 px-4 h-8 text-xs transition-all duration-300",
+                isFollowing && "border-white/30 text-white/70 hover:border-white hover:text-white",
+                showFollowAnimation && "scale-110"
+              )}
+            >
+              {followLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isFollowing ? (
+                <UserCheck className="h-3.5 w-3.5" />
+              ) : (
+                <UserPlus className="h-3.5 w-3.5" />
+              )}
+              {isFollowing ? 'Following' : 'Follow'}
+            </Button>
+          )}
         </div>
         
         {/* Caption */}
