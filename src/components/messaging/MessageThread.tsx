@@ -48,7 +48,7 @@ export default function MessageThread({
 }: MessageThreadProps) {
   const { user } = useAuth();
   const { messages, loading, typingUsers, sendMessage, handleTyping, markAsRead } = useMessages(conversationId);
-  const { callState, startCall, endCall, toggleAudio, toggleVideo } = useWebRTC(conversationId, otherUserId);
+  const { callState, startCall, endCall, toggleAudio, toggleVideo, toggleScreenShare } = useWebRTC(conversationId, otherUserId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isExtended, setIsExtended] = useState(false);
@@ -172,6 +172,7 @@ export default function MessageThread({
           onEnd={handleEndCall}
           onToggleAudio={toggleAudio}
           onToggleVideo={toggleVideo}
+          onToggleScreenShare={toggleScreenShare}
         />
       )}
       

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { showIncomingCallNotification, closeNotification } from '@/lib/pushNotifications';
 
 // Free STUN servers for ICE negotiation
 const ICE_SERVERS: RTCConfiguration = {
@@ -31,8 +32,10 @@ export interface CallState {
   session: CallSession | null;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  screenStream: MediaStream | null;
   isConnecting: boolean;
   isConnected: boolean;
+  isScreenSharing: boolean;
   error: string | null;
 }
 
@@ -42,10 +45,14 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     session: null,
     localStream: null,
     remoteStream: null,
+    screenStream: null,
     isConnecting: false,
     isConnected: false,
+    isScreenSharing: false,
     error: null,
   });
+
+  const screenStreamRef = useRef<MediaStream | null>(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
@@ -64,6 +71,15 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       callState.localStream.getTracks().forEach(track => track.stop());
     }
 
+    if (callState.screenStream) {
+      callState.screenStream.getTracks().forEach(track => track.stop());
+    }
+
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+      screenStreamRef.current = null;
+    }
+
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -75,11 +91,13 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       session: null,
       localStream: null,
       remoteStream: null,
+      screenStream: null,
       isConnecting: false,
       isConnected: false,
+      isScreenSharing: false,
       error: null,
     });
-  }, [callState.localStream]);
+  }, [callState.localStream, callState.screenStream]);
 
   // Get user media
   const getUserMedia = async (type: 'audio' | 'video'): Promise<MediaStream> => {
@@ -429,6 +447,91 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     return false;
   };
 
+  // Start screen sharing
+  const startScreenShare = async () => {
+    const pc = peerConnectionRef.current;
+    if (!pc) return false;
+
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: true,
+      });
+
+      screenStreamRef.current = screenStream;
+
+      // Replace video track with screen track
+      const screenTrack = screenStream.getVideoTracks()[0];
+      const senders = pc.getSenders();
+      const videoSender = senders.find(s => s.track?.kind === 'video');
+
+      if (videoSender) {
+        await videoSender.replaceTrack(screenTrack);
+      } else {
+        pc.addTrack(screenTrack, screenStream);
+      }
+
+      // Handle when user stops sharing via browser UI
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+
+      setCallState(prev => ({
+        ...prev,
+        screenStream,
+        isScreenSharing: true,
+      }));
+
+      console.log('[WebRTC] Screen sharing started');
+      return true;
+    } catch (error) {
+      console.error('[WebRTC] Failed to start screen share:', error);
+      return false;
+    }
+  };
+
+  // Stop screen sharing
+  const stopScreenShare = async () => {
+    const pc = peerConnectionRef.current;
+    
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+
+    // Restore camera video track
+    if (pc && callState.localStream) {
+      const cameraTrack = callState.localStream.getVideoTracks()[0];
+      const senders = pc.getSenders();
+      const videoSender = senders.find(s => s.track?.kind === 'video');
+
+      if (videoSender && cameraTrack) {
+        await videoSender.replaceTrack(cameraTrack);
+      }
+    }
+
+    screenStreamRef.current = null;
+    setCallState(prev => ({
+      ...prev,
+      screenStream: null,
+      isScreenSharing: false,
+    }));
+
+    console.log('[WebRTC] Screen sharing stopped');
+  };
+
+  // Toggle screen sharing
+  const toggleScreenShare = async () => {
+    if (callState.isScreenSharing) {
+      await stopScreenShare();
+      return false;
+    } else {
+      return await startScreenShare();
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -444,6 +547,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     declineCall,
     toggleAudio,
     toggleVideo,
+    toggleScreenShare,
   };
 }
 
@@ -456,6 +560,7 @@ export function useIncomingCalls() {
     username: string;
     avatar_url: string | null;
   } | null>(null);
+  const notificationRef = useRef<Notification | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -488,6 +593,17 @@ export function useIncomingCalls() {
 
             setCallerProfile(profile);
             setIncomingCall(session);
+
+            // Show push notification for the call
+            if (profile) {
+              const notification = await showIncomingCallNotification(
+                profile.display_name,
+                session.call_type,
+                session.conversation_id,
+                profile.avatar_url
+              );
+              notificationRef.current = notification;
+            }
           }
         }
       )
@@ -505,6 +621,12 @@ export function useIncomingCalls() {
           if (incomingCall?.id === session.id && session.status !== 'ringing') {
             setIncomingCall(null);
             setCallerProfile(null);
+            
+            // Close the notification
+            if (notificationRef.current) {
+              notificationRef.current.close();
+              notificationRef.current = null;
+            }
           }
         }
       )
@@ -518,6 +640,12 @@ export function useIncomingCalls() {
   const clearIncomingCall = () => {
     setIncomingCall(null);
     setCallerProfile(null);
+    
+    // Close notification
+    if (notificationRef.current) {
+      notificationRef.current.close();
+      notificationRef.current = null;
+    }
   };
 
   return { incomingCall, callerProfile, clearIncomingCall };
