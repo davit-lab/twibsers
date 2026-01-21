@@ -111,7 +111,7 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div 
       ref={containerRef}
-      className="absolute bottom-full left-0 mb-2 w-80 glass-premium rounded-2xl shadow-lg border border-border/30 overflow-hidden animate-scale-in z-50"
+      className="absolute bottom-full right-0 mb-2 w-80 glass-premium rounded-2xl shadow-2xl border border-border/30 overflow-hidden animate-scale-in z-50"
     >
       {/* Header */}
       <div className="p-3 border-b border-border/30 flex items-center gap-2">
