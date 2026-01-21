@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReelComments } from '@/hooks/useReels';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Heart, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2, X, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import defaultAvatar from '@/assets/default-avatar.png';
@@ -20,15 +17,94 @@ interface ReelCommentsSheetProps {
 }
 
 export default function ReelCommentsSheet({ reelId, open, onOpenChange }: ReelCommentsSheetProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragStartRef = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Handle drag to close
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartRef.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragStartRef.current) return;
+    const delta = e.touches[0].clientY - dragStartRef.current;
+    if (delta > 0) {
+      setDragOffset(delta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 100) {
+      onOpenChange(false);
+    }
+    setDragOffset(0);
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
+
+  // Reset drag when closed
+  useEffect(() => {
+    if (!open) {
+      setDragOffset(0);
+      setIsDragging(false);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl bg-background/95 backdrop-blur-xl border-t border-border/50">
-        <SheetHeader className="pb-4 border-b border-border/30">
-          <SheetTitle className="text-center font-display">Comments</SheetTitle>
-        </SheetHeader>
+    <>
+      {/* Backdrop */}
+      <div 
+        className={cn(
+          "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => onOpenChange(false)}
+      />
+
+      {/* Sheet */}
+      <div
+        ref={sheetRef}
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 h-[80vh] bg-gradient-to-b from-zinc-900 to-black rounded-t-[2rem] shadow-2xl",
+          "transition-transform duration-500 ease-out",
+          !isDragging && "transform-gpu"
+        )}
+        style={{
+          transform: `translateY(${dragOffset}px)`,
+          transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)'
+        }}
+      >
+        {/* Drag handle */}
+        <div 
+          className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-10 h-1 rounded-full bg-white/20 mb-3" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pb-4 border-b border-white/10">
+          <div className="w-10" /> {/* Spacer */}
+          <h2 className="text-white font-semibold text-base">Comments</h2>
+          <button 
+            onClick={() => onOpenChange(false)}
+            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-95"
+          >
+            <X className="h-5 w-5 text-white" />
+          </button>
+        </div>
+
+        {/* Content */}
         {reelId && <CommentsContent reelId={reelId} />}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   );
 }
 
@@ -38,6 +114,7 @@ function CommentsContent({ reelId }: { reelId: string }) {
   const [newComment, setNewComment] = useState('');
   const [sending, setSending] = useState(false);
   const [animatingHearts, setAnimatingHearts] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +125,10 @@ function CommentsContent({ reelId }: { reelId: string }) {
     try {
       await addComment(newComment);
       setNewComment('');
+      // Scroll to bottom after posting
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -83,53 +164,69 @@ function CommentsContent({ reelId }: { reelId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+          <p className="text-white/40 text-sm">Loading comments...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 py-4">
+    <div className="flex flex-col h-[calc(80vh-80px)]">
+      {/* Scrollable comments area with smooth momentum */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+        style={{ 
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         {comments.length === 0 ? (
-          <div className="text-center text-muted-foreground py-12">
-            <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-              <MessageCircle className="h-10 w-10 opacity-50" />
+          <div className="h-full flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-5">
+              <MessageCircle className="h-12 w-12 text-white/20" />
             </div>
-            <p className="font-medium text-lg mb-1">No comments yet</p>
-            <p className="text-sm">Start the conversation!</p>
+            <p className="text-white font-medium text-lg mb-1">No comments yet</p>
+            <p className="text-white/40 text-sm">Be the first to share your thoughts</p>
           </div>
         ) : (
-          <div className="space-y-4 px-1">
-            {comments.map(comment => (
-              <div key={comment.id} className="flex gap-3 group">
-                <Link to={`/profile/${comment.profile?.username}`}>
-                  <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+          <div className="space-y-5">
+            {comments.map((comment, index) => (
+              <div 
+                key={comment.id} 
+                className="flex gap-3 animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <Link to={`/profile/${comment.profile?.username}`} className="flex-shrink-0">
+                  <Avatar className="h-11 w-11 ring-2 ring-white/10">
                     <AvatarImage src={comment.profile?.avatar_url || defaultAvatar} className="object-cover" />
-                    <AvatarFallback className="bg-muted text-xs">
+                    <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-sm">
                       {comment.profile?.display_name?.[0] || 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-0.5">
                     <Link 
                       to={`/profile/${comment.profile?.username}`}
-                      className="font-semibold text-sm hover:underline"
+                      className="font-semibold text-white text-sm hover:underline"
                     >
                       {comment.profile?.display_name}
                     </Link>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-white/30 text-xs">
                       {format(new Date(comment.created_at), 'MMM d')}
                     </span>
                   </div>
-                  <p className="text-sm text-foreground/90 leading-relaxed">{comment.content}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    {/* Like button with animation */}
+                  <p className="text-white/80 text-[15px] leading-relaxed">{comment.content}</p>
+                  
+                  {/* Actions */}
+                  <div className="flex items-center gap-5 mt-2">
                     <button 
                       onClick={() => handleLike(comment.id)}
-                      className="flex items-center gap-1.5 text-xs transition-colors group/like"
+                      className="flex items-center gap-1.5 group"
                     >
                       <span className="relative">
                         <Heart 
@@ -137,28 +234,30 @@ function CommentsContent({ reelId }: { reelId: string }) {
                             "h-4 w-4 transition-all duration-200",
                             comment.is_liked 
                               ? "text-red-500 fill-red-500" 
-                              : "text-muted-foreground group-hover/like:text-red-500",
+                              : "text-white/40 group-hover:text-red-400",
                             animatingHearts.has(comment.id) && "animate-like-pop"
                           )}
                         />
-                        {/* Burst particles on like */}
-                        {animatingHearts.has(comment.id) && !comment.is_liked && (
-                          <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-1" />
-                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-2" />
-                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-3" />
-                            <span className="absolute w-1 h-1 bg-red-500 rounded-full animate-burst-4" />
-                          </span>
+                        {/* Particle burst effect */}
+                        {animatingHearts.has(comment.id) && (
+                          <>
+                            <span className="absolute w-1.5 h-1.5 bg-red-500 rounded-full animate-burst-1" style={{ top: '50%', left: '50%' }} />
+                            <span className="absolute w-1.5 h-1.5 bg-red-500 rounded-full animate-burst-2" style={{ top: '50%', left: '50%' }} />
+                            <span className="absolute w-1 h-1 bg-red-400 rounded-full animate-burst-3" style={{ top: '50%', left: '50%' }} />
+                            <span className="absolute w-1 h-1 bg-red-400 rounded-full animate-burst-4" style={{ top: '50%', left: '50%' }} />
+                          </>
                         )}
                       </span>
-                      <span className={cn(
-                        "tabular-nums transition-colors",
-                        comment.is_liked ? "text-red-500" : "text-muted-foreground"
-                      )}>
-                        {comment.like_count > 0 ? comment.like_count : ''}
-                      </span>
+                      {comment.like_count > 0 && (
+                        <span className={cn(
+                          "text-xs tabular-nums transition-colors",
+                          comment.is_liked ? "text-red-400" : "text-white/40"
+                        )}>
+                          {comment.like_count}
+                        </span>
+                      )}
                     </button>
-                    <button className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                    <button className="text-xs text-white/40 hover:text-white/70 transition-colors font-medium">
                       Reply
                     </button>
                   </div>
@@ -167,28 +266,38 @@ function CommentsContent({ reelId }: { reelId: string }) {
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
-      {/* Comment input */}
+      {/* Input area with frosted glass effect */}
       {user ? (
-        <form onSubmit={handleSubmit} className="flex items-center gap-3 p-4 border-t border-border/30 bg-background/50">
-          <Avatar className="h-9 w-9 flex-shrink-0">
+        <form 
+          onSubmit={handleSubmit} 
+          className="flex items-center gap-3 p-4 border-t border-white/10 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-xl"
+        >
+          <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-white/10">
             <AvatarImage src={user.user_metadata?.avatar_url || defaultAvatar} className="object-cover" />
-            <AvatarFallback className="bg-muted text-xs">
+            <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent/80 text-white text-xs">
               {user.user_metadata?.display_name?.[0] || 'U'}
             </AvatarFallback>
           </Avatar>
-          <Input
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Add a comment..."
-            className="flex-1 rounded-full bg-muted/50 border-border/50 focus:bg-background h-11"
-          />
+          <div className="flex-1 relative">
+            <input
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="w-full bg-white/10 text-white placeholder:text-white/30 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+            />
+          </div>
           <Button 
             type="submit" 
             size="icon" 
             disabled={!newComment.trim() || sending}
-            className="rounded-full h-11 w-11 flex-shrink-0 bg-primary hover:bg-primary/90"
+            className={cn(
+              "rounded-full h-10 w-10 flex-shrink-0 transition-all",
+              newComment.trim() 
+                ? "bg-primary hover:bg-primary/90 text-white" 
+                : "bg-white/10 text-white/30"
+            )}
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -198,9 +307,9 @@ function CommentsContent({ reelId }: { reelId: string }) {
           </Button>
         </form>
       ) : (
-        <div className="p-4 border-t border-border/30 text-center bg-background/50">
+        <div className="p-4 border-t border-white/10 text-center bg-gradient-to-t from-black/80 to-transparent">
           <Link to="/auth">
-            <Button variant="outline" className="rounded-full px-8">
+            <Button variant="outline" className="rounded-full px-8 border-white/20 text-white hover:bg-white/10">
               Sign in to comment
             </Button>
           </Link>
