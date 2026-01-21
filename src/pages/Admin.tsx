@@ -34,9 +34,11 @@ import {
   Ban,
   Clock,
   ShieldOff,
+  Trash,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface UserWithRole {
   id: string;
@@ -106,6 +108,7 @@ export default function Admin() {
   const [banReason, setBanReason] = useState('');
   const [banDuration, setBanDuration] = useState<string>('7d');
   const [banLoading, setBanLoading] = useState(false);
+  const [purgeLoading, setPurgeLoading] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
@@ -400,15 +403,9 @@ export default function Admin() {
   };
 
   const deleteUser = async (userId: string) => {
-    // Note: This only deletes the profile and related data, not the auth user
     try {
-      // Delete user's posts, comments, etc.
-      await supabase.from('user_bans').delete().eq('user_id', userId);
-      await supabase.from('posts').delete().eq('user_id', userId);
-      await supabase.from('comments').delete().eq('user_id', userId);
-      await supabase.from('user_roles').delete().eq('user_id', userId);
-      await supabase.from('subscriptions').delete().eq('user_id', userId);
-      await supabase.from('profiles').delete().eq('user_id', userId);
+      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+      if (error) throw error;
 
       setUsers(prev => prev.filter(u => u.user_id !== userId));
       setBans(prev => prev.filter(b => b.user_id !== userId));
@@ -424,6 +421,31 @@ export default function Admin() {
         description: 'Failed to delete user.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const deleteAllUsers = async () => {
+    setPurgeLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_purge_all_users', { keep_user_id: user?.id });
+      if (error) throw error;
+
+      // Refresh data after purge
+      await fetchData();
+      
+      toast({
+        title: 'Success',
+        description: `Deleted ${data} users.`,
+      });
+    } catch (error) {
+      console.error('Error purging users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to purge users.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPurgeLoading(false);
     }
   };
 
@@ -531,16 +553,43 @@ export default function Admin() {
     <MainLayout>
       <div className="container py-6 px-4 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Shield className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-display font-bold">Admin Panel</h1>
+              <p className="text-muted-foreground">
+                {isAdmin ? 'Full administrative access' : 'Moderator access'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold">Admin Panel</h1>
-            <p className="text-muted-foreground">
-              {isAdmin ? 'Full administrative access' : 'Moderator access'}
-            </p>
-          </div>
+          
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-2" disabled={purgeLoading}>
+                  {purgeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
+                  Delete All Users
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-destructive">Delete All Users?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete ALL users and their data (posts, comments, books, etc.) except your own account. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={deleteAllUsers} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
 
         {/* Stats Cards */}
