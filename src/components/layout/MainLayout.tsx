@@ -31,6 +31,7 @@ import {
   BookOpen,
   Ban,
   Clock,
+  Crown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -316,6 +317,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
                         <Link to="/settings" className="cursor-pointer">
                           <Settings className="mr-3 h-4 w-4" />
                           Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/pricing" className="cursor-pointer">
+                          <Crown className="mr-3 h-4 w-4" />
+                          Premium
                         </Link>
                       </DropdownMenuItem>
                       {(isAdmin || isModerator) && (
