@@ -22,7 +22,7 @@ import {
   Settings,
   User,
   LogOut,
-  Zap,
+  Sparkles,
   Search,
   Plus,
   Shield,
@@ -56,26 +56,27 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="container flex h-16 items-center justify-between px-4">
+      <header className="sticky top-0 z-50 w-full">
+        <div className="absolute inset-0 glass-card border-b border-border/30" />
+        <div className="container relative flex h-16 items-center justify-between px-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity group">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-glow-sm group-hover:shadow-glow transition-shadow duration-300">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display font-bold text-xl hidden sm:inline">Twibsers</span>
+            <span className="font-display font-bold text-xl hidden sm:inline gradient-text">Twibsers</span>
           </Link>
 
           {/* Search Bar - Desktop */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative w-full group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
               <input
                 type="text"
                 placeholder="Search Twibsers..."
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm"
+                className="w-full h-11 pl-11 pr-4 rounded-full bg-muted/40 border border-transparent focus:border-primary/30 focus:bg-background focus:shadow-glow-sm transition-all outline-none text-sm"
               />
             </div>
           </div>
@@ -93,9 +94,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {user && (
               <>
                 <NotificationDropdown className="hidden md:flex" />
-                <Button className="btn-gradient rounded-full gap-2 hidden sm:flex">
+                <Button className="btn-gradient rounded-full gap-2 hidden sm:flex h-10 px-5">
                   <Plus className="h-4 w-4" />
-                  Create
+                  <span className="font-medium">Create</span>
                 </Button>
               </>
             )}
@@ -103,28 +104,28 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10 border-2 border-primary/20">
+                  <Button variant="ghost" className="relative h-11 w-11 rounded-full p-0">
+                    <Avatar className="h-11 w-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all hover:ring-primary/40">
                       <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium">
                         {getInitials(profile?.display_name || 'U')}
                       </AvatarFallback>
                     </Avatar>
                     {profile?.is_verified && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background flex items-center justify-center">
-                        <BadgeCheck className="w-3.5 h-3.5 text-verified" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-background flex items-center justify-center shadow-sm">
+                        <BadgeCheck className="w-4 h-4 text-verified" />
                       </div>
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuContent className="w-56 glass-premium border-border/30" align="end">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{profile?.display_name}</p>
+                      <p className="text-sm font-semibold">{profile?.display_name}</p>
                       <p className="text-xs text-muted-foreground">@{profile?.username}</p>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem asChild>
                     <Link to={`/profile/${profile?.username}`} className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
@@ -145,7 +146,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   </DropdownMenuItem>
                   {(isAdmin || isModerator) && (
                     <>
-                      <DropdownMenuSeparator />
+                      <DropdownMenuSeparator className="bg-border/50" />
                       <DropdownMenuItem asChild>
                         <Link to="/admin" className="cursor-pointer">
                           <Shield className="mr-2 h-4 w-4" />
@@ -154,7 +155,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                       </DropdownMenuItem>
                     </>
                   )}
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-border/50" />
                   <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out
@@ -163,10 +164,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" asChild>
+                <Button variant="ghost" asChild className="rounded-full">
                   <Link to="/auth">Log In</Link>
                 </Button>
-                <Button className="btn-gradient" asChild>
+                <Button className="btn-gradient rounded-full" asChild>
                   <Link to="/auth?mode=signup">Sign Up</Link>
                 </Button>
               </div>
@@ -178,8 +179,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <div className="flex">
         {/* Left Sidebar - Desktop Navigation */}
         {user && (
-          <aside className="hidden lg:flex flex-col w-64 h-[calc(100vh-4rem)] sticky top-16 border-r border-border/50 p-4">
-            <nav className="flex-1 space-y-1">
+          <aside className="hidden lg:flex flex-col w-64 h-[calc(100vh-4rem)] sticky top-16 p-4">
+            <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-border/50 to-transparent" />
+            
+            <nav className="flex-1 space-y-1.5">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
@@ -187,10 +190,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                      'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300',
                       isActive
-                        ? 'bg-primary text-primary-foreground shadow-glow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-glow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     )}
                   >
                     <item.icon className="h-5 w-5" />
@@ -201,16 +204,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </nav>
 
             {/* User Card */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20">
+            <div className="glass-premium p-4 rounded-2xl">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-11 w-11 ring-2 ring-primary/20">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-sm font-medium">
                     {getInitials(profile?.display_name || 'U')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{profile?.display_name}</p>
+                  <p className="text-sm font-semibold truncate">{profile?.display_name}</p>
                   <p className="text-xs text-muted-foreground truncate">@{profile?.username}</p>
                 </div>
               </div>
@@ -226,8 +229,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {/* Mobile Bottom Navigation */}
       {user && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/80 backdrop-blur-xl">
-          <div className="flex items-center justify-around h-16 px-2">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+          <div className="absolute inset-0 glass-card border-t border-border/30" />
+          <div className="relative flex items-center justify-around h-16 px-2">
             {navItems.slice(0, 5).map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -235,14 +239,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'flex flex-col items-center justify-center h-full px-3 py-2 rounded-xl transition-colors',
+                    'flex flex-col items-center justify-center h-full px-3 py-2 rounded-xl transition-all',
                     isActive
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  <item.icon className={cn('h-5 w-5', isActive && 'text-primary')} />
-                  <span className="text-xs mt-1">{item.label}</span>
+                  <div className={cn(
+                    "relative p-2 rounded-xl transition-all",
+                    isActive && "bg-primary/10"
+                  )}>
+                    <item.icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+                    {isActive && (
+                      <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10" />
+                    )}
+                  </div>
+                  <span className="text-[10px] mt-1 font-medium">{item.label}</span>
                 </Link>
               );
             })}

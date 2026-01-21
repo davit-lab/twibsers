@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,22 +66,31 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // NexusLink custom colors
+        // Twibsers custom colors
         star: "hsl(var(--star))",
         verified: "hsl(var(--verified))",
         online: "hsl(var(--online))",
         premium: "hsl(var(--premium))",
+        "call-active": "hsl(var(--call-active))",
+        "call-end": "hsl(var(--call-end))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem",
       },
       boxShadow: {
-        'glow': '0 0 30px hsl(var(--primary) / 0.3)',
-        'glow-sm': '0 0 15px hsl(var(--primary) / 0.2)',
-        'card': '0 4px 20px -4px hsl(var(--foreground) / 0.08)',
-        'card-hover': '0 8px 30px -4px hsl(var(--primary) / 0.15)',
+        'glow': '0 0 40px hsl(var(--primary) / 0.3), 0 0 80px hsl(var(--accent) / 0.15)',
+        'glow-sm': '0 0 20px hsl(var(--primary) / 0.2)',
+        'glow-lg': '0 0 60px hsl(var(--primary) / 0.4), 0 0 120px hsl(var(--accent) / 0.2)',
+        'card': '0 8px 32px hsl(var(--foreground) / 0.06)',
+        'card-hover': '0 20px 50px hsl(var(--primary) / 0.12), 0 8px 24px hsl(var(--accent) / 0.08)',
+        'glass': '0 8px 32px hsl(270 60% 30% / 0.1), inset 0 1px 0 hsl(0 0% 100% / 0.2)',
+        'glass-dark': '0 8px 32px hsl(270 60% 10% / 0.4), inset 0 1px 0 hsl(270 50% 50% / 0.1)',
+        'message': '0 4px 15px hsl(270 70% 50% / 0.2)',
+        'call': '0 8px 30px hsl(var(--call-active) / 0.35)',
       },
       keyframes: {
         "accordion-down": {
@@ -100,6 +109,10 @@ export default {
           from: { opacity: "0", transform: "translateX(20px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "slide-in-left": {
+          from: { opacity: "0", transform: "translateX(-20px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
         "scale-in": {
           from: { opacity: "0", transform: "scale(0.95)" },
           to: { opacity: "1", transform: "scale(1)" },
@@ -110,18 +123,36 @@ export default {
           "100%": { transform: "scale(1)" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.5)" },
+          "0%, 100%": { 
+            boxShadow: "0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--accent) / 0.15)" 
+          },
+          "50%": { 
+            boxShadow: "0 0 40px hsl(var(--primary) / 0.5), 0 0 80px hsl(var(--accent) / 0.25)" 
+          },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "ring-pulse": {
+          "0%": { transform: "scale(1)", opacity: "1" },
+          "100%": { transform: "scale(1.5)", opacity: "0" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.3s ease-out",
-        "slide-in-right": "slide-in-right 0.3s ease-out",
-        "scale-in": "scale-in 0.2s ease-out",
+        "fade-in": "fade-in 0.4s ease-out",
+        "slide-in-right": "slide-in-right 0.4s ease-out",
+        "slide-in-left": "slide-in-left 0.4s ease-out",
+        "scale-in": "scale-in 0.3s ease-out",
         "star-pop": "star-pop 0.3s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "shimmer": "shimmer 2s linear infinite",
+        "ring-pulse": "ring-pulse 1.5s ease-out infinite",
+      },
+      transitionDuration: {
+        '400': '400ms',
       },
     },
   },
