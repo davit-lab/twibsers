@@ -58,6 +58,9 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Track refs for streams to avoid stale closure issues
+  const localStreamRef = useRef<MediaStream | null>(null);
+
   // Cleanup function
   const cleanup = useCallback(() => {
     console.log('[WebRTC] Cleaning up...');
@@ -67,12 +70,12 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       peerConnectionRef.current = null;
     }
 
-    if (callState.localStream) {
-      callState.localStream.getTracks().forEach(track => track.stop());
-    }
-
-    if (callState.screenStream) {
-      callState.screenStream.getTracks().forEach(track => track.stop());
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[WebRTC] Stopped track:', track.kind);
+      });
+      localStreamRef.current = null;
     }
 
     if (screenStreamRef.current) {
@@ -97,7 +100,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
       isScreenSharing: false,
       error: null,
     });
-  }, [callState.localStream, callState.screenStream]);
+  }, []);
 
   // Get user media
   const getUserMedia = async (type: 'audio' | 'video'): Promise<MediaStream> => {
@@ -229,6 +232,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
 
       // Get local stream
       const localStream = await getUserMedia(type);
+      localStreamRef.current = localStream;
       setCallState(prev => ({ ...prev, localStream }));
 
       // Create call session in database
@@ -291,10 +295,12 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
     if (!user) return;
 
     try {
+      console.log('[WebRTC] Answering call, session:', session.id);
       setCallState(prev => ({ ...prev, isConnecting: true, error: null, session }));
 
       // Get local stream
       const localStream = await getUserMedia(session.call_type);
+      localStreamRef.current = localStream;
       setCallState(prev => ({ ...prev, localStream }));
 
       // Create peer connection

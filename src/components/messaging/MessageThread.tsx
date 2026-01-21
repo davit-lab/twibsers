@@ -104,8 +104,19 @@ export default function MessageThread({
   // Handle pending incoming call answer
   useEffect(() => {
     if (pendingAnswerCall && pendingAnswerCall.conversation_id === conversationId) {
-      answerCall(pendingAnswerCall);
-      onCallAnswered?.();
+      // Answer the call asynchronously and notify parent after completion
+      const handleAnswer = async () => {
+        try {
+          console.log('[MessageThread] Answering pending call:', pendingAnswerCall.id);
+          await answerCall(pendingAnswerCall);
+          console.log('[MessageThread] Call answered successfully');
+        } catch (error) {
+          console.error('[MessageThread] Failed to answer call:', error);
+        }
+        // Only notify parent after the answer process completes
+        onCallAnswered?.();
+      };
+      handleAnswer();
     }
   }, [pendingAnswerCall, conversationId]);
 

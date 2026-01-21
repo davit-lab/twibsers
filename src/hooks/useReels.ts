@@ -52,6 +52,8 @@ export function useReels() {
 
   const fetchReels = useCallback(async () => {
     try {
+      setLoading(true);
+      
       const { data: reelsData, error } = await supabase
         .from('reels')
         .select('*')
@@ -59,14 +61,29 @@ export function useReels() {
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Reels] Fetch error:', error);
+        throw error;
+      }
+
+      console.log('[Reels] Fetched reels count:', reelsData?.length || 0);
+
+      if (!reelsData || reelsData.length === 0) {
+        setReels([]);
+        setLoading(false);
+        return;
+      }
 
       // Fetch profiles for each reel
-      const userIds = [...new Set((reelsData || []).map(r => r.user_id))];
-      const { data: profiles } = await supabase
+      const userIds = [...new Set(reelsData.map(r => r.user_id))];
+      const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('user_id, username, display_name, avatar_url, is_verified')
         .in('user_id', userIds);
+
+      if (profileError) {
+        console.error('[Reels] Profile fetch error:', profileError);
+      }
 
       // Fetch user's likes if logged in
       let userLikes: string[] = [];
@@ -78,16 +95,23 @@ export function useReels() {
         userLikes = (likesData || []).map(l => l.reel_id);
       }
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
-      const enrichedReels = (reelsData || []).map(reel => ({
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      const enrichedReels = reelsData.map(reel => ({
         ...reel,
-        profile: profileMap.get(reel.user_id),
+        profile: profileMap.get(reel.user_id) || {
+          username: 'unknown',
+          display_name: 'Unknown User',
+          avatar_url: null,
+          is_verified: false,
+        },
         is_liked: userLikes.includes(reel.id),
       })) as Reel[];
 
+      console.log('[Reels] Enriched reels:', enrichedReels.length);
       setReels(enrichedReels);
     } catch (error) {
       console.error('Error fetching reels:', error);
+      setReels([]);
     } finally {
       setLoading(false);
     }
