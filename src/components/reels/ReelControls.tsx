@@ -4,8 +4,6 @@ import {
   X, 
   Volume2, 
   VolumeX, 
-  ChevronUp, 
-  ChevronDown,
   Loader2,
   Sparkles,
   Camera
@@ -18,7 +16,6 @@ interface ReelControlsProps {
   isMuted: boolean;
   isRefreshing: boolean;
   onMuteToggle: () => void;
-  onNavigate: (direction: 'up' | 'down') => void;
   onRefresh: () => void;
 }
 
@@ -28,7 +25,6 @@ export default function ReelControls({
   isMuted,
   isRefreshing,
   onMuteToggle,
-  onNavigate,
   onRefresh,
 }: ReelControlsProps) {
   return (
@@ -83,8 +79,8 @@ export default function ReelControls({
         )}
       </button>
       
-      {/* Navigation dots */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-20">
+      {/* Navigation dots - repositioned to bottom */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
         {Array.from({ length: Math.min(totalReels, 7) }).map((_, i) => {
           const startIdx = Math.max(0, Math.min(currentIndex - 3, totalReels - 7));
           const actualIdx = startIdx + i;
@@ -96,7 +92,7 @@ export default function ReelControls({
               className={cn(
                 "rounded-full transition-all duration-300",
                 isCurrent 
-                  ? "w-1.5 h-6 bg-white" 
+                  ? "w-6 h-1.5 bg-white" 
                   : "w-1.5 h-1.5 bg-white/40"
               )}
             />
@@ -104,34 +100,9 @@ export default function ReelControls({
         })}
       </div>
       
-      {/* Navigation arrows */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-20">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onNavigate('up')}
-          disabled={currentIndex === 0}
-          className={cn(
-            "rounded-full bg-black/40 backdrop-blur-sm text-white border border-white/10",
-            "hover:bg-black/60 disabled:opacity-30 h-10 w-10 transition-all",
-            "hover:scale-105 active:scale-95"
-          )}
-        >
-          <ChevronUp className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onNavigate('down')}
-          disabled={currentIndex === totalReels - 1}
-          className={cn(
-            "rounded-full bg-black/40 backdrop-blur-sm text-white border border-white/10",
-            "hover:bg-black/60 disabled:opacity-30 h-10 w-10 transition-all",
-            "hover:scale-105 active:scale-95"
-          )}
-        >
-          <ChevronDown className="h-5 w-5" />
-        </Button>
+      {/* Swipe hint - shown briefly */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-14 z-20 pointer-events-none">
+        <p className="text-white/40 text-xs font-medium">← Swipe left for profile</p>
       </div>
     </>
   );
