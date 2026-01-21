@@ -5,8 +5,7 @@ import {
   Volume2, 
   VolumeX, 
   Loader2,
-  Sparkles,
-  Camera
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,35 +28,34 @@ export default function ReelControls({
 }: ReelControlsProps) {
   return (
     <>
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
-        <Link to="/">
+      {/* Top bar - minimal */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 pointer-events-none">
+        <Link to="/" className="pointer-events-auto">
           <Button 
-            variant="ghost" 
+            variant="glass" 
             size="icon" 
-            className="rounded-full bg-black/50 backdrop-blur-xl text-white hover:bg-black/70 border border-white/10 h-11 w-11"
+            className="h-10 w-10"
           >
             <X className="h-5 w-5" />
           </Button>
         </Link>
         
-        {/* Logo */}
-        <div className="flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-5 py-2.5 border border-white/10">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <h1 className="text-white font-display font-bold text-lg tracking-tight">Reels</h1>
+        {/* Brand logo - simple text */}
+        <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2">
+          <span className="text-white font-bold text-sm tracking-wide">REELS</span>
         </div>
         
         <Button
-          variant="ghost"
+          variant="glass"
           size="icon"
           onClick={onRefresh}
-          className="rounded-full bg-black/50 backdrop-blur-xl text-white hover:bg-black/70 border border-white/10 h-11 w-11"
+          className="h-10 w-10 pointer-events-auto"
           disabled={isRefreshing}
         >
           {isRefreshing ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Camera className="h-5 w-5" />
+            <RefreshCw className="h-4 w-4" />
           )}
         </Button>
       </div>
@@ -66,23 +64,23 @@ export default function ReelControls({
       <button 
         onClick={onMuteToggle}
         className={cn(
-          "absolute top-20 right-4 z-20 w-11 h-11 rounded-full",
-          "bg-black/50 backdrop-blur-xl flex items-center justify-center",
+          "absolute top-16 right-4 z-20 w-10 h-10 rounded-xl",
+          "bg-black/50 backdrop-blur-sm flex items-center justify-center",
           "border border-white/10 hover:bg-black/70 transition-all",
-          "hover:scale-105 active:scale-95"
+          "active:scale-95"
         )}
       >
         {isMuted ? (
-          <VolumeX className="h-5 w-5 text-white/70" />
+          <VolumeX className="h-4 w-4 text-white/60" />
         ) : (
-          <Volume2 className="h-5 w-5 text-white" />
+          <Volume2 className="h-4 w-4 text-white" />
         )}
       </button>
       
-      {/* Navigation dots - repositioned to bottom */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-        {Array.from({ length: Math.min(totalReels, 7) }).map((_, i) => {
-          const startIdx = Math.max(0, Math.min(currentIndex - 3, totalReels - 7));
+      {/* Navigation indicator - clean dots */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+        {Array.from({ length: Math.min(totalReels, 5) }).map((_, i) => {
+          const startIdx = Math.max(0, Math.min(currentIndex - 2, totalReels - 5));
           const actualIdx = startIdx + i;
           const isCurrent = actualIdx === currentIndex;
           
@@ -92,17 +90,12 @@ export default function ReelControls({
               className={cn(
                 "rounded-full transition-all duration-300",
                 isCurrent 
-                  ? "w-6 h-1.5 bg-white" 
-                  : "w-1.5 h-1.5 bg-white/40"
+                  ? "w-5 h-1.5 bg-white" 
+                  : "w-1.5 h-1.5 bg-white/30"
               )}
             />
           );
         })}
-      </div>
-      
-      {/* Swipe hint - shown briefly */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-14 z-20 pointer-events-none">
-        <p className="text-white/40 text-xs font-medium">← Swipe left for profile</p>
       </div>
     </>
   );

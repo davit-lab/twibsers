@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useReels, ReelsFeedType } from '@/hooks/useReels';
 import { useStories } from '@/hooks/useStories';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReelCard from '@/components/reels/ReelCard';
 import ReelControls from '@/components/reels/ReelControls';
@@ -40,7 +40,7 @@ export default function Reels() {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ y: number; time: number } | null>(null);
 
-  // Handle scroll navigation with debounce
+  // Smooth scroll navigation with spring-like feel
   const handleScroll = useCallback((direction: 'up' | 'down') => {
     if (isTransitioning) return;
     
@@ -48,26 +48,26 @@ export default function Reels() {
       setIsTransitioning(true);
       setCurrentIndex(currentIndex + 1);
       setPaused(false);
-      setTimeout(() => setIsTransitioning(false), 500);
+      setTimeout(() => setIsTransitioning(false), 400);
     } else if (direction === 'up' && currentIndex > 0) {
       setIsTransitioning(true);
       setCurrentIndex(currentIndex - 1);
       setPaused(false);
-      setTimeout(() => setIsTransitioning(false), 500);
+      setTimeout(() => setIsTransitioning(false), 400);
     }
   }, [currentIndex, reels.length, setCurrentIndex, isTransitioning]);
 
-  // Wheel event for desktop
+  // Wheel event for desktop - smoother
   useEffect(() => {
     let accumulatedDelta = 0;
-    const threshold = 100;
+    const threshold = 80;
     let lastScrollTime = 0;
     
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
       const now = Date.now();
-      if (now - lastScrollTime < 500) return;
+      if (now - lastScrollTime < 400) return;
       
       accumulatedDelta += e.deltaY;
       
@@ -89,7 +89,7 @@ export default function Reels() {
     };
   }, [handleScroll]);
 
-  // Touch events for mobile
+  // Touch events for mobile - smoother
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = {
       y: e.touches[0].clientY,
@@ -104,7 +104,7 @@ export default function Reels() {
     const deltaTime = Date.now() - touchStartRef.current.time;
     const velocity = Math.abs(deltaY) / deltaTime;
     
-    if (Math.abs(deltaY) > 80 || velocity > 0.4) {
+    if (Math.abs(deltaY) > 60 || velocity > 0.3) {
       handleScroll(deltaY > 0 ? 'down' : 'up');
     }
     touchStartRef.current = null;
@@ -139,7 +139,7 @@ export default function Reels() {
         toast({ title: 'Removed from saved' });
       } else {
         newSet.add(reelId);
-        toast({ title: 'Saved to collection ✨' });
+        toast({ title: 'Saved ⭐' });
       }
       return newSet;
     });
@@ -156,8 +156,8 @@ export default function Reels() {
       const blob = await response.blob();
       const file = new File([blob], 'reel-share.jpg', { type: 'image/jpeg' });
       
-      await uploadStory(file, `Check out this reel by @${reel.profile?.username}! 🎬`);
-      toast({ title: 'Shared to your story! 🎉' });
+      await uploadStory(file, `Check out this reel by @${reel.profile?.username}!`);
+      toast({ title: 'Shared to your story!' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Failed to share' });
     }
@@ -165,7 +165,7 @@ export default function Reels() {
 
   const handleCopyLink = (reelId: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/reels/${reelId}`);
-    toast({ title: 'Link copied! 📋' });
+    toast({ title: 'Link copied!' });
   };
 
   const openComments = (reelId: string) => {
@@ -173,16 +173,13 @@ export default function Reels() {
     setShowComments(true);
   };
 
-  // Loading state
+  // Loading state - clean spinner
   if (loading) {
     return (
       <div className="h-screen w-full bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-            <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-accent/20 border-b-accent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-          </div>
-          <p className="text-white/60 font-medium">Loading reels...</p>
+          <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-white/50 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -191,18 +188,18 @@ export default function Reels() {
   // Error state
   if (error) {
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-gray-900 to-black flex flex-col items-center justify-center text-white px-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
-          <span className="text-4xl">😕</span>
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white px-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-4">
+          <span className="text-2xl">⚠️</span>
         </div>
-        <h2 className="text-2xl font-display font-bold mb-2">Something went wrong</h2>
-        <p className="text-white/60 mb-6 max-w-md">{error}</p>
+        <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
+        <p className="text-white/50 mb-6 text-sm">{error}</p>
         <button 
           onClick={() => refetch()}
           disabled={refreshing}
-          className="btn-gradient px-8 py-3 rounded-full font-semibold flex items-center gap-2"
+          className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-medium flex items-center gap-2"
         >
-          {refreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Try again'}
+          {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Try again'}
         </button>
       </div>
     );
@@ -212,7 +209,6 @@ export default function Reels() {
   if (reels.length === 0) {
     return (
       <div className="h-screen w-full bg-black relative">
-        {/* Feed type tabs */}
         <FeedTabs feedType={feedType} onFeedTypeChange={setFeedType} />
         <ReelEmptyState 
           isRefreshing={refreshing} 
@@ -233,13 +229,15 @@ export default function Reels() {
       {/* Feed type tabs */}
       <FeedTabs feedType={feedType} onFeedTypeChange={setFeedType} />
       
-      {/* Reels container with smooth transition */}
+      {/* Reels container with smooth spring transition */}
       <div 
-        className={cn(
-          "h-full w-full transition-transform ease-out",
-          isTransitioning ? "duration-500" : "duration-300"
-        )}
-        style={{ transform: `translateY(-${currentIndex * 100}%)` }}
+        className="h-full w-full"
+        style={{ 
+          transform: `translateY(-${currentIndex * 100}%)`,
+          transition: isTransitioning 
+            ? 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)' 
+            : 'transform 0.2s ease-out'
+        }}
       >
         {reels.map((reel, index) => (
           <ReelCard

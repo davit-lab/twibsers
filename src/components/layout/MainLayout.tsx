@@ -39,22 +39,21 @@ interface MainLayoutProps {
 }
 
 const navItems = [
-  { icon: Home, label: 'Home', href: '/' },
-  { icon: Search, label: 'Search', href: '/explore' },
-  { icon: Compass, label: 'Explore', href: '/explore' },
-  { icon: Clapperboard, label: 'Reels', href: '/reels' },
-  { icon: MessageCircle, label: 'Messages', href: '/messages' },
-  { icon: Heart, label: 'Notifications', href: '/notifications' },
-  { icon: PlusSquare, label: 'Create', href: '#create' },
-  { icon: BookOpen, label: 'Library', href: '/library' },
+  { icon: Home, label: 'Home', href: '/', id: 'home' },
+  { icon: Compass, label: 'Explore', href: '/explore', id: 'explore' },
+  { icon: Clapperboard, label: 'Reels', href: '/reels', id: 'reels' },
+  { icon: MessageCircle, label: 'Messages', href: '/messages', id: 'messages' },
+  { icon: Heart, label: 'Notifications', href: '/notifications', id: 'notifications' },
+  { icon: PlusSquare, label: 'Create', href: '#create', id: 'create' },
+  { icon: BookOpen, label: 'Library', href: '/library', id: 'library' },
 ];
 
 const mobileNavItems = [
-  { icon: Home, label: 'Home', href: '/' },
-  { icon: Search, label: 'Search', href: '/explore' },
-  { icon: PlusSquare, label: 'Create', href: '#create' },
-  { icon: Clapperboard, label: 'Reels', href: '/reels' },
-  { icon: User, label: 'Profile', href: '/profile' },
+  { icon: Home, label: 'Home', href: '/', id: 'home' },
+  { icon: Compass, label: 'Explore', href: '/explore', id: 'explore' },
+  { icon: PlusSquare, label: 'Create', href: '#create', id: 'create' },
+  { icon: Clapperboard, label: 'Reels', href: '/reels', id: 'reels' },
+  { icon: User, label: 'Profile', href: '/profile', id: 'profile' },
 ];
 
 export default function MainLayout({ children }: MainLayoutProps) {
@@ -103,7 +102,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               if (isCreate) {
                 return (
                   <button
-                    key={item.label}
+                    key={item.id}
                     onClick={() => setCreateDialogOpen(true)}
                     className={cn(
                       'flex items-center gap-4 w-full px-3 py-3 rounded-lg text-[15px] transition-colors',
@@ -118,7 +117,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
               return (
                 <Link
-                  key={item.href}
+                  key={item.id}
                   to={item.href}
                   className={cn(
                     'flex items-center gap-4 px-3 py-3 rounded-lg text-[15px] transition-colors',
@@ -277,7 +276,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               if (isCreate) {
                 return (
                   <button
-                    key={item.label}
+                    key={item.id}
                     onClick={() => setCreateDialogOpen(true)}
                     className="flex items-center justify-center p-2"
                   >
@@ -289,7 +288,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               if (isProfile) {
                 return (
                   <Link
-                    key={item.label}
+                    key={item.id}
                     to={`/profile/${profile?.username}`}
                     className="flex items-center justify-center p-2"
                   >
@@ -308,7 +307,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
               return (
                 <Link
-                  key={item.href}
+                  key={item.id}
                   to={item.href}
                   className="flex items-center justify-center p-2"
                 >
