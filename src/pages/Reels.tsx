@@ -41,25 +41,43 @@ export default function Reels() {
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
 
   const currentReel = reels[currentIndex];
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Handle scroll/swipe to navigate
+  // Handle scroll/swipe to navigate with debounce
   const handleScroll = useCallback((direction: 'up' | 'down') => {
+    if (isTransitioning) return;
+    
     if (direction === 'down' && currentIndex < reels.length - 1) {
+      setIsTransitioning(true);
       setCurrentIndex(currentIndex + 1);
+      setTimeout(() => setIsTransitioning(false), 600);
     } else if (direction === 'up' && currentIndex > 0) {
+      setIsTransitioning(true);
       setCurrentIndex(currentIndex - 1);
+      setTimeout(() => setIsTransitioning(false), 600);
     }
-  }, [currentIndex, reels.length, setCurrentIndex]);
+  }, [currentIndex, reels.length, setCurrentIndex, isTransitioning]);
 
-  // Wheel event for desktop
+  // Wheel event for desktop - smoother with threshold
   useEffect(() => {
+    let accumulatedDelta = 0;
+    const threshold = 80;
+    let lastScrollTime = 0;
+    
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (Math.abs(e.deltaY) > 30) {
-        handleScroll(e.deltaY > 0 ? 'down' : 'up');
+      
+      const now = Date.now();
+      if (now - lastScrollTime < 600) return; // Debounce
+      
+      accumulatedDelta += e.deltaY;
+      
+      if (Math.abs(accumulatedDelta) > threshold) {
+        handleScroll(accumulatedDelta > 0 ? 'down' : 'up');
+        accumulatedDelta = 0;
+        lastScrollTime = now;
       }
     };
     
@@ -74,18 +92,28 @@ export default function Reels() {
     };
   }, [handleScroll]);
 
-  // Touch events for mobile
+  // Touch events for mobile - smoother with velocity
+  const touchStartRef = useRef<{ y: number; time: number } | null>(null);
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientY);
+    touchStartRef.current = {
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return;
-    const diff = touchStart - e.changedTouches[0].clientY;
-    if (Math.abs(diff) > 50) {
-      handleScroll(diff > 0 ? 'down' : 'up');
+    if (!touchStartRef.current || isTransitioning) return;
+    
+    const deltaY = touchStartRef.current.y - e.changedTouches[0].clientY;
+    const deltaTime = Date.now() - touchStartRef.current.time;
+    const velocity = Math.abs(deltaY) / deltaTime;
+    
+    // Trigger with either sufficient distance or velocity
+    if (Math.abs(deltaY) > 60 || velocity > 0.3) {
+      handleScroll(deltaY > 0 ? 'down' : 'up');
     }
-    setTouchStart(null);
+    touchStartRef.current = null;
   };
 
   // Manage video playback
@@ -228,9 +256,9 @@ export default function Reels() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Reels Container */}
+      {/* Reels Container - Smoother transition */}
       <div 
-        className="h-full w-full transition-transform duration-500 ease-out"
+        className="h-full w-full transition-transform duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
         style={{ transform: `translateY(-${currentIndex * 100}%)` }}
       >
         {reels.map((reel, index) => (

@@ -99,8 +99,42 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     
+    // Check if username changed
+    if (formData.username !== profile?.username) {
+      // Validate username format
+      const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+      if (!usernameRegex.test(formData.username)) {
+        setSaving(false);
+        toast({
+          variant: 'destructive',
+          title: 'Invalid username',
+          description: 'Username must be 3-30 characters and contain only letters, numbers, and underscores.',
+        });
+        return;
+      }
+
+      // Check if username is available
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', formData.username)
+        .neq('user_id', user?.id)
+        .maybeSingle();
+
+      if (existingUser) {
+        setSaving(false);
+        toast({
+          variant: 'destructive',
+          title: 'Username taken',
+          description: 'This username is already in use. Please choose another.',
+        });
+        return;
+      }
+    }
+    
     const { error } = await updateProfile({
       display_name: formData.display_name,
+      username: formData.username,
       bio: formData.bio,
       location: formData.location,
       website: formData.website,
@@ -122,6 +156,11 @@ export default function Settings() {
         title: 'Settings saved ✨',
         description: 'Your profile has been updated successfully.',
       });
+      
+      // If username changed, navigate to new profile URL
+      if (formData.username !== profile?.username) {
+        navigate(`/profile/${formData.username}`);
+      }
     }
   };
 
@@ -380,13 +419,18 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={formData.username}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Username cannot be changed</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                      <Input
+                        id="username"
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                        placeholder="your_username"
+                        className="pl-8"
+                        maxLength={30}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">3-30 characters. Letters, numbers, underscores only.</p>
                   </div>
                 </div>
 
