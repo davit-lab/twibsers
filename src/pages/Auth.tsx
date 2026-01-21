@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft } from 'lucide-react';
+import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft, Phone, Smartphone } from 'lucide-react';
 import { validateEmail } from '@/lib/emailValidation';
 
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const phoneSchema = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Enter phone with country code (e.g., +1234567890)');
 
-type AuthMode = 'login' | 'signup' | 'otp-request' | 'otp-verify';
+type AuthMode = 'login' | 'signup' | 'otp-request' | 'otp-verify' | 'phone-request' | 'phone-verify';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneOtpCode, setPhoneOtpCode] = useState('');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -168,6 +171,72 @@ export default function Auth() {
       email,
       token: otpCode,
       type: 'email',
+    });
+    setLoading(false);
+    
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Verification failed',
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: 'Welcome! 🎉',
+        description: 'You have successfully signed in.',
+      });
+      navigate('/');
+    }
+  };
+
+  const handlePhoneRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const phoneValidation = phoneSchema.safeParse(phoneNumber);
+    if (!phoneValidation.success) {
+      setErrors({ email: phoneValidation.error.errors[0].message });
+      return;
+    }
+    setErrors({});
+    
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: phoneNumber,
+    });
+    setLoading(false);
+    
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to send code',
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: 'Code sent! 📱',
+        description: 'Check your phone for the 6-digit verification code.',
+      });
+      setAuthMode('phone-verify');
+    }
+  };
+
+  const handlePhoneVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (phoneOtpCode.length !== 6) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your SMS.',
+      });
+      return;
+    }
+    
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+      phone: phoneNumber,
+      token: phoneOtpCode,
+      type: 'sms',
     });
     setLoading(false);
     
@@ -372,6 +441,117 @@ export default function Auth() {
             </Card>
           )}
 
+          {/* Phone OTP Flow */}
+          {(authMode === 'phone-request' || authMode === 'phone-verify') && (
+            <Card className="border-0 shadow-card">
+              <CardHeader className="text-center pb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAuthMode('login')}
+                  className="absolute left-4 top-4 gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+                <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
+                  {authMode === 'phone-request' ? (
+                    <Phone className="h-8 w-8 text-white" />
+                  ) : (
+                    <Smartphone className="h-8 w-8 text-white" />
+                  )}
+                </div>
+                <CardTitle className="text-2xl font-display">
+                  {authMode === 'phone-request' ? 'Sign in with Phone' : 'Enter Code'}
+                </CardTitle>
+                <CardDescription>
+                  {authMode === 'phone-request' 
+                    ? "We'll send a 6-digit code via SMS" 
+                    : `Enter the code sent to ${phoneNumber}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {authMode === 'phone-request' ? (
+                  <form onSubmit={handlePhoneRequest} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone-number">Phone Number</Label>
+                      <Input
+                        id="phone-number"
+                        type="tel"
+                        placeholder="+1234567890"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className={errors.email ? 'border-destructive' : ''}
+                        disabled={loading}
+                      />
+                      <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US)</p>
+                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                    </div>
+                    
+                    <Button type="submit" className="w-full btn-gradient" disabled={loading}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending code...
+                        </>
+                      ) : (
+                        <>
+                          <Phone className="mr-2 h-4 w-4" />
+                          Send Code
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handlePhoneVerify} className="space-y-6">
+                    <div className="flex justify-center">
+                      <InputOTP
+                        maxLength={6}
+                        value={phoneOtpCode}
+                        onChange={setPhoneOtpCode}
+                        disabled={loading}
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                        </InputOTPGroup>
+                        <InputOTPSeparator />
+                        <InputOTPGroup>
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                    
+                    <Button type="submit" className="w-full btn-gradient" disabled={loading || phoneOtpCode.length !== 6}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        'Verify & Sign In'
+                      )}
+                    </Button>
+                    
+                    <p className="text-center text-sm text-muted-foreground">
+                      Didn't receive the code?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode('phone-request')}
+                        className="text-primary hover:underline"
+                      >
+                        Resend
+                      </button>
+                    </p>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Password Auth Flow */}
           {authMode === 'login' && (
             <Card className="border-0 shadow-card">
@@ -451,6 +631,16 @@ export default function Auth() {
                         <Mail className="h-4 w-4" />
                         Sign in with Email Code
                       </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => setAuthMode('phone-request')}
+                      >
+                        <Phone className="h-4 w-4" />
+                        Sign in with Phone
+                      </Button>
                     </form>
                   </TabsContent>
                   
@@ -508,8 +698,27 @@ export default function Auth() {
                           'Create Account'
                         )}
                       </Button>
+
+                      <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-card px-2 text-muted-foreground">Or sign up with</span>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => setAuthMode('phone-request')}
+                      >
+                        <Phone className="h-4 w-4" />
+                        Sign up with Phone
+                      </Button>
                       
-                      <p className="text-xs text-muted-foreground text-center">
+                      <p className="text-xs text-muted-foreground text-center mt-4">
                         By signing up, you agree to our Terms of Service and Privacy Policy.
                       </p>
                     </form>
