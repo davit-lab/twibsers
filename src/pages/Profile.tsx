@@ -7,6 +7,7 @@ import Feed from '@/components/feed/Feed';
 import FollowButton from '@/components/social/FollowButton';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { useStories } from '@/hooks/useStories';
+import { useMutualConnections } from '@/hooks/useMutualConnections';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -21,7 +22,6 @@ import {
   MessageCircle,
   Hammer,
   ArrowLeft,
-  Plus,
   Loader2,
   X,
   ChevronLeft,
@@ -31,13 +31,14 @@ import {
   Volume2,
   VolumeX,
   Trash2,
-  Sparkles,
   Camera,
   Share2,
   MoreHorizontal,
   CalendarDays,
   Users,
   FileText,
+  Film,
+  UserCheck,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -80,9 +81,11 @@ export default function Profile() {
   
   const isOwnProfile = currentUserProfile?.username === username;
   const { stats, loading: statsLoading } = useFollowStats(profileData?.user_id);
+  const { mutuals, count: mutualCount, loading: mutualsLoading } = useMutualConnections(profileData?.user_id);
   const { groupedStories, viewStory, uploadStory, deleteStory } = useStories({ 
     profileUserId: profileData?.user_id 
   });
+  const [reelCount, setReelCount] = useState(0);
 
   const hasStories = groupedStories.length > 0 && groupedStories[0]?.stories.length > 0;
   const currentGroup = groupedStories[0];
@@ -117,12 +120,22 @@ export default function Profile() {
         
         setIsProfileAdmin(!!roleData);
 
+        // Get post count
         const { count } = await supabase
           .from('posts')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', data.user_id);
         
         setPostCount(count || 0);
+
+        // Get reel count
+        const { count: reelsCount } = await supabase
+          .from('reels')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', data.user_id)
+          .eq('is_published', true);
+        
+        setReelCount(reelsCount || 0);
       }
       setLoading(false);
     };
@@ -323,7 +336,11 @@ export default function Profile() {
                       hasStories && "bg-background p-1"
                     )}>
                       <Avatar className="w-28 h-28 md:w-36 md:h-36 border-4 border-background shadow-xl">
-                        <AvatarImage src={profileData.avatar_url || undefined} className="object-cover" />
+                        <AvatarImage 
+                          src={profileData.avatar_url || undefined} 
+                          alt={profileData.display_name}
+                          className="object-cover"
+                        />
                         <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl font-bold">
                           {getInitials(profileData.display_name)}
                         </AvatarFallback>
@@ -448,6 +465,34 @@ export default function Profile() {
                 </span>
               </div>
 
+              {/* Mutual Connections - Only show for other profiles */}
+              {!isOwnProfile && user && !mutualsLoading && mutualCount > 0 && (
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-lg bg-secondary/30">
+                  <UserCheck className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex items-center gap-1 min-w-0">
+                    <div className="flex -space-x-2">
+                      {mutuals.slice(0, 3).map((mutual) => (
+                        <Avatar key={mutual.user_id} className="w-6 h-6 border-2 border-background">
+                          <AvatarImage src={mutual.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px] bg-primary/20">
+                            {mutual.display_name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground truncate ml-2">
+                      Followed by{' '}
+                      <span className="text-foreground font-medium">
+                        {mutuals[0]?.display_name}
+                      </span>
+                      {mutualCount > 1 && (
+                        <> and <span className="text-foreground font-medium">{mutualCount - 1} others</span> you follow</>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Stats Row */}
               <div className="flex items-center gap-6 mt-5 pt-5 border-t border-border/50">
                 <button className="group">
@@ -456,6 +501,12 @@ export default function Profile() {
                   </span>
                   <span className="text-sm text-muted-foreground ml-1.5">posts</span>
                 </button>
+                <Link to="/reels" className="group">
+                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                    {reelCount}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1.5">reels</span>
+                </Link>
                 <button className="group">
                   <span className="text-xl font-bold group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.followers.toLocaleString()}
@@ -476,6 +527,11 @@ export default function Profile() {
                   <>
                     <Button variant="outline" className="flex-1" asChild>
                       <Link to="/settings">Edit Profile</Link>
+                    </Button>
+                    <Button variant="outline" size="icon" asChild>
+                      <Link to="/reels">
+                        <Film className="h-5 w-5" />
+                      </Link>
                     </Button>
                     <Button variant="outline" size="icon">
                       <Share2 className="h-5 w-5" />
