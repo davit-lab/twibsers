@@ -27,8 +27,12 @@ import {
   Trash2,
   Search,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  Gift,
+  Hammer,
+  Crown,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface UserWithRole {
   id: string;
@@ -66,6 +70,12 @@ interface PostData {
   };
 }
 
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  tier: string;
+}
+
 export default function Admin() {
   const { user, isAdmin, isModerator, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -74,6 +84,9 @@ export default function Admin() {
   const [posts, setPosts] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [giftingUserId, setGiftingUserId] = useState<string | null>(null);
+  const [giftingLoading, setGiftingLoading] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
@@ -121,6 +134,14 @@ export default function Admin() {
       }));
 
       setUsers(usersWithRoles);
+
+      // Fetch subscription plans
+      const { data: plansData } = await supabase
+        .from('subscription_plans')
+        .select('id, name, tier')
+        .eq('is_active', true);
+      
+      setPlans(plansData || []);
 
       // Fetch books
       const { data: booksData } = await supabase
@@ -199,6 +220,78 @@ export default function Admin() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const giftSubscription = async (userId: string, planId: string) => {
+    setGiftingLoading(true);
+    try {
+      // Check if user already has a subscription
+      const { data: existingSub } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      const subscriptionData = {
+        user_id: userId,
+        plan_id: planId,
+        status: 'active' as const,
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+      };
+
+      if (existingSub) {
+        await supabase
+          .from('subscriptions')
+          .update(subscriptionData)
+          .eq('id', existingSub.id);
+      } else {
+        await supabase
+          .from('subscriptions')
+          .insert(subscriptionData);
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Subscription gifted successfully!',
+      });
+      setGiftingUserId(null);
+    } catch (error) {
+      console.error('Error gifting subscription:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to gift subscription.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGiftingLoading(false);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    // Note: This only deletes the profile and related data, not the auth user
+    try {
+      // Delete user's posts, comments, etc.
+      await supabase.from('posts').delete().eq('user_id', userId);
+      await supabase.from('comments').delete().eq('user_id', userId);
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      await supabase.from('subscriptions').delete().eq('user_id', userId);
+      await supabase.from('profiles').delete().eq('user_id', userId);
+
+      setUsers(prev => prev.filter(u => u.user_id !== userId));
+      
+      toast({
+        title: 'Success',
+        description: 'User data deleted successfully.',
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -436,6 +529,9 @@ export default function Admin() {
                               <div>
                                 <p className="font-medium flex items-center gap-1">
                                   {user.display_name}
+                                  {user.role === 'admin' && (
+                                    <Hammer className="w-4 h-4 text-amber-500" />
+                                  )}
                                   {user.is_verified && (
                                     <BadgeCheck className="w-4 h-4 text-verified" />
                                   )}
@@ -445,7 +541,11 @@ export default function Admin() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'secondary' : 'outline'}>
+                            <Badge 
+                              variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'secondary' : 'outline'}
+                              className={user.role === 'admin' ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                            >
+                              {user.role === 'admin' && <Hammer className="w-3 h-3 mr-1" />}
                               {user.role}
                             </Badge>
                           </TableCell>
@@ -458,17 +558,64 @@ export default function Admin() {
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleVerification(user.user_id, user.is_verified)}
-                            >
-                              {user.is_verified ? (
-                                <UserX className="w-4 h-4 text-muted-foreground" />
-                              ) : (
-                                <UserCheck className="w-4 h-4 text-verified" />
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleVerification(user.user_id, user.is_verified)}
+                                title={user.is_verified ? 'Remove verification' : 'Verify user'}
+                              >
+                                {user.is_verified ? (
+                                  <UserX className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <UserCheck className="w-4 h-4 text-verified" />
+                                )}
+                              </Button>
+                              
+                              {/* Gift Subscription Dialog */}
+                              <Dialog open={giftingUserId === user.user_id} onOpenChange={(open) => setGiftingUserId(open ? user.user_id : null)}>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" title="Gift subscription">
+                                    <Gift className="w-4 h-4 text-primary" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Gift Subscription</DialogTitle>
+                                    <DialogDescription>
+                                      Gift a subscription plan to {user.display_name} (@{user.username})
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-3 py-4">
+                                    {plans.map((plan) => (
+                                      <Button
+                                        key={plan.id}
+                                        variant={plan.tier === 'premium' ? 'default' : 'outline'}
+                                        className={plan.tier === 'premium' ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' : ''}
+                                        onClick={() => giftSubscription(user.user_id, plan.id)}
+                                        disabled={giftingLoading}
+                                      >
+                                        {plan.tier === 'premium' && <Crown className="w-4 h-4 mr-2" />}
+                                        {plan.name} ({plan.tier})
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                              {/* Delete User Button */}
+                              {isAdmin && user.role !== 'admin' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteUser(user.user_id)}
+                                  className="text-destructive hover:text-destructive"
+                                  title="Delete user data"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               )}
-                            </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -20,6 +20,7 @@ import {
   Lock,
   MessageCircle,
   Flame,
+  Hammer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -44,6 +45,7 @@ export default function Profile() {
   const { user, profile: currentUserProfile } = useAuth();
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -69,6 +71,16 @@ export default function Profile() {
         setError('Profile not found');
       } else {
         setProfileData(data as ProfileData);
+        
+        // Check if this user is an admin
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user_id)
+          .eq('role', 'admin')
+          .maybeSingle();
+        
+        setIsProfileAdmin(!!roleData);
       }
       setLoading(false);
     };
@@ -152,6 +164,11 @@ export default function Profile() {
                 <h1 className="text-2xl md:text-3xl font-display font-bold">
                   {profileData.display_name}
                 </h1>
+                {isProfileAdmin && (
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white" title="Admin">
+                    <Hammer className="h-4 w-4" />
+                  </span>
+                )}
                 {profileData.is_verified && (
                   <BadgeCheck className="h-6 w-6 text-verified" />
                 )}
