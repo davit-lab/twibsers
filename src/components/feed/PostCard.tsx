@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -197,12 +197,12 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
       {/* Post Header */}
       <div className="flex items-start gap-3">
         <Link to={`/profile/${post.profiles.username}`}>
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={post.profiles.avatar_url || undefined} />
-            <AvatarFallback className="bg-muted text-muted-foreground text-sm">
-              {getInitials(post.profiles.display_name)}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            userId={post.user_id}
+            avatarUrl={post.profiles.avatar_url}
+            displayName={post.profiles.display_name}
+            size="md"
+          />
         </Link>
 
         <div className="flex-1 min-w-0">

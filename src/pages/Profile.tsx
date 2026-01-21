@@ -9,8 +9,10 @@ import FollowersFollowingModal from '@/components/social/FollowersFollowingModal
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { useStories } from '@/hooks/useStories';
 import { useMutualConnections } from '@/hooks/useMutualConnections';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PremiumBadge } from '@/components/ui/premium-badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +42,7 @@ import {
   FileText,
   Film,
   UserCheck,
+  Crown,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -83,6 +86,7 @@ export default function Profile() {
   const isOwnProfile = currentUserProfile?.username === username;
   const { stats, loading: statsLoading } = useFollowStats(profileData?.user_id);
   const { mutuals, count: mutualCount, loading: mutualsLoading } = useMutualConnections(profileData?.user_id);
+  const { data: isPremium } = usePremiumStatus(profileData?.user_id);
   const { groupedStories, viewStory, uploadStory, deleteStory } = useStories({ 
     profileUserId: profileData?.user_id 
   });
@@ -391,6 +395,11 @@ export default function Profile() {
                       <div className="verified-badge">
                         <BadgeCheck className="h-3 w-3 text-white" />
                       </div>
+                    )}
+                    {isPremium && (
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md" title="Premium Member">
+                        <Crown className="h-3 w-3 text-white" />
+                      </span>
                     )}
                     {isProfileAdmin && (
                       <span className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
