@@ -30,7 +30,12 @@ export interface GroupedStories {
   has_unviewed: boolean;
 }
 
-export function useStories() {
+interface UseStoriesOptions {
+  // If provided, fetch stories for a specific user (profile page view)
+  profileUserId?: string;
+}
+
+export function useStories(options: UseStoriesOptions = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [stories, setStories] = useState<Story[]>([]);
@@ -39,9 +44,93 @@ export function useStories() {
 
   const fetchStories = useCallback(async () => {
     try {
+      // If viewing a specific profile, show that user's stories
+      if (options.profileUserId) {
+        const { data: storiesData, error } = await supabase
+          .from('stories')
+          .select('*')
+          .eq('user_id', options.profileUserId)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Fetch profile
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, display_name, avatar_url')
+          .eq('user_id', options.profileUserId);
+
+        // Fetch user's viewed stories
+        let viewedStoryIds: string[] = [];
+        if (user) {
+          const { data: views } = await supabase
+            .from('story_views')
+            .select('story_id')
+            .eq('viewer_id', user.id);
+          viewedStoryIds = (views || []).map(v => v.story_id);
+        }
+
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
+        const enrichedStories = (storiesData || []).map(story => ({
+          ...story,
+          media_type: story.media_type as 'image' | 'video',
+          profile: profileMap.get(story.user_id),
+          is_viewed: viewedStoryIds.includes(story.id),
+        })) as Story[];
+
+        setStories(enrichedStories);
+
+        // Group for profile view
+        if (enrichedStories.length > 0 && options.profileUserId) {
+          const profile = profileMap.get(options.profileUserId);
+          setGroupedStories([{
+            user_id: options.profileUserId,
+            username: profile?.username || 'unknown',
+            display_name: profile?.display_name || 'Unknown',
+            avatar_url: profile?.avatar_url || null,
+            stories: enrichedStories,
+            has_unviewed: enrichedStories.some(s => !s.is_viewed),
+          }]);
+        } else {
+          setGroupedStories([]);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // For feed view: Only show stories from people the user follows + their own
+      if (!user) {
+        setStories([]);
+        setGroupedStories([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get list of users the current user follows
+      const { data: followsData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+        .eq('status', 'accepted');
+
+      const followingIds = (followsData || []).map(f => f.following_id);
+      
+      // Include current user's own stories
+      const allowedUserIds = [...followingIds, user.id];
+
+      if (allowedUserIds.length === 0) {
+        setStories([]);
+        setGroupedStories([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: storiesData, error } = await supabase
         .from('stories')
         .select('*')
+        .in('user_id', allowedUserIds)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
@@ -55,14 +144,11 @@ export function useStories() {
         .in('user_id', userIds);
 
       // Fetch user's viewed stories
-      let viewedStoryIds: string[] = [];
-      if (user) {
-        const { data: views } = await supabase
-          .from('story_views')
-          .select('story_id')
-          .eq('viewer_id', user.id);
-        viewedStoryIds = (views || []).map(v => v.story_id);
-      }
+      const { data: views } = await supabase
+        .from('story_views')
+        .select('story_id')
+        .eq('viewer_id', user.id);
+      const viewedStoryIds = (views || []).map(v => v.story_id);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
       const enrichedStories = (storiesData || []).map(story => ({
@@ -103,7 +189,7 @@ export function useStories() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, options.profileUserId]);
 
   useEffect(() => {
     fetchStories();
@@ -160,7 +246,7 @@ export function useStories() {
 
     toast({
       title: 'Story posted! 📸',
-      description: 'Your story is now visible for 24 hours.',
+      description: 'Your story is now visible to your followers for 24 hours.',
     });
 
     await fetchStories();

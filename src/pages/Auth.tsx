@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft } from 'lucide-react';
+import { validateEmail } from '@/lib/emailValidation';
 
-const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
 type AuthMode = 'login' | 'signup' | 'otp-request' | 'otp-verify';
@@ -44,9 +44,10 @@ export default function Auth() {
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
     
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
+    // Use enhanced email validation that blocks disposable emails
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      newErrors.email = emailValidation.error || 'Please enter a valid email address';
     }
     
     if (authMode !== 'otp-request') {
@@ -119,9 +120,9 @@ export default function Auth() {
   const handleOtpRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      setErrors({ email: emailResult.error.errors[0].message });
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      setErrors({ email: emailValidation.error || 'Please enter a valid email address' });
       return;
     }
     setErrors({});
