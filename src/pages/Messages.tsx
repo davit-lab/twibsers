@@ -156,67 +156,63 @@ export default function Messages() {
 
   return (
     <MainLayout>
-      <div className="container max-w-5xl py-0 px-0 pb-24 lg:pb-0 h-[calc(100vh-4rem)]">
-        <div className="flex h-full">
-          {/* Conversation List - hidden on mobile when conversation selected */}
-          <Card className={cn(
-            'w-full md:w-80 lg:w-96 border-r rounded-none md:rounded-l-xl overflow-hidden flex flex-col',
-            selectedConvId ? 'hidden md:flex' : 'flex'
-          )}>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-              <div className="p-4 border-b border-border">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="messages" className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Chats
-                  </TabsTrigger>
-                  <TabsTrigger value="calls" className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Calls
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              
-              <TabsContent value="messages" className="flex-1 overflow-y-auto m-0">
-                <ConversationList
-                  conversations={conversations}
-                  loading={convsLoading}
-                  selectedId={selectedConvId || undefined}
-                  onSelect={handleSelectConversation}
-                />
-              </TabsContent>
-              
-              <TabsContent value="calls" className="flex-1 overflow-y-auto m-0">
-                <CallHistory />
-              </TabsContent>
-            </Tabs>
-          </Card>
-
-          {/* Message Thread */}
-          <Card className={cn(
-            'flex-1 rounded-none md:rounded-r-xl overflow-hidden',
-            !selectedConvId ? 'hidden md:flex' : 'flex'
-          )}>
-            {selectedConvId && otherUser && otherUserId ? (
-              <MessageThread
-                conversationId={selectedConvId}
-                otherUser={otherUser}
-                otherUserId={otherUserId}
-                onBack={handleBack}
-                lastReadAt={lastReadAt}
-                pendingAnswerCall={pendingAnswerCall}
-                onCallAnswered={() => setPendingAnswerCall(null)}
+      <div className="h-[calc(100vh-48px)] lg:h-screen flex">
+        {/* Conversation List */}
+        <div className={cn(
+          'w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-background',
+          selectedConvId ? 'hidden md:flex' : 'flex'
+        )}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+            <div className="px-4 py-3 border-b border-border">
+              <TabsList className="w-full grid grid-cols-2 h-9">
+                <TabsTrigger value="messages" className="text-sm">
+                  Chats
+                </TabsTrigger>
+                <TabsTrigger value="calls" className="text-sm">
+                  Calls
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="messages" className="flex-1 overflow-y-auto m-0">
+              <ConversationList
+                conversations={conversations}
+                loading={convsLoading}
+                selectedId={selectedConvId || undefined}
+                onSelect={handleSelectConversation}
               />
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-                <MessageSquare className="h-16 w-16 mb-4 opacity-50" />
-                <p className="font-medium text-lg">Select a conversation</p>
-                <p className="text-sm text-center mt-2">
-                  Choose from your existing conversations or start a new one from someone's profile
-                </p>
-              </div>
-            )}
-          </Card>
+            </TabsContent>
+            
+            <TabsContent value="calls" className="flex-1 overflow-y-auto m-0">
+              <CallHistory />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Message Thread */}
+        <div className={cn(
+          'flex-1 flex flex-col bg-background',
+          !selectedConvId ? 'hidden md:flex' : 'flex'
+        )}>
+          {selectedConvId && otherUser && otherUserId ? (
+            <MessageThread
+              conversationId={selectedConvId}
+              otherUser={otherUser}
+              otherUserId={otherUserId}
+              onBack={handleBack}
+              lastReadAt={lastReadAt}
+              pendingAnswerCall={pendingAnswerCall}
+              onCallAnswered={() => setPendingAnswerCall(null)}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+              <MessageSquare className="h-12 w-12 mb-4" strokeWidth={1} />
+              <p className="text-lg font-medium">Your messages</p>
+              <p className="text-sm text-center mt-1">
+                Send private messages to a friend
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
