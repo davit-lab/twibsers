@@ -35,6 +35,9 @@ import {
   Clock,
   ShieldOff,
   Trash,
+  Clapperboard,
+  Play,
+  Eye,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,12 +95,27 @@ interface UserBan {
   is_active: boolean;
 }
 
+interface ReelData {
+  id: string;
+  video_url: string;
+  caption: string | null;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  created_at: string;
+  user: {
+    display_name: string;
+    username: string;
+  };
+}
+
 export default function Admin() {
   const { user: currentUser, isAdmin, isModerator, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [books, setBooks] = useState<BookData[]>([]);
   const [posts, setPosts] = useState<PostData[]>([]);
+  const [reels, setReels] = useState<ReelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -113,6 +131,7 @@ export default function Admin() {
     totalUsers: 0,
     totalPosts: 0,
     totalBooks: 0,
+    totalReels: 0,
     verifiedUsers: 0,
     bannedUsers: 0,
   });
@@ -234,11 +253,35 @@ export default function Admin() {
         setPosts(postsWithUsers);
       }
 
+      // Fetch reels
+      const { data: reelsData } = await supabase
+        .from('reels')
+        .select('id, video_url, caption, view_count, like_count, comment_count, created_at, user_id')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Get user profiles for reels
+      if (reelsData && reelsData.length > 0) {
+        const reelUserIds = [...new Set(reelsData.map(r => r.user_id))];
+        const { data: reelUserProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, username')
+          .in('user_id', reelUserIds);
+
+        const reelsWithUsers = reelsData.map(reel => ({
+          ...reel,
+          user: reelUserProfiles?.find(p => p.user_id === reel.user_id) || { display_name: 'Unknown', username: 'unknown' },
+        }));
+
+        setReels(reelsWithUsers);
+      }
+
       // Calculate stats
       setStats({
         totalUsers: profilesData?.length || 0,
         totalPosts: postsData?.length || 0,
         totalBooks: booksData?.length || 0,
+        totalReels: reelsData?.length || 0,
         verifiedUsers: profilesData?.filter(p => p.is_verified).length || 0,
         bannedUsers: bansData?.length || 0,
       });
@@ -572,7 +615,32 @@ export default function Admin() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
+  const deleteReel = async (reelId: string) => {
+    try {
+      const { error } = await supabase
+        .from('reels')
+        .delete()
+        .eq('id', reelId);
+
+      if (error) throw error;
+
+      setReels(prev => prev.filter(r => r.id !== reelId));
+
+      toast({
+        title: 'Success',
+        description: 'Reel deleted successfully.',
+      });
+    } catch (error) {
+      console.error('Error deleting reel:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete reel.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const filteredUsers = users.filter(u =>
     u.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -639,7 +707,7 @@ export default function Admin() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -682,6 +750,19 @@ export default function Admin() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                  <Clapperboard className="w-5 h-5 text-pink-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalReels}</p>
+                  <p className="text-sm text-muted-foreground">Total Reels</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-lg bg-verified/10 flex items-center justify-center">
                   <BadgeCheck className="w-5 h-5 text-verified" />
                 </div>
@@ -709,7 +790,7 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
               Users
@@ -717,6 +798,10 @@ export default function Admin() {
             <TabsTrigger value="posts" className="gap-2">
               <FileText className="w-4 h-4" />
               Posts
+            </TabsTrigger>
+            <TabsTrigger value="reels" className="gap-2">
+              <Clapperboard className="w-4 h-4" />
+              Reels
             </TabsTrigger>
             <TabsTrigger value="books" className="gap-2">
               <BookOpen className="w-4 h-4" />
@@ -1077,6 +1162,69 @@ export default function Admin() {
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteBook(book.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reels Tab */}
+          <TabsContent value="reels">
+            <Card>
+              <CardHeader>
+                <CardTitle>Reels Management</CardTitle>
+                <CardDescription>Review and moderate user reels</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Creator</TableHead>
+                        <TableHead>Caption</TableHead>
+                        <TableHead>Stats</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reels.map((reel) => (
+                        <TableRow key={reel.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{reel.user.display_name}</p>
+                              <p className="text-sm text-muted-foreground">@{reel.user.username}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {reel.caption || <span className="text-muted-foreground italic">No caption</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {reel.view_count || 0}
+                              </span>
+                              <span>❤️ {reel.like_count || 0}</span>
+                              <span>💬 {reel.comment_count || 0}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(reel.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteReel(reel.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />

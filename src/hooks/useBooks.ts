@@ -23,6 +23,9 @@ export interface Book {
   created_at: string;
   updated_at: string;
   published_at: string | null;
+  price?: number;
+  pdf_url?: string | null;
+  is_free?: boolean;
   author?: BookAuthor;
   chapter_count?: number;
   is_in_library?: boolean;
