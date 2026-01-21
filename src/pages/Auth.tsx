@@ -101,7 +101,7 @@ export default function Auth() {
       });
     } else {
       toast({
-        title: 'Welcome to NexusLink!',
+        title: 'Welcome to Twibsers!',
         description: 'Your account has been created successfully.',
       });
       navigate('/');
@@ -131,7 +131,7 @@ export default function Auth() {
             <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
               <Zap className="w-6 h-6 text-white" />
             </div>
-            NexusLink
+            Twibsers
           </h1>
           <p className="text-white/80 mt-2 text-lg">Connect. Create. Collaborate.</p>
         </div>
@@ -169,7 +169,7 @@ export default function Auth() {
         </div>
         
         <p className="relative z-10 text-white/60 text-sm">
-          © 2024 NexusLink. All rights reserved.
+          © 2024 Twibsers. All rights reserved.
         </p>
       </div>
       
@@ -180,7 +180,7 @@ export default function Auth() {
           <div className="lg:hidden mb-8 text-center">
             <h1 className="text-3xl font-display font-bold gradient-text flex items-center justify-center gap-2">
               <Zap className="w-8 h-8 text-primary" />
-              NexusLink
+              Twibsers
             </h1>
           </div>
           
@@ -192,7 +192,7 @@ export default function Auth() {
               <CardDescription>
                 {activeTab === 'login' 
                   ? 'Enter your credentials to access your account' 
-                  : 'Join NexusLink and start connecting'}
+                  : 'Join Twibsers and start connecting'}
               </CardDescription>
             </CardHeader>
             <CardContent>

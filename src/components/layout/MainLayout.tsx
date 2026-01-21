@@ -65,7 +65,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display font-bold text-xl hidden sm:inline">NexusLink</span>
+            <span className="font-display font-bold text-xl hidden sm:inline">Twibsers</span>
           </Link>
 
           {/* Search Bar - Desktop */}
@@ -74,7 +74,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search NexusLink..."
+                placeholder="Search Twibsers..."
                 className="w-full h-10 pl-10 pr-4 rounded-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm"
               />
             </div>

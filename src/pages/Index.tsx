@@ -56,7 +56,7 @@ export default function Index() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
               <Zap className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-bold text-2xl">NexusLink</span>
+            <span className="font-display font-bold text-2xl">Twibsers</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
@@ -81,7 +81,7 @@ export default function Index() {
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground mt-6 max-w-2xl mx-auto">
-            Join NexusLink — where creators, thinkers, and communities come together to share ideas, spark conversations, and build connections that matter.
+            Join Twibsers — where creators, thinkers, and communities come together to share ideas, spark conversations, and build connections that matter.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
@@ -177,10 +177,10 @@ export default function Index() {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <span className="font-display font-semibold">NexusLink</span>
+              <span className="font-display font-semibold">Twibsers</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 NexusLink. All rights reserved.
+              © 2024 Twibsers. All rights reserved.
             </p>
           </div>
         </div>
