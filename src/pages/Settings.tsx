@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useLoginSessions } from '@/hooks/useLoginSessions';
+import { useCallBlocks } from '@/hooks/useCallBlocks';
 import { supabase } from '@/integrations/supabase/client';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, Camera, User, Bell, Lock, Shield, Palette, Eye, 
   Accessibility, Globe, Monitor, Moon, Sun, Smartphone, Laptop, 
-  MapPin, LogOut, Trash2, Key, AlertTriangle, Check, Mail, Upload
+  MapPin, LogOut, Trash2, Key, AlertTriangle, Check, Mail, Upload,
+  PhoneOff, UserX
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -50,6 +52,7 @@ export default function Settings() {
   const { user, profile, loading: authLoading, updateProfile } = useAuth();
   const { preferences, loading: prefsLoading, saving: prefsSaving, updatePreferences } = useUserPreferences();
   const { sessions, loading: sessionsLoading, revokeSession, revokeAllOtherSessions } = useLoginSessions();
+  const { blockedUsers, loading: blocksLoading, unblockUser } = useCallBlocks();
   const { toast } = useToast();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
@@ -764,91 +767,188 @@ export default function Settings() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose how you want to be notified</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive email updates about activity on your account
-                    </p>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                  <CardDescription>Choose how you want to be notified</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Email Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive email updates about activity on your account
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.email_notifications}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, email_notifications: checked })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={formData.email_notifications}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, email_notifications: checked })
-                    }
-                  />
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive push notifications on your devices
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Push Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive push notifications on your devices
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.push_notifications}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, push_notifications: checked })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={formData.push_notifications}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, push_notifications: checked })
-                    }
-                  />
-                </div>
 
-                <Button onClick={handleSave} className="btn-gradient" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
+                  <Button onClick={handleSave} className="btn-gradient" disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Do Not Disturb Card */}
+              <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-amber-500" />
+                    Do Not Disturb
+                  </CardTitle>
+                  <CardDescription>Silence incoming calls and notifications</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium">Enable Do Not Disturb</Label>
+                      <p className="text-sm text-muted-foreground">
+                        When enabled, incoming calls will be silently declined and marked as missed
+                      </p>
+                    </div>
+                    <Switch
+                      checked={preferences?.do_not_disturb ?? false}
+                      onCheckedChange={(checked) => updatePreferences({ do_not_disturb: checked })}
+                    />
+                  </div>
+                  {preferences?.do_not_disturb && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <Bell className="h-4 w-4 text-amber-500" />
+                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                        Do Not Disturb is active. All incoming calls will be silently declined.
+                      </p>
+                    </div>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Privacy Tab */}
           <TabsContent value="privacy">
-            <Card>
-              <CardHeader>
-                <CardTitle>Privacy Settings</CardTitle>
-                <CardDescription>Control who can see your content</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Private Account</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Only approved followers can see your posts and profile
-                    </p>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Privacy Settings</CardTitle>
+                  <CardDescription>Control who can see your content</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Private Account</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Only approved followers can see your posts and profile
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.privacy === 'private'}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, privacy: checked ? 'private' : 'public' })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={formData.privacy === 'private'}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, privacy: checked ? 'private' : 'public' })
-                    }
-                  />
-                </div>
 
-                <Button onClick={handleSave} className="btn-gradient" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
+                  <Button onClick={handleSave} className="btn-gradient" disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Call Blocking Card */}
+              <Card className="border-red-500/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PhoneOff className="h-5 w-5 text-red-500" />
+                    Blocked Callers
+                  </CardTitle>
+                  <CardDescription>
+                    Users you've blocked cannot call you. Block users from their profile or message thread.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {blocksLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : blockedUsers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="p-3 rounded-full bg-muted/50 mb-3">
+                        <UserX className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">No blocked callers</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Block users from their profile or message thread
+                      </p>
+                    </div>
                   ) : (
-                    'Save Changes'
+                    <div className="space-y-3">
+                      {blockedUsers.map((block) => (
+                        <div
+                          key={block.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={block.profile?.avatar_url || undefined} />
+                              <AvatarFallback className="bg-gradient-to-br from-red-500 to-rose-600 text-white">
+                                {block.profile?.display_name?.slice(0, 2).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{block.profile?.display_name || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground">@{block.profile?.username || 'user'}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            onClick={() => unblockUser(block.blocked_id)}
+                          >
+                            Unblock
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Accessibility Tab */}

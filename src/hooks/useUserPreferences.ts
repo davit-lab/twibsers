@@ -21,6 +21,7 @@ export interface UserPreferences {
   screen_reader_optimized: boolean;
   two_factor_enabled: boolean;
   login_alerts: boolean;
+  do_not_disturb: boolean;
 }
 
 const defaultPreferences: Omit<UserPreferences, 'user_id'> = {
@@ -37,6 +38,7 @@ const defaultPreferences: Omit<UserPreferences, 'user_id'> = {
   screen_reader_optimized: false,
   two_factor_enabled: false,
   login_alerts: true,
+  do_not_disturb: false,
 };
 
 export function useUserPreferences() {

@@ -4,6 +4,7 @@ import { useIncomingCalls } from '@/hooks/useIncomingCalls';
 import { supabase } from '@/integrations/supabase/client';
 import IncomingCallModal from '@/components/messaging/IncomingCallModal';
 import CallWaitingIndicator from '@/components/calling/CallWaitingIndicator';
+import HeldCallsIndicator from '@/components/calling/HeldCallsIndicator';
 
 export default function GlobalCallProvider() {
   const navigate = useNavigate();
@@ -12,8 +13,10 @@ export default function GlobalCallProvider() {
     incomingCall, 
     callerProfile, 
     callQueue,
+    heldCalls,
     clearIncomingCall,
     declineQueuedCall,
+    endHeldCall,
   } = useIncomingCalls();
 
   // Check if we're already on the messages page with this conversation
@@ -59,6 +62,18 @@ export default function GlobalCallProvider() {
     await declineQueuedCall(sessionId);
   }, [declineQueuedCall]);
 
+  const handleResumeHeldCall = useCallback((sessionId: string) => {
+    const heldCall = heldCalls.find(c => c.session.id === sessionId);
+    if (!heldCall) return;
+
+    // Navigate to resume the held call
+    navigate(`/messages?conv=${heldCall.session.conversation_id}&resume=${sessionId}`);
+  }, [heldCalls, navigate]);
+
+  const handleEndHeldCall = useCallback(async (sessionId: string) => {
+    await endHeldCall(sessionId);
+  }, [endHeldCall]);
+
   return (
     <>
       {/* Call waiting indicator for queued calls */}
@@ -66,6 +81,13 @@ export default function GlobalCallProvider() {
         queuedCalls={callQueue}
         onAnswer={handleAnswerQueuedCall}
         onDecline={handleDeclineQueuedCall}
+      />
+
+      {/* Held calls indicator */}
+      <HeldCallsIndicator
+        heldCalls={heldCalls}
+        onResume={handleResumeHeldCall}
+        onEnd={handleEndHeldCall}
       />
 
       {/* Main incoming call modal */}
