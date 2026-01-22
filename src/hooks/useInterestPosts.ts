@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -53,12 +53,12 @@ interface UseInterestPostsOptions {
 }
 
 export function useInterestPosts(options: UseInterestPostsOptions = {}) {
-  const { userId, categoryId, limit = 20 } = options;
+  const { userId, categoryId, limit = 10 } = options;
   const { user } = useAuth();
 
-  return useQuery({
-    queryKey: ['interest-posts', userId, categoryId, limit],
-    queryFn: async (): Promise<InterestPost[]> => {
+  return useInfiniteQuery({
+    queryKey: ['interest-posts', userId, categoryId],
+    queryFn: async ({ pageParam }): Promise<{ posts: InterestPost[]; nextCursor: string | null }> => {
       let query = (supabase as any)
         .from('interest_posts')
         .select(`
@@ -88,11 +88,17 @@ export function useInterestPosts(options: UseInterestPostsOptions = {}) {
         query = query.eq('category_id', categoryId);
       }
 
+      // Cursor-based pagination using created_at
+      if (pageParam) {
+        query = query.lt('created_at', pageParam);
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
 
       // Check if current user has liked each post
+      let postsWithLikes = data || [];
       if (user && data?.length > 0) {
         const postIds = data.map((p: any) => p.id);
         const { data: likes } = await (supabase as any)
@@ -103,14 +109,21 @@ export function useInterestPosts(options: UseInterestPostsOptions = {}) {
 
         const likedPostIds = new Set(likes?.map((l: any) => l.post_id) || []);
         
-        return data.map((post: any) => ({
+        postsWithLikes = data.map((post: any) => ({
           ...post,
           user_has_liked: likedPostIds.has(post.id),
         }));
       }
 
-      return data || [];
+      // Determine next cursor
+      const nextCursor = postsWithLikes.length === limit 
+        ? postsWithLikes[postsWithLikes.length - 1].created_at 
+        : null;
+
+      return { posts: postsWithLikes, nextCursor };
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 

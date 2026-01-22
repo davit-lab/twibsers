@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -50,7 +50,7 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
   const { data: categories } = useInterestCategories();
   const { data: isPremium, isLoading: premiumLoading } = usePremiumStatus(userId);
   const { data: viewerIsPremium } = usePremiumStatus(user?.id);
-  const { data: posts, isLoading: postsLoading } = useInterestPosts({ userId });
+  const { data: postsData, isLoading: postsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInterestPosts({ userId });
   const { createPost, deletePost, likePost, unlikePost } = useInterestPostActions();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -61,8 +61,30 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
   const [uploading, setUploading] = useState(false);
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  
+  // Flatten paginated posts
+  const posts = postsData?.pages.flatMap(page => page.posts) || [];
   
   const isLoading = interestsLoading || premiumLoading || postsLoading;
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -489,6 +511,20 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
               </div>
             </motion.div>
           ))}
+          
+          {/* Infinite scroll trigger */}
+          <div ref={loadMoreRef} className="py-4">
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!hasNextPage && posts.length > 0 && (
+              <p className="text-center text-sm text-muted-foreground">
+                You've seen all posts
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <div className="text-center py-12">
