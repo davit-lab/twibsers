@@ -5,12 +5,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserInterests, useInterestCategories } from '@/hooks/useInterests';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
-import { useInterestPosts, useInterestPostActions } from '@/hooks/useInterestPosts';
+import { useInterestPosts, useInterestPostActions, InterestPost } from '@/hooks/useInterestPosts';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import InterestPostComments from './InterestPostComments';
 import { 
   Sparkles, Lock, Crown, PlusCircle, Heart, MessageCircle, 
   Share2, MoreHorizontal, Trash2, Loader2, BadgeCheck 
@@ -40,6 +41,7 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [commentsPost, setCommentsPost] = useState<InterestPost | null>(null);
   
   const isLoading = interestsLoading || premiumLoading || postsLoading;
 
@@ -271,7 +273,10 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
                   <Heart className={cn("h-4 w-4", post.user_has_liked && "fill-current")} />
                   {post.like_count}
                 </button>
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <button 
+                  onClick={() => setCommentsPost(post)}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
                   <MessageCircle className="h-4 w-4" />
                   {post.comment_count}
                 </button>
@@ -370,6 +375,17 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Comments Modal */}
+      {commentsPost && (
+        <InterestPostComments
+          postId={commentsPost.id}
+          postAuthorName={commentsPost.profiles?.display_name || ''}
+          commentCount={commentsPost.comment_count}
+          open={!!commentsPost}
+          onOpenChange={(open) => !open && setCommentsPost(null)}
+        />
+      )}
     </div>
   );
 }
