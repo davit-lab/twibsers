@@ -16,7 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Sparkles, Lock, Crown, PlusCircle, Heart, MessageCircle, 
-  Share2, MoreHorizontal, Trash2, Loader2, BadgeCheck, ImagePlus, X, Video
+  Share2, MoreHorizontal, Trash2, Loader2, BadgeCheck, ImagePlus, X, 
+  Copy, Check, Twitter, Facebook, MessageSquare, Link as LinkIcon
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -24,6 +25,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface MediaPreview {
@@ -53,6 +59,7 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
   const [commentsPost, setCommentsPost] = useState<InterestPost | null>(null);
   const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isLoading = interestsLoading || premiumLoading || postsLoading;
@@ -168,6 +175,50 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
       setSelectedCategory('');
     }
     setCreateDialogOpen(open);
+  };
+
+  const getPostUrl = (postId: string, username: string) => {
+    return `${window.location.origin}/profile/${username}?post=${postId}`;
+  };
+
+  const handleCopyLink = async (postId: string, username: string) => {
+    const url = getPostUrl(postId, username);
+    await navigator.clipboard.writeText(url);
+    setCopiedPostId(postId);
+    toast({
+      title: 'Link copied!',
+      description: 'Post link copied to clipboard.',
+    });
+    setTimeout(() => setCopiedPostId(null), 2000);
+  };
+
+  const handleShareTwitter = (post: InterestPost) => {
+    const url = getPostUrl(post.id, post.profiles?.username || '');
+    const text = post.content.slice(0, 200) + (post.content.length > 200 ? '...' : '');
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
+
+  const handleShareFacebook = (post: InterestPost) => {
+    const url = getPostUrl(post.id, post.profiles?.username || '');
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
+
+  const handleShareWhatsApp = (post: InterestPost) => {
+    const url = getPostUrl(post.id, post.profiles?.username || '');
+    const text = `${post.content.slice(0, 100)}... ${url}`;
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   const handleLikeToggle = async (postId: string, isLiked: boolean) => {
@@ -392,9 +443,49 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
                   <MessageCircle className="h-4 w-4" />
                   {post.comment_count}
                 </button>
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-                  <Share2 className="h-4 w-4" />
-                </button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+                      <Share2 className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2 bg-popover border border-border" align="start">
+                    <div className="space-y-1">
+                      <button
+                        onClick={() => handleCopyLink(post.id, post.profiles?.username || '')}
+                        className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        {copiedPostId === post.id ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <LinkIcon className="h-4 w-4" />
+                        )}
+                        {copiedPostId === post.id ? 'Copied!' : 'Copy link'}
+                      </button>
+                      <button
+                        onClick={() => handleShareTwitter(post)}
+                        className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        <Twitter className="h-4 w-4" />
+                        Share on X
+                      </button>
+                      <button
+                        onClick={() => handleShareFacebook(post)}
+                        className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        <Facebook className="h-4 w-4" />
+                        Share on Facebook
+                      </button>
+                      <button
+                        onClick={() => handleShareWhatsApp(post)}
+                        className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        Share on WhatsApp
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </motion.div>
           ))}
