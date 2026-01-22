@@ -12,9 +12,11 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft, Phone, Smartphone } from 'lucide-react';
 import { validateEmail } from '@/lib/emailValidation';
+import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
+import CountryCodeSelector from '@/components/auth/CountryCodeSelector';
+import { countries, type Country } from '@/lib/countryCodes';
 
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
-const phoneSchema = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Enter phone with country code (e.g., +1234567890)');
 
 type AuthMode = 'login' | 'signup' | 'otp-request' | 'otp-verify' | 'phone-request' | 'phone-verify';
 
@@ -35,6 +37,7 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<Country>(countries.find(c => c.code === 'US')!);
   const [phoneOtpCode, setPhoneOtpCode] = useState('');
 
   // Redirect if already logged in
@@ -200,16 +203,19 @@ export default function Auth() {
   const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const phoneValidation = phoneSchema.safeParse(phoneNumber);
-    if (!phoneValidation.success) {
-      setErrors({ email: phoneValidation.error.errors[0].message });
+    // Build full phone number with country code
+    const fullPhoneNumber = selectedCountry.dialCode + phoneNumber.replace(/^0+/, '');
+    
+    // Validate using libphonenumber-js
+    if (!isValidPhoneNumber(fullPhoneNumber)) {
+      setErrors({ email: 'Please enter a valid phone number for ' + selectedCountry.name });
       return;
     }
     setErrors({});
     
     setLoading(true);
     const { error } = await supabase.auth.signInWithOtp({
-      phone: phoneNumber,
+      phone: fullPhoneNumber,
     });
     setLoading(false);
     
@@ -239,10 +245,11 @@ export default function Auth() {
       });
       return;
     }
+    const fullPhoneNumber = selectedCountry.dialCode + phoneNumber.replace(/^0+/, '');
     
     setLoading(true);
     const { error } = await supabase.auth.verifyOtp({
-      phone: phoneNumber,
+      phone: fullPhoneNumber,
       token: phoneOtpCode,
       type: 'sms',
     });
@@ -491,16 +498,25 @@ export default function Auth() {
                   <form onSubmit={handlePhoneRequest} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone-number">Phone Number</Label>
-                      <Input
-                        id="phone-number"
-                        type="tel"
-                        placeholder="+1234567890"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className={errors.email ? 'border-destructive' : ''}
-                        disabled={loading}
-                      />
-                      <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US)</p>
+                      <div className="flex gap-2">
+                        <CountryCodeSelector
+                          value={selectedCountry.code}
+                          onChange={setSelectedCountry}
+                          disabled={loading}
+                        />
+                        <Input
+                          id="phone-number"
+                          type="tel"
+                          placeholder="Enter your number"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d]/g, ''))}
+                          className={`flex-1 ${errors.email ? 'border-destructive' : ''}`}
+                          disabled={loading}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Select your country and enter your phone number
+                      </p>
                       {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                     </div>
                     
