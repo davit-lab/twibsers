@@ -116,7 +116,7 @@ export default function Auth() {
         title: 'Welcome to Twibsers! 🎉',
         description: 'Your account has been created successfully.',
       });
-      navigate('/');
+      navigate('/onboarding/interests');
     }
   };
 
@@ -181,11 +181,19 @@ export default function Auth() {
         description: error.message,
       });
     } else {
+      // Check if user has interests (if not, they're new)
+      const { count } = await (supabase as any)
+        .from('user_interests')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+      
+      const isNewUser = (count || 0) === 0;
+      
       toast({
         title: 'Welcome! 🎉',
         description: 'You have successfully signed in.',
       });
-      navigate('/');
+      navigate(isNewUser ? '/onboarding/interests' : '/');
     }
   };
 
@@ -247,11 +255,19 @@ export default function Auth() {
         description: error.message,
       });
     } else {
+      // Check if user has interests (if not, they're new)
+      const { count } = await (supabase as any)
+        .from('user_interests')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+      
+      const isNewUser = (count || 0) === 0;
+      
       toast({
         title: 'Welcome! 🎉',
         description: 'You have successfully signed in.',
       });
-      navigate('/');
+      navigate(isNewUser ? '/onboarding/interests' : '/');
     }
   };
 

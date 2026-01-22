@@ -19,6 +19,7 @@ import ChapterReader from "./pages/ChapterReader";
 import Pricing from "./pages/Pricing";
 import Admin from "./pages/Admin";
 import Reels from "./pages/Reels";
+import OnboardingInterests from "./pages/OnboardingInterests";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/reels" element={<Reels />} />
+            <Route path="/onboarding/interests" element={<OnboardingInterests />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
