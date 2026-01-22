@@ -40,10 +40,12 @@ import {
   CalendarDays,
   Users,
   FileText,
-  Film,
   UserCheck,
   Crown,
+  ImagePlus,
 } from 'lucide-react';
+import ProfileLibrarySection from '@/components/library/ProfileLibrarySection';
+import CoverUploadDialog from '@/components/profile/CoverUploadDialog';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -73,7 +75,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [postCount, setPostCount] = useState(0);
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   
   // Story states
   const [uploading, setUploading] = useState(false);
@@ -90,7 +92,7 @@ export default function Profile() {
   const { groupedStories, viewStory, uploadStory, deleteStory } = useStories({ 
     profileUserId: profileData?.user_id 
   });
-  const [reelCount, setReelCount] = useState(0);
+  
   
   // Modal states
   const [followModalOpen, setFollowModalOpen] = useState(false);
@@ -129,22 +131,6 @@ export default function Profile() {
         
         setIsProfileAdmin(!!roleData);
 
-        // Get post count
-        const { count } = await supabase
-          .from('posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', data.user_id);
-        
-        setPostCount(count || 0);
-
-        // Get reel count
-        const { count: reelsCount } = await supabase
-          .from('reels')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', data.user_id)
-          .eq('is_published', true);
-        
-        setReelCount(reelsCount || 0);
       }
       setLoading(false);
     };
@@ -301,16 +287,26 @@ export default function Profile() {
             {/* Actions on cover */}
             <div className="absolute top-4 right-4 flex gap-2">
               {isOwnProfile && (
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  asChild
-                  className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
-                >
-                  <Link to="/settings">
-                    <Settings className="h-5 w-5" />
-                  </Link>
-                </Button>
+                <>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setCoverDialogOpen(true)}
+                    className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                  >
+                    <ImagePlus className="h-5 w-5" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    asChild
+                    className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                  >
+                    <Link to="/settings">
+                      <Settings className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </>
               )}
               <Button 
                 variant="ghost" 
@@ -509,18 +505,6 @@ export default function Profile() {
 
               {/* Stats Row */}
               <div className="flex items-center gap-6 mt-5 pt-5 border-t border-border/50">
-                <button className="group">
-                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
-                    {postCount}
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-1.5">posts</span>
-                </button>
-                <Link to="/reels" className="group">
-                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
-                    {reelCount}
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-1.5">reels</span>
-                </Link>
                 <button 
                   className="group"
                   onClick={() => {
@@ -554,11 +538,6 @@ export default function Profile() {
                     <Button variant="outline" className="flex-1" asChild>
                       <Link to="/settings">Edit Profile</Link>
                     </Button>
-                    <Button variant="outline" size="icon" asChild>
-                      <Link to="/reels">
-                        <Film className="h-5 w-5" />
-                      </Link>
-                    </Button>
                     <Button variant="outline" size="icon">
                       <Share2 className="h-5 w-5" />
                     </Button>
@@ -588,15 +567,15 @@ export default function Profile() {
             </div>
           </div>
 
+          {/* My Library Section */}
+          <ProfileLibrarySection userId={profileData.user_id} isOwnProfile={isOwnProfile} />
+
           {/* Activity Section */}
           <div className="glass-card mx-4 mt-4 rounded-xl border border-border/50">
             <div className="p-5 border-b border-border/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <h2 className="font-semibold text-lg">Activity</h2>
-                </div>
-                <span className="text-sm text-muted-foreground">{postCount} posts</span>
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-lg">Activity</h2>
               </div>
             </div>
             
@@ -776,6 +755,15 @@ export default function Profile() {
         userId={profileData.user_id}
         type={followModalType}
         username={profileData.username}
+      />
+
+      {/* Cover Upload Dialog */}
+      <CoverUploadDialog
+        open={coverDialogOpen}
+        onOpenChange={setCoverDialogOpen}
+        onUploadComplete={(url) => {
+          setProfileData(prev => prev ? { ...prev, cover_url: url } : null);
+        }}
       />
 
       <style>{`
