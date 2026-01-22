@@ -43,9 +43,7 @@ export default function OnboardingInterests() {
     navigate('/');
   };
 
-  const handleSkip = () => {
-    navigate('/');
-  };
+  // Removed handleSkip - interests selection is now mandatory
 
   if (authLoading || categoriesLoading || checkingOnboarding) {
     return (
@@ -128,15 +126,8 @@ export default function OnboardingInterests() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          className="flex items-center justify-center"
         >
-          <Button
-            variant="ghost"
-            onClick={handleSkip}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Skip for now
-          </Button>
           <Button
             onClick={handleContinue}
             disabled={!canContinue || saveInterests.isPending}
