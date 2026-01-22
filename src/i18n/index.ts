@@ -23,6 +23,26 @@ const resources = {
   zh: { translation: zh },
 };
 
+// Language metadata for language selector
+export const languages = [
+  { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' as const },
+  { code: 'ka', name: 'Georgian', nativeName: 'ქართული', dir: 'ltr' as const },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', dir: 'ltr' as const },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', dir: 'ltr' as const },
+  { code: 'fr', name: 'French', nativeName: 'Français', dir: 'ltr' as const },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', dir: 'ltr' as const },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', dir: 'rtl' as const },
+  { code: 'zh', name: 'Chinese', nativeName: '中文', dir: 'ltr' as const },
+];
+
+// Update document direction when language changes
+const updateDocumentDirection = (lng: string) => {
+  const lang = languages.find(l => l.code === lng);
+  const dir = lang?.dir || 'ltr';
+  document.documentElement.dir = dir;
+  document.documentElement.lang = lng;
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -39,16 +59,10 @@ i18n
     },
   });
 
-export default i18n;
+// Set initial direction
+updateDocumentDirection(i18n.language);
 
-// Language metadata for language selector
-export const languages = [
-  { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' },
-  { code: 'ka', name: 'Georgian', nativeName: 'ქართული', dir: 'ltr' },
-  { code: 'ru', name: 'Russian', nativeName: 'Русский', dir: 'ltr' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', dir: 'ltr' },
-  { code: 'fr', name: 'French', nativeName: 'Français', dir: 'ltr' },
-  { code: 'de', name: 'German', nativeName: 'Deutsch', dir: 'ltr' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية', dir: 'rtl' },
-  { code: 'zh', name: 'Chinese', nativeName: '中文', dir: 'ltr' },
-];
+// Listen for language changes
+i18n.on('languageChanged', updateDocumentDirection);
+
+export default i18n;
