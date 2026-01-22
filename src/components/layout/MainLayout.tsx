@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Home,
-  Search,
   Compass,
   Clapperboard,
   MessageCircle,
@@ -32,6 +31,7 @@ import {
   Ban,
   Clock,
   Crown,
+  Plus,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -52,8 +52,8 @@ const navItems = [
 const mobileNavItems = [
   { icon: Home, label: 'Home', href: '/', id: 'home' },
   { icon: Compass, label: 'Explore', href: '/explore', id: 'explore' },
+  { icon: null, label: 'Create', href: '#create', id: 'create' }, // Center button placeholder
   { icon: Clapperboard, label: 'Reels', href: '/reels', id: 'reels' },
-  { icon: BookOpen, label: 'Library', href: '/library', id: 'library' },
   { icon: Menu, label: 'More', href: '#more', id: 'more' },
 ];
 
@@ -86,12 +86,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar - Instagram style */}
+      {/* Desktop Sidebar - Glassmorphism style */}
       {user && (
-        <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-[220px] xl:w-[245px] border-r border-border px-3 py-6">
+        <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-[220px] xl:w-[245px] glass-nav-solid border-r border-border/50 px-3 py-6 z-40">
           {/* Logo */}
-          <Link to="/" className="px-3 mb-8">
-            <span className="font-semibold text-xl">Twibsers</span>
+          <Link to="/" className="px-3 mb-8 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl btn-center-action flex items-center justify-center">
+              <span className="font-bold text-sm">T</span>
+            </div>
+            <span className="font-semibold text-xl gradient-text">Twibsers</span>
           </Link>
 
           {/* Navigation */}
@@ -106,8 +109,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     key={item.id}
                     onClick={() => setCreateDialogOpen(true)}
                     className={cn(
-                      'flex items-center gap-4 w-full px-3 py-3 rounded-lg text-[15px] transition-colors',
-                      'hover:bg-secondary text-foreground'
+                      'flex items-center gap-4 w-full px-3 py-3 rounded-xl text-[15px] transition-all duration-200',
+                      'hover:bg-primary/10 text-foreground nav-item-hover'
                     )}
                   >
                     <item.icon className="h-6 w-6" strokeWidth={1.5} />
@@ -121,18 +124,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   key={item.id}
                   to={item.href}
                   className={cn(
-                    'flex items-center gap-4 px-3 py-3 rounded-lg text-[15px] transition-colors',
+                    'flex items-center gap-4 px-3 py-3 rounded-xl text-[15px] transition-all duration-200 nav-item-hover',
                     active
-                      ? 'font-semibold'
-                      : 'text-foreground hover:bg-secondary'
+                      ? 'font-semibold bg-primary/10'
+                      : 'text-foreground hover:bg-primary/10'
                   )}
                 >
                   <item.icon 
-                    className="h-6 w-6" 
+                    className={cn("h-6 w-6 transition-transform", active && "text-primary")}
                     strokeWidth={active ? 2.5 : 1.5}
                     fill={active ? 'currentColor' : 'none'}
                   />
-                  <span>{item.label}</span>
+                  <span className={active ? 'text-primary' : ''}>{item.label}</span>
                 </Link>
               );
             })}
@@ -141,12 +144,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
           {/* Bottom Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-4 w-full px-3 py-3 rounded-lg text-[15px] transition-colors hover:bg-secondary">
+              <button className="flex items-center gap-4 w-full px-3 py-3 rounded-xl text-[15px] transition-all duration-200 hover:bg-primary/10 nav-item-hover">
                 <Menu className="h-6 w-6" strokeWidth={1.5} />
                 <span>More</span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[200px]" align="start" side="top">
+            <DropdownMenuContent className="w-[200px] glass-nav border-border/50" align="start" side="top">
               <DropdownMenuItem asChild>
                 <Link to="/settings" className="cursor-pointer">
                   <Settings className="mr-3 h-4 w-4" />
@@ -172,11 +175,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
           {/* Profile */}
           <Link
             to={`/profile/${profile?.username}`}
-            className="flex items-center gap-3 px-3 py-3 mt-2 rounded-lg transition-colors hover:bg-secondary"
+            className="flex items-center gap-3 px-3 py-3 mt-2 rounded-xl transition-all duration-200 hover:bg-primary/10 nav-item-hover"
           >
-            <Avatar className="h-6 w-6">
+            <Avatar className="h-7 w-7 ring-2 ring-primary/20">
               <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-[10px] bg-muted">
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                 {getInitials(profile?.display_name || 'U')}
               </AvatarFallback>
             </Avatar>
@@ -187,20 +190,45 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </aside>
       )}
 
-      {/* Mobile Header */}
+      {/* Mobile Header - Glassmorphism */}
       {user && (
-        <header className="lg:hidden sticky top-0 z-50 bg-background border-b border-border">
+        <header className="lg:hidden sticky top-0 z-50 glass-nav border-b border-border/50">
           <div className="flex items-center justify-between h-12 px-4">
-            <Link to="/" className="font-semibold text-lg">
-              Twibsers
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg btn-center-action flex items-center justify-center">
+                <span className="font-bold text-xs">T</span>
+              </div>
+              <span className="font-semibold text-lg gradient-text">Twibsers</span>
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <NotificationDropdown />
               <Link to="/messages">
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MessageCircle className="h-6 w-6" strokeWidth={1.5} />
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-primary/10">
+                  <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
                 </Button>
               </Link>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* Guest Header */}
+      {!user && (
+        <header className="sticky top-0 z-50 glass-nav border-b border-border/50">
+          <div className="flex items-center justify-between h-14 px-4 max-w-screen-lg mx-auto">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl btn-center-action flex items-center justify-center">
+                <span className="font-bold text-sm">T</span>
+              </div>
+              <span className="font-semibold text-xl gradient-text">Twibsers</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="rounded-xl" asChild>
+                <Link to="/auth">Log in</Link>
+              </Button>
+              <Button size="sm" className="rounded-xl btn-center-action border-0" asChild>
+                <Link to="/auth?mode=signup">Sign up</Link>
+              </Button>
             </div>
           </div>
         </header>
@@ -265,39 +293,55 @@ export default function MainLayout({ children }: MainLayoutProps) {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - Glassmorphism with Center Action */}
       {user && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-inset-bottom">
-          <div className="flex items-center justify-around h-12">
-            {mobileNavItems.map((item) => {
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass-nav border-t border-border/50 safe-area-inset-bottom">
+          <div className="flex items-center justify-around h-16 px-2 relative">
+            {mobileNavItems.map((item, index) => {
               const active = isActive(item.href);
               const isMore = item.href === '#more';
+              const isCreate = item.href === '#create';
+
+              // Center Create Button
+              if (isCreate) {
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setCreateDialogOpen(true)}
+                    className="relative -mt-6"
+                  >
+                    <div className="w-14 h-14 rounded-2xl btn-center-action flex items-center justify-center transition-transform duration-200 active:scale-95">
+                      <Plus className="h-7 w-7 text-white" strokeWidth={2} />
+                    </div>
+                  </button>
+                );
+              }
 
               if (isMore) {
                 return (
                   <DropdownMenu key={item.id}>
                     <DropdownMenuTrigger asChild>
-                      <button className="flex items-center justify-center p-2">
+                      <button className="flex flex-col items-center justify-center p-2 gap-0.5 rounded-xl transition-all duration-200 hover:bg-primary/10">
                         <Menu className="h-6 w-6" strokeWidth={1.5} />
+                        <span className="text-[10px] text-muted-foreground">More</span>
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent 
-                      className="w-[180px] bg-background border border-border shadow-lg" 
+                      className="w-[200px] glass-nav border-border/50" 
                       align="end" 
                       side="top"
-                      sideOffset={12}
+                      sideOffset={16}
                     >
-                      <DropdownMenuItem 
-                        onClick={() => setCreateDialogOpen(true)} 
-                        className="cursor-pointer"
-                      >
-                        <PlusSquare className="mr-3 h-4 w-4" />
-                        Create
-                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link to={`/profile/${profile?.username}`} className="cursor-pointer">
                           <User className="mr-3 h-4 w-4" />
                           Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/library" className="cursor-pointer">
+                          <BookOpen className="mr-3 h-4 w-4" />
+                          Library
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
@@ -347,13 +391,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <Link
                   key={item.id}
                   to={item.href}
-                  className="flex items-center justify-center p-2"
+                  className="flex flex-col items-center justify-center p-2 gap-0.5 rounded-xl transition-all duration-200 hover:bg-primary/10"
                 >
-                  <item.icon 
-                    className="h-6 w-6" 
-                    strokeWidth={active ? 2.5 : 1.5}
-                    fill={active ? 'currentColor' : 'none'}
-                  />
+                  {item.icon && (
+                    <item.icon 
+                      className={cn("h-6 w-6 transition-colors", active && "text-primary")}
+                      strokeWidth={active ? 2.5 : 1.5}
+                      fill={active ? 'currentColor' : 'none'}
+                    />
+                  )}
+                  <span className={cn("text-[10px]", active ? "text-primary font-medium" : "text-muted-foreground")}>
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}

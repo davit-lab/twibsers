@@ -152,6 +152,20 @@
     @apply bg-card border border-border rounded-xl;
   }
 
+  /* Glassmorphism navigation */
+  .glass-nav {
+    background: hsl(var(--background) / 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .glass-nav-solid {
+    background: hsl(var(--background) / 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
   /* Premium card - subtle elevation */
   .glass-premium {
     @apply bg-card border border-border rounded-xl shadow-sm;
@@ -169,6 +183,21 @@
   /* Primary button - solid */
   .btn-gradient {
     @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors;
+  }
+
+  /* Center action button gradient */
+  .btn-center-action {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    @apply text-white shadow-lg;
+    box-shadow: 0 4px 20px hsl(var(--primary) / 0.4);
+  }
+
+  .btn-center-action:hover {
+    box-shadow: 0 6px 24px hsl(var(--primary) / 0.5);
+  }
+
+  .btn-center-action:active {
+    transform: scale(0.95);
   }
 
   /* Call buttons */
@@ -277,6 +306,21 @@
 
   .conversation-item.active {
     @apply bg-secondary;
+  }
+
+  /* Nav item hover effect */
+  .nav-item-hover {
+    @apply relative transition-all duration-200;
+  }
+
+  .nav-item-hover::before {
+    content: '';
+    @apply absolute inset-0 rounded-xl opacity-0 transition-opacity duration-200;
+    background: hsl(var(--primary) / 0.1);
+  }
+
+  .nav-item-hover:hover::before {
+    @apply opacity-100;
   }
 }
 
