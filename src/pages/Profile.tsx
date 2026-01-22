@@ -47,7 +47,7 @@ import {
   ImagePlus,
   Sparkles,
 } from 'lucide-react';
-import ProfileLibrarySection from '@/components/library/ProfileLibrarySection';
+import LibraryModal from '@/components/library/LibraryModal';
 import CoverUploadDialog from '@/components/profile/CoverUploadDialog';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -100,6 +100,8 @@ export default function Profile() {
   // Modal states
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
+  const [libraryModalOpen, setLibraryModalOpen] = useState(false);
+  const [libraryCount, setLibraryCount] = useState(0);
 
   const hasStories = groupedStories.length > 0 && groupedStories[0]?.stories.length > 0;
   const currentGroup = groupedStories[0];
@@ -134,6 +136,13 @@ export default function Profile() {
         
         setIsProfileAdmin(!!roleData);
 
+        // Fetch library count
+        const { count } = await supabase
+          .from('user_library')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', data.user_id);
+        
+        setLibraryCount(count || 0);
       }
       setLoading(false);
     };
@@ -532,6 +541,15 @@ export default function Profile() {
                   </span>
                   <span className="text-sm text-muted-foreground ml-1.5">following</span>
                 </button>
+                <button 
+                  className="group"
+                  onClick={() => setLibraryModalOpen(true)}
+                >
+                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                    {libraryCount.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1.5">library</span>
+                </button>
               </div>
 
               {/* Mobile Action Buttons */}
@@ -570,8 +588,14 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* My Library Section */}
-          <ProfileLibrarySection userId={profileData.user_id} isOwnProfile={isOwnProfile} />
+          {/* Library Modal */}
+          <LibraryModal
+            open={libraryModalOpen}
+            onOpenChange={setLibraryModalOpen}
+            userId={profileData.user_id}
+            username={profileData.username}
+            isOwnProfile={isOwnProfile}
+          />
 
           {/* Activity & Interests Tabs */}
           <div className="glass-card mx-4 mt-4 rounded-xl border border-border/50">
