@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -12,9 +12,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InterestPostComments from './InterestPostComments';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Sparkles, Lock, Crown, PlusCircle, Heart, MessageCircle, 
-  Share2, MoreHorizontal, Trash2, Loader2, BadgeCheck 
+  Share2, MoreHorizontal, Trash2, Loader2, BadgeCheck, ImagePlus, X, Video
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -24,6 +26,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
+interface MediaPreview {
+  file: File;
+  preview: string;
+  type: 'image' | 'video';
+}
+
 interface InterestsFeedProps {
   userId: string;
   isOwnProfile?: boolean;
@@ -31,6 +39,7 @@ interface InterestsFeedProps {
 
 export default function InterestsFeed({ userId, isOwnProfile = false }: InterestsFeedProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { data: userInterests, isLoading: interestsLoading } = useUserInterests(userId);
   const { data: categories } = useInterestCategories();
   const { data: isPremium, isLoading: premiumLoading } = usePremiumStatus(userId);
@@ -42,20 +51,123 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [commentsPost, setCommentsPost] = useState<InterestPost | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isLoading = interestsLoading || premiumLoading || postsLoading;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file',
+        description: 'Please select an image or video file.',
+      });
+      return;
+    }
+
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'File too large',
+        description: 'Maximum file size is 50MB.',
+      });
+      return;
+    }
+
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    setMediaPreview({
+      file,
+      preview: URL.createObjectURL(file),
+      type,
+    });
+  };
+
+  const removeMedia = () => {
+    if (mediaPreview) {
+      URL.revokeObjectURL(mediaPreview.preview);
+      setMediaPreview(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadMedia = async (file: File): Promise<{ url: string; type: string } | null> => {
+    if (!user) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from('interest-media')
+      .upload(fileName, file);
+
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('interest-media')
+      .getPublicUrl(fileName);
+
+    return { url: publicUrl, type: file.type };
+  };
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim() || !selectedCategory) return;
     
-    await createPost.mutateAsync({
-      content: newPostContent.trim(),
-      categoryId: selectedCategory,
-    });
-    
-    setNewPostContent('');
-    setSelectedCategory('');
-    setCreateDialogOpen(false);
+    setUploading(true);
+    try {
+      let mediaUrl: string | undefined;
+      let mediaType: string | undefined;
+
+      if (mediaPreview) {
+        const uploaded = await uploadMedia(mediaPreview.file);
+        if (uploaded) {
+          mediaUrl = uploaded.url;
+          mediaType = uploaded.type;
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Upload failed',
+            description: 'Failed to upload media. Please try again.',
+          });
+          setUploading(false);
+          return;
+        }
+      }
+
+      await createPost.mutateAsync({
+        content: newPostContent.trim(),
+        categoryId: selectedCategory,
+        mediaUrl,
+        mediaType,
+      });
+      
+      removeMedia();
+      setNewPostContent('');
+      setSelectedCategory('');
+      setCreateDialogOpen(false);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      removeMedia();
+      setNewPostContent('');
+      setSelectedCategory('');
+    }
+    setCreateDialogOpen(open);
   };
 
   const handleLikeToggle = async (postId: string, isLiked: boolean) => {
@@ -313,7 +425,7 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
       )}
 
       {/* Create Post Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Interest Post</DialogTitle>
@@ -353,19 +465,71 @@ export default function InterestsFeed({ userId, isOwnProfile = false }: Interest
               />
             </div>
 
+            {/* Media Preview */}
+            {mediaPreview && (
+              <div className="relative rounded-lg overflow-hidden border border-border">
+                {mediaPreview.type === 'video' ? (
+                  <video 
+                    src={mediaPreview.preview} 
+                    controls 
+                    className="w-full max-h-64 object-cover"
+                  />
+                ) : (
+                  <img 
+                    src={mediaPreview.preview} 
+                    alt="Preview" 
+                    className="w-full max-h-64 object-cover"
+                  />
+                )}
+                <button
+                  onClick={removeMedia}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Media Upload Button */}
+            {!mediaPreview && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  Add Media
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Images or videos up to 50MB
+                </span>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleDialogClose(false)}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleCreatePost}
-                disabled={!newPostContent.trim() || !selectedCategory || createPost.isPending}
+                disabled={!newPostContent.trim() || !selectedCategory || createPost.isPending || uploading}
                 className="btn-gradient"
               >
-                {createPost.isPending ? (
+                {(createPost.isPending || uploading) ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Posting...
+                    {uploading ? 'Uploading...' : 'Posting...'}
                   </>
                 ) : (
                   'Post'
