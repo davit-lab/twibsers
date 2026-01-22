@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import MainLayout from '@/components/layout/MainLayout';
 import Feed from '@/components/feed/Feed';
+import InterestsFeed from '@/components/feed/InterestsFeed';
 import FollowButton from '@/components/social/FollowButton';
 import FollowersFollowingModal from '@/components/social/FollowersFollowingModal';
 import { useFollowStats } from '@/hooks/useFollowStats';
@@ -15,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PremiumBadge } from '@/components/ui/premium-badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   BadgeCheck,
@@ -43,6 +45,7 @@ import {
   UserCheck,
   Crown,
   ImagePlus,
+  Sparkles,
 } from 'lucide-react';
 import ProfileLibrarySection from '@/components/library/ProfileLibrarySection';
 import CoverUploadDialog from '@/components/profile/CoverUploadDialog';
@@ -570,18 +573,30 @@ export default function Profile() {
           {/* My Library Section */}
           <ProfileLibrarySection userId={profileData.user_id} isOwnProfile={isOwnProfile} />
 
-          {/* Activity Section */}
+          {/* Activity & Interests Tabs */}
           <div className="glass-card mx-4 mt-4 rounded-xl border border-border/50">
-            <div className="p-5 border-b border-border/50">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Activity</h2>
+            <Tabs defaultValue="activity" className="w-full">
+              <div className="p-4 border-b border-border/50">
+                <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="interests" className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Interests
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </div>
-            
-            <div className="p-4">
-              <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
-            </div>
+              
+              <TabsContent value="activity" className="p-4 mt-0">
+                <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
+              </TabsContent>
+              
+              <TabsContent value="interests" className="p-4 mt-0">
+                <InterestsFeed userId={profileData.user_id} isOwnProfile={isOwnProfile} />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
