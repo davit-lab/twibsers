@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookPurchaseStatus, useCreateBookCheckout } from '@/hooks/useBookPurchase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Loader2, ShoppingCart, Check, FileText, Lock, AlertCircle } from 'lucide-react';
+import { Loader2, ShoppingCart, Check, FileText, AlertCircle, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BookPurchaseButtonProps {
@@ -15,6 +16,7 @@ interface BookPurchaseButtonProps {
   isAuthor: boolean;
   hasPdf: boolean;
   authorHasStripe?: boolean;
+  authorId?: string;
   onReadPdf?: () => void;
   className?: string;
 }
@@ -26,6 +28,7 @@ export default function BookPurchaseButton({
   isAuthor,
   hasPdf,
   authorHasStripe = true,
+  authorId,
   onReadPdf,
   className,
 }: BookPurchaseButtonProps) {
@@ -33,10 +36,31 @@ export default function BookPurchaseButton({
   const navigate = useNavigate();
   const { data: purchaseStatus, isLoading: statusLoading } = useBookPurchaseStatus(bookId);
   const createCheckout = useCreateBookCheckout();
+  const [isContactingAuthor, setIsContactingAuthor] = useState(false);
 
   const formatPrice = (cents: number) => {
     return (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
   };
+
+  const handleContactAuthor = async () => {
+    if (!user || !authorId) return;
+    
+    setIsContactingAuthor(true);
+    try {
+      const { data: conversationId, error } = await supabase.rpc('get_or_create_dm_conversation', {
+        other_user_id: authorId,
+      });
+
+      if (error) throw error;
+      
+      navigate(`/messages?id=${conversationId}`);
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    } finally {
+      setIsContactingAuthor(false);
+    }
+  };
+
 
   // Author always has access
   if (isAuthor) {
@@ -119,19 +143,37 @@ export default function BookPurchaseButton({
   // Author hasn't set up Stripe
   if (!authorHasStripe) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button disabled variant="outline" className={cn("gap-2", className)}>
-              <AlertCircle className="h-4 w-4" />
-              ${formatPrice(price)} - Not Available
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-center">
-            <p>This book cannot be purchased yet because the author hasn't set up their payment account.</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div className="flex flex-col gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button disabled variant="outline" className={cn("gap-2", className)}>
+                <AlertCircle className="h-4 w-4" />
+                ${formatPrice(price)} - Not Available
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-center">
+              <p>This book cannot be purchased yet because the author hasn't set up their payment account.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {user && authorId && (
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={handleContactAuthor}
+            disabled={isContactingAuthor}
+            className="gap-2"
+          >
+            {isContactingAuthor ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            Contact Author
+          </Button>
+        )}
+      </div>
     );
   }
 
