@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { useBook, useBookActions, useBooks } from '@/hooks/useBooks';
-import { useBookPurchaseStatus } from '@/hooks/useBookPurchase';
+import { useBookPurchaseStatus, useAuthorStripeStatus } from '@/hooks/useBookPurchase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,6 +43,7 @@ export default function BookDetail() {
   const { book, chapters, progress, isInLibrary, isLoading, refetch, setIsInLibrary } = useBook(bookId);
   const { addToLibrary, removeFromLibrary } = useBookActions();
   const { data: purchaseStatus } = useBookPurchaseStatus(bookId);
+  const { data: authorHasStripe } = useAuthorStripeStatus(book?.author_id);
   const { books: moreBooks, isLoading: loadingMoreBooks } = useBooks({ status: 'published' });
   const [isUpdatingLibrary, setIsUpdatingLibrary] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
@@ -302,6 +303,7 @@ export default function BookDetail() {
                   isFree={isFree}
                   isAuthor={!!isAuthor}
                   hasPdf={hasPdf}
+                  authorHasStripe={authorHasStripe}
                   onReadPdf={handleReadPdf}
                 />
               ) : totalChapters > 0 && hasAccess ? (
@@ -320,6 +322,7 @@ export default function BookDetail() {
                   isFree={false}
                   isAuthor={false}
                   hasPdf={false}
+                  authorHasStripe={authorHasStripe}
                 />
               ) : null}
 

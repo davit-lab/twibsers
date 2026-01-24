@@ -257,3 +257,27 @@ export function useGetPdfAccess() {
     },
   });
 }
+
+// Check if a specific author has Stripe Connect enabled (for purchase buttons)
+export function useAuthorStripeStatus(authorId: string | undefined) {
+  return useQuery({
+    queryKey: ['author-stripe-status', authorId],
+    queryFn: async (): Promise<boolean> => {
+      if (!authorId) return false;
+
+      const { data, error } = await supabase
+        .from('author_stripe_accounts')
+        .select('charges_enabled')
+        .eq('user_id', authorId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking author stripe status:', error);
+        return false;
+      }
+
+      return data?.charges_enabled === true;
+    },
+    enabled: !!authorId,
+  });
+}
