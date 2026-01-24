@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
-import { useBook, useBookActions } from '@/hooks/useBooks';
+import { useBook, useBookActions, useBooks } from '@/hooks/useBooks';
 import { useBookPurchaseStatus } from '@/hooks/useBookPurchase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -10,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import BookPurchaseButton from '@/components/library/BookPurchaseButton';
-import PdfViewer from '@/components/library/PdfViewer';
+import FullScreenPdfViewer from '@/components/library/FullScreenPdfViewer';
+import BookCard from '@/components/library/BookCard';
 import {
   Book,
   BookOpen,
@@ -27,8 +29,9 @@ import {
   CheckCircle2,
   FileText,
   DollarSign,
+  ArrowLeft,
 } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function BookDetail() {
@@ -40,6 +43,7 @@ export default function BookDetail() {
   const { book, chapters, progress, isInLibrary, isLoading, refetch, setIsInLibrary } = useBook(bookId);
   const { addToLibrary, removeFromLibrary } = useBookActions();
   const { data: purchaseStatus } = useBookPurchaseStatus(bookId);
+  const { books: moreBooks, isLoading: loadingMoreBooks } = useBooks({ status: 'published' });
   const [isUpdatingLibrary, setIsUpdatingLibrary] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
 
@@ -60,7 +64,7 @@ export default function BookDetail() {
       toast({
         variant: 'destructive',
         title: 'Purchase canceled',
-        description: 'You can try again when you\'re ready.',
+        description: "You can try again when you're ready.",
       });
     }
   }, [searchParams]);
@@ -69,6 +73,12 @@ export default function BookDetail() {
   const isFree = book?.is_free || !book?.price || book?.price === 0;
   const hasPdf = !!book?.pdf_url;
   const hasAccess = isAuthor || isFree || purchaseStatus?.hasPurchased;
+  const priceDisplay = isFree ? 'Free' : `$${((book?.price || 0) / 100).toFixed(2)}`;
+
+  // Get related books (same genre or by same author, excluding current book)
+  const relatedBooks = moreBooks
+    .filter((b) => b.id !== bookId)
+    .slice(0, 8);
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -90,26 +100,31 @@ export default function BookDetail() {
 
   const handleStartReading = () => {
     if (chapters.length === 0) return;
-    
-    const chapterToRead = progress?.current_chapter_id 
-      ? chapters.find((c) => c.id === progress.current_chapter_id) 
+
+    const chapterToRead = progress?.current_chapter_id
+      ? chapters.find((c) => c.id === progress.current_chapter_id)
       : chapters[0];
-    
+
     if (chapterToRead) {
       navigate(`/library/book/${bookId}/read/${chapterToRead.id}`);
     }
   };
 
+  const handleReadPdf = () => {
+    setShowPdfViewer(true);
+  };
+
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="max-w-4xl mx-auto p-4 md:p-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            <Skeleton className="w-full md:w-64 aspect-[3/4] rounded-xl" />
+        <div className="max-w-5xl mx-auto p-4 md:p-6">
+          <div className="flex flex-col md:flex-row gap-8">
+            <Skeleton className="w-full md:w-72 aspect-[3/4] rounded-2xl" />
             <div className="flex-1 space-y-4">
-              <Skeleton className="h-8 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-12 w-48" />
             </div>
           </div>
         </div>
@@ -120,7 +135,7 @@ export default function BookDetail() {
   if (!book) {
     return (
       <MainLayout>
-        <div className="max-w-4xl mx-auto p-4 md:p-6 text-center py-16">
+        <div className="max-w-5xl mx-auto p-4 md:p-6 text-center py-16">
           <Book className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-medium mb-2">Book not found</h2>
           <p className="text-muted-foreground mb-4">
@@ -134,14 +149,36 @@ export default function BookDetail() {
     );
   }
 
+  // Full Screen PDF Viewer
+  if (showPdfViewer && hasPdf && hasAccess) {
+    return (
+      <FullScreenPdfViewer
+        bookId={bookId!}
+        bookTitle={book.title}
+        onClose={() => setShowPdfViewer(false)}
+      />
+    );
+  }
+
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto p-4 md:p-6">
-        {/* Book Header */}
-        <div className="flex flex-col md:flex-row gap-6 mb-8">
-          {/* Cover */}
-          <div className="w-full md:w-64 flex-shrink-0">
-            <div className="aspect-[3/4] bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl overflow-hidden">
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        {/* Back Button */}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/library')}
+          className="mb-4 gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Library
+        </Button>
+
+        {/* Book Header - Redesigned Layout */}
+        <div className="flex flex-col md:flex-row gap-8 mb-10">
+          {/* Book Cover with Border */}
+          <div className="w-full md:w-72 flex-shrink-0">
+            <div className="aspect-[3/4] rounded-2xl overflow-hidden border-4 border-primary/30 shadow-xl bg-gradient-to-br from-primary/10 to-accent/10">
               {book.cover_url ? (
                 <img
                   src={book.cover_url}
@@ -150,62 +187,44 @@ export default function BookDetail() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <Book className="h-20 w-20 text-muted-foreground/50" />
+                  <Book className="h-24 w-24 text-muted-foreground/30" />
                 </div>
               )}
             </div>
+            
+            {/* Edit Button for Author */}
+            {isAuthor && (
+              <Button variant="outline" className="w-full mt-4 gap-2" asChild>
+                <Link to={`/library/book/${bookId}/edit`}>
+                  <Edit className="h-4 w-4" />
+                  Edit Book
+                </Link>
+              </Button>
+            )}
           </div>
 
-          {/* Info */}
-          <div className="flex-1 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold">{book.title}</h1>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {book.genre && <Badge variant="secondary">{book.genre}</Badge>}
-                  {book.status !== 'published' && (
-                    <Badge variant="outline">{book.status}</Badge>
-                  )}
-                  {hasPdf && (
-                    <Badge variant="outline" className="gap-1">
-                      <FileText className="h-3 w-3" />
-                      PDF
-                    </Badge>
-                  )}
-                  {!isFree && (
-                    <Badge variant="default" className="gap-1 bg-green-600">
-                      <DollarSign className="h-3 w-3" />
-                      ${((book.price || 0) / 100).toFixed(2)}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {isAuthor && (
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/library/book/${bookId}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Link>
-                </Button>
-              )}
-            </div>
+          {/* Book Info */}
+          <div className="flex-1 space-y-5">
+            {/* Title */}
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+              {book.title}
+            </h1>
 
             {/* Author */}
             {book.author && (
               <Link
                 to={`/profile/${book.author.username}`}
-                className="flex items-center gap-3 hover:bg-muted p-2 -m-2 rounded-lg transition-colors"
+                className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity"
               >
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-10 w-10 border-2 border-border">
                   <AvatarImage src={book.author.avatar_url || undefined} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
                     {getInitials(book.author.display_name)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">{book.author.display_name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold">{book.author.display_name}</span>
                     {book.author.is_verified && (
                       <BadgeCheck className="h-4 w-4 text-verified" />
                     )}
@@ -215,31 +234,45 @@ export default function BookDetail() {
               </Link>
             )}
 
-            {book.description && (
-              <p className="text-muted-foreground">{book.description}</p>
-            )}
-
-            {/* Stats */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-4 w-4" />
-                {totalChapters} chapters
-              </span>
-              <span className="flex items-center gap-1">
-                <Eye className="h-4 w-4" />
-                {book.view_count} views
-              </span>
-              {book.published_at && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(book.published_at), 'MMM d, yyyy')}
+            {/* Info Card - Purple themed like reference */}
+            <div className="bg-primary rounded-2xl p-5 text-primary-foreground space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">book detail page</span>
+                <span className="font-medium">
+                  book pages: {hasPdf ? 'PDF' : `${totalChapters} chapters`}
                 </span>
-              )}
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="font-semibold">about this book</h3>
+                <p className="text-sm opacity-90">
+                  {book.description || 'No description available for this book.'}
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="flex flex-wrap items-center gap-4 text-sm opacity-80 pt-2">
+                {book.genre && (
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                    {book.genre}
+                  </Badge>
+                )}
+                <span className="flex items-center gap-1">
+                  <Eye className="h-4 w-4" />
+                  {book.view_count} views
+                </span>
+                {book.published_at && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    {format(new Date(book.published_at), 'MMM d, yyyy')}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Reading Progress */}
             {user && progress && totalChapters > 0 && (
-              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-2 p-4 bg-muted/50 rounded-xl border">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Reading progress</span>
                   <span className="font-medium">{Math.round(progressPercent)}%</span>
@@ -251,30 +284,36 @@ export default function BookDetail() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3 pt-2">
-              {/* PDF/Purchase Button */}
-              {hasPdf && (
+            {/* Action Button - Buy Now styled */}
+            <div className="flex flex-wrap items-center gap-4">
+              {hasPdf && hasAccess ? (
+                <Button 
+                  size="lg" 
+                  onClick={handleReadPdf}
+                  className="bg-primary/80 hover:bg-primary rounded-full px-8"
+                >
+                  <BookOpen className="h-5 w-5 mr-2" />
+                  Read Book
+                </Button>
+              ) : hasPdf && !hasAccess ? (
                 <BookPurchaseButton
                   bookId={bookId!}
                   price={book.price || 0}
                   isFree={isFree}
                   isAuthor={!!isAuthor}
                   hasPdf={hasPdf}
-                  onReadPdf={() => setShowPdfViewer(true)}
+                  onReadPdf={handleReadPdf}
                 />
-              )}
-
-              {/* Chapter reading button - only show if has access or is free */}
-              {totalChapters > 0 && hasAccess && (
-                <Button onClick={handleStartReading} variant={hasPdf ? 'outline' : 'default'}>
-                  <Play className="h-4 w-4 mr-2" />
-                  {progress ? 'Continue Reading' : 'Read Chapters'}
+              ) : totalChapters > 0 && hasAccess ? (
+                <Button 
+                  size="lg" 
+                  onClick={handleStartReading}
+                  className="bg-primary/80 hover:bg-primary rounded-full px-8"
+                >
+                  <Play className="h-5 w-5 mr-2" />
+                  {progress ? 'Continue Reading' : 'Start Reading'}
                 </Button>
-              )}
-
-              {/* Buy button for chapter-only books (no PDF) */}
-              {!hasPdf && !isFree && !isAuthor && (
+              ) : !hasAccess && !isFree ? (
                 <BookPurchaseButton
                   bookId={bookId!}
                   price={book.price || 0}
@@ -282,52 +321,46 @@ export default function BookDetail() {
                   isAuthor={false}
                   hasPdf={false}
                 />
-              )}
-              
+              ) : null}
+
               {user && !isAuthor && (
                 <Button
                   variant="outline"
+                  size="lg"
                   onClick={handleToggleLibrary}
                   disabled={isUpdatingLibrary}
+                  className="rounded-full"
                 >
                   {isInLibrary ? (
                     <>
-                      <HeartOff className="h-4 w-4 mr-2" />
-                      Remove from Library
+                      <HeartOff className="h-5 w-5 mr-2" />
+                      Remove
                     </>
                   ) : (
                     <>
-                      <Heart className="h-4 w-4 mr-2" />
-                      Add to Library
+                      <Heart className="h-5 w-5 mr-2" />
+                      Save
                     </>
                   )}
                 </Button>
               )}
+
+              {/* Price Display */}
+              <span className={cn(
+                "text-xl font-bold",
+                isFree ? "text-green-500" : "text-primary"
+              )}>
+                {priceDisplay}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* PDF Viewer */}
-        {showPdfViewer && hasPdf && hasAccess && (
-          <div className="mb-8">
-            <PdfViewer
-              bookId={bookId!}
-              bookTitle={book.title}
-              onClose={() => setShowPdfViewer(false)}
-            />
-          </div>
-        )}
-
         {/* Chapters List */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Chapters</h2>
-          
-          {chapters.length === 0 ? (
-            <div className="text-center py-8 bg-muted/50 rounded-lg">
-              <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">No chapters yet</p>
-            </div>
-          ) : (
+        {totalChapters > 0 && (
+          <div className="space-y-4 mb-10">
+            <h2 className="text-xl font-semibold">Chapters</h2>
+            
             <div className="space-y-2">
               {chapters.map((chapter, index) => {
                 const isCompleted = progress?.completed_chapters?.includes(chapter.id);
@@ -338,23 +371,21 @@ export default function BookDetail() {
                     key={chapter.id}
                     to={`/library/book/${bookId}/read/${chapter.id}`}
                     className={cn(
-                      "flex items-center gap-4 p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group",
-                      isCurrent && "border-primary bg-primary/5"
+                      'flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group',
+                      isCurrent && 'border-primary bg-primary/5'
                     )}
                   >
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
-                      isCompleted 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-muted text-muted-foreground"
-                    )}>
-                      {isCompleted ? (
-                        <CheckCircle2 className="h-4 w-4" />
-                      ) : (
-                        index + 1
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
+                        isCompleted
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
                       )}
+                    >
+                      {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate group-hover:text-primary transition-colors">
                         {chapter.title}
@@ -375,6 +406,32 @@ export default function BookDetail() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* See More Books Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <Link 
+              to="/library"
+              className="inline-flex items-center justify-center w-full max-w-2xl py-4 px-8 bg-primary/20 hover:bg-primary/30 text-primary font-semibold text-xl rounded-xl transition-colors"
+            >
+              see more books
+            </Link>
+          </div>
+
+          {/* Related Books Scroll */}
+          {relatedBooks.length > 0 && (
+            <ScrollArea className="w-full whitespace-nowrap mt-8">
+              <div className="flex gap-4 pb-4">
+                {relatedBooks.map((relatedBook) => (
+                  <div key={relatedBook.id} className="w-[160px] flex-shrink-0">
+                    <BookCard book={relatedBook} />
+                  </div>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           )}
         </div>
       </div>

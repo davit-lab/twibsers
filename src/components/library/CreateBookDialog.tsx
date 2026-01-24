@@ -22,9 +22,10 @@ import { Plus, FileText, Upload, DollarSign, Loader2, X } from 'lucide-react';
 
 interface CreateBookDialogProps {
   onBookCreated?: () => void;
+  children?: React.ReactNode;
 }
 
-export default function CreateBookDialog({ onBookCreated }: CreateBookDialogProps) {
+export default function CreateBookDialog({ onBookCreated, children }: CreateBookDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createBook } = useBookActions();
@@ -173,10 +174,12 @@ export default function CreateBookDialog({ onBookCreated }: CreateBookDialogProp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          New Book
-        </Button>
+        {children || (
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            New Book
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
