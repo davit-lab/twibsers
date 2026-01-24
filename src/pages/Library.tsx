@@ -3,6 +3,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useBooksByAuthor } from '@/hooks/useBooksByAuthor';
 import { useMyBooks, useUserLibrary } from '@/hooks/useBooks';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import AuthorBooksSection from '@/components/library/AuthorBooksSection';
 import LibraryBookCard from '@/components/library/LibraryBookCard';
 import CreateBookDialog from '@/components/library/CreateBookDialog';
@@ -20,8 +21,10 @@ export default function Library() {
   const { books: myBooks, isLoading: loadingMyBooks, refetch: refetchMyBooks } = useMyBooks();
   const { books: libraryBooks, isLoading: loadingLibrary } = useUserLibrary();
   const [searchQuery, setSearchQuery] = useState('');
+  const { data: isPremium } = usePremiumStatus(user?.id);
 
   const isVerified = profile?.is_verified;
+  const canCreateBooks = isVerified || isPremium;
 
   // Filter author groups by search
   const filteredGroups = authorGroups.filter((group) => {
@@ -82,7 +85,7 @@ export default function Library() {
           )}
           
           {/* Create Button */}
-          {isVerified && (
+          {canCreateBooks && (
             <div className="absolute right-14 top-1/2 -translate-y-1/2">
               <CreateBookDialog onBookCreated={refetchMyBooks}>
                 <Button size="icon" className="h-10 w-10 rounded-lg bg-primary hover:bg-primary/90">
@@ -116,7 +119,7 @@ export default function Library() {
                 Streak
               </TabsTrigger>
             )}
-            {isVerified && (
+            {canCreateBooks && (
               <TabsTrigger value="my-books" className="gap-2 rounded-md">
                 <PenTool className="h-4 w-4" />
                 My Books
@@ -247,8 +250,8 @@ export default function Library() {
             )}
           </TabsContent>
 
-          {/* My Books (for verified authors) */}
-          {isVerified && (
+          {/* My Books (for verified or premium users) */}
+          {canCreateBooks && (
             <TabsContent value="my-books">
               {loadingMyBooks ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -280,12 +283,12 @@ export default function Library() {
           )}
         </Tabs>
 
-        {/* Info for non-verified users */}
-        {!isVerified && (
+        {/* Info for non-verified and non-premium users */}
+        {!canCreateBooks && (
           <div className="mt-8 p-4 bg-muted/50 rounded-lg border border-border">
             <h3 className="font-medium mb-1">Want to publish your own books?</h3>
             <p className="text-sm text-muted-foreground">
-              Get verified to unlock the ability to create and publish books in the Digital Library.
+              Get verified or upgrade to premium to unlock the ability to create and publish books in the Digital Library.
             </p>
           </div>
         )}
