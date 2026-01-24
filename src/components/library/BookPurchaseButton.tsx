@@ -53,6 +53,17 @@ export default function BookPurchaseButton({
 
       if (error) throw error;
       
+      // Create notification for author about payment setup request
+      await supabase.from('notifications').insert({
+        user_id: authorId,
+        type: 'system',
+        title: 'Someone wants to buy your book!',
+        body: 'A user messaged you about purchasing your book. Please set up your payment account in Settings to start receiving payments.',
+        actor_id: user.id,
+        target_type: 'conversation',
+        target_id: conversationId,
+      });
+      
       navigate(`/messages?id=${conversationId}`);
     } catch (error) {
       console.error('Error starting conversation:', error);
