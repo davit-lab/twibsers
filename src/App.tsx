@@ -13,6 +13,8 @@ import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import Library from "./pages/Library";
+import LibraryExplore from "./pages/LibraryExplore";
+import LibraryItemDetail from "./pages/LibraryItemDetail";
 import BookDetail from "./pages/BookDetail";
 import BookEditor from "./pages/BookEditor";
 import ChapterReader from "./pages/ChapterReader";
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/messages" element={<Messages />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/library/explore" element={<LibraryExplore />} />
+            <Route path="/library/item/:itemId" element={<LibraryItemDetail />} />
             <Route path="/library/book/:bookId" element={<BookDetail />} />
             <Route path="/library/book/:bookId/edit" element={<BookEditor />} />
             <Route path="/library/book/:bookId/read/:chapterId" element={<ChapterReader />} />
