@@ -304,6 +304,7 @@ export default function BookDetail() {
                   isAuthor={!!isAuthor}
                   hasPdf={hasPdf}
                   authorHasStripe={authorHasStripe}
+                  authorId={book.author_id}
                   onReadPdf={handleReadPdf}
                 />
               ) : totalChapters > 0 && hasAccess ? (
@@ -323,6 +324,7 @@ export default function BookDetail() {
                   isAuthor={false}
                   hasPdf={false}
                   authorHasStripe={authorHasStripe}
+                  authorId={book.author_id}
                 />
               ) : null}
 
