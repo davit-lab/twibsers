@@ -20,10 +20,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
 
-    /* Primary - Clean blue */
-    --primary: 210 100% 52%;
+    /* Primary - Purple */
+    --primary: 270 70% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 210 100% 60%;
+    --primary-glow: 270 70% 65%;
 
     /* Secondary */
     --secondary: 0 0% 96%;
@@ -48,23 +48,23 @@
     /* Border and inputs */
     --border: 0 0% 90%;
     --input: 0 0% 96%;
-    --ring: 210 100% 52%;
+    --ring: 270 70% 55%;
 
     --radius: 0.75rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 9%;
-    --sidebar-primary: 210 100% 52%;
+    --sidebar-primary: 270 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 94%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 210 100% 52%;
+    --sidebar-ring: 270 70% 55%;
 
     /* Custom tokens */
     --star: 45 100% 51%;
-    --verified: 210 100% 52%;
+    --verified: 270 70% 55%;
     --online: 142 76% 36%;
     --premium: 45 100% 51%;
     --call-active: 142 76% 36%;
@@ -82,10 +82,10 @@
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary - Clean blue */
-    --primary: 210 100% 56%;
+    /* Primary - Purple */
+    --primary: 270 70% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 210 100% 65%;
+    --primary-glow: 270 70% 70%;
 
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
@@ -104,19 +104,19 @@
 
     --border: 0 0% 18%;
     --input: 0 0% 15%;
-    --ring: 210 100% 56%;
+    --ring: 270 70% 60%;
 
     --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 210 100% 56%;
+    --sidebar-primary: 270 70% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 210 100% 56%;
+    --sidebar-ring: 270 70% 60%;
 
     --star: 45 100% 55%;
-    --verified: 210 100% 56%;
+    --verified: 270 70% 60%;
     --online: 142 76% 42%;
     --premium: 45 100% 55%;
     --call-active: 142 76% 42%;
@@ -175,7 +175,7 @@
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, 
-      hsl(210 100% 52%), 
+      hsl(270 70% 55%), 
       hsl(340 82% 52%)
     );
   }
