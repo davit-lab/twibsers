@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBookPurchaseStatus, useCreateBookCheckout } from '@/hooks/useBookPurchase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ShoppingCart, Check, FileText, Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Loader2, ShoppingCart, Check, FileText, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BookPurchaseButtonProps {
@@ -118,10 +119,19 @@ export default function BookPurchaseButton({
   // Author hasn't set up Stripe
   if (!authorHasStripe) {
     return (
-      <Button disabled variant="outline" className={className}>
-        <Lock className="h-4 w-4 mr-2" />
-        ${formatPrice(price)} - Not Available
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button disabled variant="outline" className={cn("gap-2", className)}>
+              <AlertCircle className="h-4 w-4" />
+              ${formatPrice(price)} - Not Available
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-center">
+            <p>This book cannot be purchased yet because the author hasn't set up their payment account.</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
