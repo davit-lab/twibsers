@@ -234,24 +234,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </header>
       )}
 
-      {/* Guest Header */}
-      {!user && (
-        <header className="sticky top-0 z-50 bg-background border-b border-border">
-          <div className="flex items-center justify-between h-14 px-4 max-w-screen-lg mx-auto">
-            <Link to="/" className="font-semibold text-xl">
-              Twibsers
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/auth">Log in</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link to="/auth?mode=signup">Sign up</Link>
-              </Button>
-            </div>
-          </div>
-        </header>
-      )}
+      {/* Duplicate header removed */}
 
       {/* Main Content */}
       <main className={cn(

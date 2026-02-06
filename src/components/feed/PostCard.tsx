@@ -193,10 +193,10 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
   const VisibilityIcon = visibilityIcons[post.visibility];
 
   return (
-    <article className="py-4 px-4">
+    <article className="glass-card-hover p-4">
       {/* Post Header */}
       <div className="flex items-start gap-3">
-        <Link to={`/profile/${post.profiles.username}`}>
+        <Link to={`/profile/${post.profiles.username}`} className="flex-shrink-0">
           <UserAvatar
             userId={post.user_id}
             avatarUrl={post.profiles.avatar_url}
@@ -210,22 +210,22 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
           <div className="flex items-center gap-1.5 flex-wrap">
             <Link 
               to={`/profile/${post.profiles.username}`}
-              className="font-semibold text-[15px] hover:underline truncate"
+              className="font-semibold text-[15px] hover:text-primary transition-colors truncate"
             >
               {post.profiles.display_name}
             </Link>
             {post.profiles.is_verified && (
-              <BadgeCheck className="h-[18px] w-[18px] text-verified flex-shrink-0" />
+              <BadgeCheck className="h-[18px] w-[18px] text-primary flex-shrink-0" />
             )}
             <span className="text-muted-foreground text-sm">@{post.profiles.username}</span>
-            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground/50">·</span>
             <time 
               dateTime={post.created_at}
-              className="text-muted-foreground text-sm hover:underline cursor-pointer"
+              className="text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer"
             >
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: false })}
             </time>
-            <VisibilityIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <VisibilityIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
           </div>
 
           {/* Post Content */}
@@ -267,24 +267,24 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
               </div>
             )}
 
-            {/* Actions Bar */}
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center">
+            {/* Actions Bar - Glassmorphism Style */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/20">
+              <div className="flex items-center gap-1">
                 {/* Star Button */}
                 <button
                   onClick={handleStar}
                   disabled={isStarring}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-all active:scale-95",
+                    "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 active:scale-95",
                     isStarred 
-                      ? "text-star" 
-                      : "text-muted-foreground hover:text-star"
+                      ? "bg-star/10 text-star" 
+                      : "text-muted-foreground hover:bg-surface-3 hover:text-star"
                   )}
                 >
                   <Star 
                     className={cn(
                       "h-5 w-5 transition-transform",
-                      isStarred && "fill-star"
+                      isStarred && "fill-star scale-110"
                     )} 
                   />
                   {starCount > 0 && <span className="text-xs tabular-nums">{starCount}</span>}
@@ -294,10 +294,10 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
                 <button 
                   onClick={() => setShowComments(!showComments)}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-all active:scale-95",
+                    "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 active:scale-95",
                     showComments 
-                      ? "text-primary" 
-                      : "text-muted-foreground hover:text-primary"
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground hover:bg-surface-3 hover:text-primary"
                   )}
                 >
                   <MessageCircle className={cn("h-5 w-5", showComments && "fill-primary/20")} />
@@ -307,33 +307,33 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
                 {/* Share Button */}
                 <button 
                   onClick={handleShare}
-                  className="flex items-center px-2 py-1.5 rounded-lg text-muted-foreground hover:text-primary transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-3 hover:text-accent transition-all duration-200 active:scale-95"
                 >
                   <Share2 className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Right Actions */}
-              <div className="flex items-center">
-                <button className="p-1.5 rounded-lg text-muted-foreground hover:text-primary transition-all active:scale-95">
+              <div className="flex items-center gap-1">
+                <button className="p-2 rounded-xl text-muted-foreground hover:bg-surface-3 hover:text-primary transition-all duration-200 active:scale-95">
                   <Bookmark className="h-5 w-5" />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-all active:scale-95">
+                    <button className="p-2 rounded-xl text-muted-foreground hover:bg-surface-3 hover:text-foreground transition-all duration-200 active:scale-95">
                       <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 bg-card border-border">
+                  <DropdownMenuContent align="end" className="w-48 glass-nav border-border/50 rounded-xl">
                     {isOwnPost ? (
                       <>
-                        <DropdownMenuItem className="gap-2 text-sm">
+                        <DropdownMenuItem className="gap-2 text-sm rounded-lg">
                           <Pin className="h-4 w-4" />
                           Pin to profile
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        <DropdownMenuSeparator className="bg-border/30" />
                         <DropdownMenuItem 
-                          className="gap-2 text-destructive focus:text-destructive text-sm"
+                          className="gap-2 text-destructive focus:text-destructive text-sm rounded-lg"
                           onClick={handleDelete}
                           disabled={isDeleting}
                         >
@@ -342,7 +342,7 @@ export default function PostCard({ post, onPostDeleted, onStarChange }: PostCard
                         </DropdownMenuItem>
                       </>
                     ) : (
-                      <DropdownMenuItem className="gap-2 text-sm">
+                      <DropdownMenuItem className="gap-2 text-sm rounded-lg">
                         <Flag className="h-4 w-4" />
                         Report post
                       </DropdownMenuItem>

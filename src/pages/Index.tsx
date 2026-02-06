@@ -49,10 +49,16 @@ export default function Index() {
     );
   }
 
-  // Logged in - show feed
+  // Logged in - show feed with glassmorphism design
   if (user) {
     return (
       <MainLayout>
+        {/* Ambient Background Effects */}
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+          <div className="orb orb-primary top-20 right-0" />
+          <div className="orb orb-accent bottom-40 left-0" />
+        </div>
+
         <PullToRefresh
           ref={containerRef}
           pullDistance={pullDistance}
@@ -61,14 +67,19 @@ export default function Index() {
           shouldRefresh={shouldRefresh}
         >
           <div className="max-w-xl mx-auto pb-24 lg:pb-8">
-            <div className="border-b border-border">
+            {/* Stories Section */}
+            <div className="border-b border-border/30 bg-card/30 backdrop-blur-sm">
               <StoriesBar />
             </div>
             
-            <div className="p-4 border-b border-border">
-              <PostComposer onPostCreated={handlePostCreated} />
+            {/* Post Composer - Glass Card */}
+            <div className="p-4 border-b border-border/30">
+              <div className="glass-card p-4">
+                <PostComposer onPostCreated={handlePostCreated} />
+              </div>
             </div>
             
+            {/* Feed */}
             <Feed 
               refreshTrigger={refreshTrigger} 
               onRefreshComplete={() => setIsRefreshingFeed(false)}
