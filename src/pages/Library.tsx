@@ -85,33 +85,33 @@ export default function Library() {
     <MainLayout>
       <div className="min-h-screen bg-background pb-24 relative overflow-hidden">
         {/* Ambient Background Effects */}
-        <div className="orb-primary w-[600px] h-[600px] top-[-200px] right-[-100px]" />
-        <div className="orb-accent w-[500px] h-[500px] bottom-[10%] left-[-200px]" />
+        <div className="orb-primary w-[500px] h-[500px] top-[-150px] right-[-80px]" />
+        <div className="orb-accent w-[400px] h-[400px] bottom-[10%] left-[-150px]" />
 
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 space-y-8 relative">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-6 relative">
           {/* Header - Premium Style */}
           <div className="relative">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/30">
-                  <BookOpen className="h-7 w-7" />
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/30">
+                  <BookOpen className="h-6 w-6" />
                 </div>
                 <div>
-                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">
+                  <h1 className="text-3xl md:text-4xl font-black tracking-tight">
                     <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                       Library
                     </span>
                   </h1>
-                  <p className="text-muted-foreground text-sm md:text-base font-medium">
-                    Discover and read amazing books from our community
+                  <p className="text-muted-foreground text-sm">
+                    Discover amazing books from our community
                   </p>
                 </div>
               </div>
 
               {canCreateBooks && (
                 <CreateBookDialog onBookCreated={refetchMyBooks}>
-                  <Button className="btn-gradient shadow-xl shadow-primary/30 font-bold px-6 rounded-xl">
-                    <Plus className="h-5 w-5 mr-2" />
+                  <Button className="btn-gradient shadow-lg shadow-primary/30 font-semibold px-5 rounded-xl h-10">
+                    <Plus className="h-4 w-4 mr-2" />
                     Create Book
                   </Button>
                 </CreateBookDialog>
@@ -119,25 +119,25 @@ export default function Library() {
             </div>
           </div>
 
-          {/* Search Bar - Premium Glass */}
-          <div className="relative max-w-2xl">
-            <div className="glass-card rounded-2xl p-1.5">
+          {/* Search Bar */}
+          <div className="relative max-w-xl">
+            <div className="glass-card rounded-xl p-1">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search books, authors..."
-                  className="pl-12 pr-12 h-14 text-base bg-muted/50 border-transparent focus:bg-background focus:border-primary/30 rounded-xl font-medium"
+                  className="pl-10 pr-10 h-11 text-sm bg-muted/50 border-transparent focus:bg-background focus:border-primary/30 rounded-lg font-medium"
                 />
                 {searchQuery && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setSearchQuery('')}
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -157,9 +157,9 @@ export default function Library() {
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value as TabValue)}
                   className={cn(
-                    "flex items-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold transition-all duration-200",
+                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
                     isActive
-                      ? "bg-gradient-to-r from-primary to-accent text-white shadow-xl shadow-primary/30"
+                      ? "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/30"
                       : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
@@ -167,7 +167,7 @@ export default function Library() {
                   {tab.label}
                   {tab.count !== undefined && tab.count > 0 && (
                     <span className={cn(
-                      "ml-1.5 text-xs px-2.5 py-1 rounded-lg font-bold",
+                      "ml-1 text-xs px-2 py-0.5 rounded-md font-semibold",
                       isActive ? "bg-white/20" : "bg-primary/10 text-primary"
                     )}>
                       {tab.count}

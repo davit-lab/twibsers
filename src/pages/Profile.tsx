@@ -281,12 +281,12 @@ export default function Profile() {
     <MainLayout>
       <div className="min-h-screen bg-background pb-24 lg:pb-8 relative overflow-hidden">
         {/* Ambient Background Effects */}
-        <div className="orb-primary w-[600px] h-[600px] top-[-200px] right-[-150px]" />
-        <div className="orb-accent w-[500px] h-[500px] bottom-[5%] left-[-200px]" />
+        <div className="orb-primary w-[500px] h-[500px] top-[-150px] right-[-100px]" />
+        <div className="orb-accent w-[400px] h-[400px] bottom-[5%] left-[-150px]" />
         
         <div className="max-w-4xl mx-auto relative">
           {/* Cover Banner - Premium Gradient */}
-          <div className="relative h-52 md:h-64 overflow-hidden">
+          <div className="relative h-44 md:h-52 overflow-hidden">
             {profileData.cover_url ? (
               <img 
                 src={profileData.cover_url} 
@@ -351,18 +351,18 @@ export default function Profile() {
           </div>
 
           {/* Profile Header Card - Glassmorphism */}
-          <div className="glass-card mx-4 -mt-24 relative rounded-3xl border border-white/10 shadow-2xl">
-            <div className="p-6 md:p-8">
+          <div className="glass-card mx-4 -mt-20 relative rounded-2xl border border-white/10 shadow-xl">
+            <div className="p-5 md:p-6">
               {/* Avatar Section */}
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 {/* Avatar with Story Ring */}
-                <div className="relative -mt-20 md:-mt-24">
+                <div className="relative -mt-16 md:-mt-20">
                   <div 
                     className={cn(
-                      "rounded-full p-1.5 cursor-pointer transition-all duration-300 shadow-2xl",
+                      "rounded-full p-1 cursor-pointer transition-all duration-300 shadow-xl",
                       hasStories 
                         ? hasUnviewed 
-                          ? "bg-gradient-to-br from-primary via-accent to-primary animate-pulse" 
+                          ? "bg-gradient-to-br from-primary via-accent to-primary" 
                           : "bg-muted-foreground/30"
                         : "bg-card border-4 border-card"
                     )}
@@ -370,15 +370,15 @@ export default function Profile() {
                   >
                     <div className={cn(
                       "rounded-full",
-                      hasStories && "bg-card p-1"
+                      hasStories && "bg-card p-0.5"
                     )}>
-                      <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-card shadow-2xl ring-2 ring-white/5">
+                      <Avatar className="w-24 h-24 md:w-32 md:h-32 border-4 border-card shadow-xl ring-2 ring-white/5">
                         <AvatarImage 
                           src={profileData.avatar_url || undefined} 
                           alt={profileData.display_name}
                           className="object-cover"
                         />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-4xl md:text-5xl font-black">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl font-black">
                           {getInitials(profileData.display_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -391,67 +391,67 @@ export default function Profile() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                       className={cn(
-                        "absolute bottom-3 right-3 w-10 h-10 rounded-xl",
+                        "absolute bottom-1 right-1 w-8 h-8 rounded-lg",
                         "bg-gradient-to-br from-primary to-accent text-white",
                         "flex items-center justify-center transition-all duration-200",
                         "shadow-lg shadow-primary/40 hover:scale-110 border-2 border-card"
                       )}
                     >
                       {uploading ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Camera className="h-5 w-5" />
+                        <Camera className="h-4 w-4" />
                       )}
                     </button>
                   )}
 
                   {/* Story indicator */}
                   {hasStories && (
-                    <div className="absolute -top-1 -right-1 bg-gradient-to-br from-accent to-primary text-white text-xs font-bold rounded-lg w-7 h-7 flex items-center justify-center shadow-lg border-2 border-card">
+                    <div className="absolute -top-1 -right-1 bg-gradient-to-br from-accent to-primary text-white text-xs font-bold rounded-md w-6 h-6 flex items-center justify-center shadow-lg border-2 border-card">
                       {currentGroup.stories.length}
                     </div>
                   )}
                 </div>
 
                 {/* Name and quick info */}
-                <div className="flex-1 md:pb-2">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+                <div className="flex-1 md:pb-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight">
                       {profileData.display_name}
                     </h1>
                     {profileData.is_verified && (
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-md ring-2 ring-primary/20">
-                        <BadgeCheck className="h-3.5 w-3.5 text-white" />
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-md">
+                        <BadgeCheck className="h-3 w-3 text-white" />
                       </div>
                     )}
                     {isPremium && (
-                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md ring-2 ring-amber-500/20" title="Premium Member">
-                        <Crown className="h-3.5 w-3.5 text-white" />
+                      <span className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md" title="Premium Member">
+                        <Crown className="h-3 w-3 text-white" />
                       </span>
                     )}
                     {isProfileAdmin && (
-                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center ring-2 ring-amber-500/20">
-                        <Hammer className="h-3.5 w-3.5 text-white" />
+                      <span className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
+                        <Hammer className="h-3 w-3 text-white" />
                       </span>
                     )}
                     {profileData.privacy === 'private' && (
-                      <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                        <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                        <Lock className="h-3 w-3 text-muted-foreground" />
                       </span>
                     )}
                   </div>
-                  <p className="text-muted-foreground font-medium mt-0.5">@{profileData.username}</p>
+                  <p className="text-muted-foreground text-sm font-medium">@{profileData.username}</p>
                 </div>
 
                 {/* Action Buttons - Desktop */}
-                <div className="hidden md:flex items-center gap-3">
+                <div className="hidden md:flex items-center gap-2">
                   {isOwnProfile ? (
                     <>
-                      <Button variant="outline" asChild className="rounded-xl font-bold border-border/50 hover:bg-muted/50">
+                      <Button variant="outline" asChild className="rounded-xl font-semibold border-border/50 hover:bg-muted/50 h-9">
                         <Link to="/settings">Edit Profile</Link>
                       </Button>
-                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-muted/50">
-                        <Share2 className="h-5 w-5" />
+                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-muted/50 h-9 w-9">
+                        <Share2 className="h-4 w-4" />
                       </Button>
                     </>
                   ) : user ? (
@@ -462,7 +462,7 @@ export default function Profile() {
                         isPrivateAccount={profileData.privacy === 'private'}
                         onFollowChange={handleFollowChange}
                       />
-                      <Button variant="outline" asChild className="rounded-xl font-bold border-border/50 hover:bg-muted/50">
+                      <Button variant="outline" asChild className="rounded-xl font-semibold border-border/50 hover:bg-muted/50 h-9">
                         <Link to={`/messages?new=${profileData.user_id}`}>
                           <MessageCircle className="h-4 w-4 mr-2" />
                           Message
@@ -470,7 +470,7 @@ export default function Profile() {
                       </Button>
                     </>
                   ) : (
-                    <Button className="btn-gradient font-bold rounded-xl shadow-lg shadow-primary/30" asChild>
+                    <Button className="btn-gradient font-semibold rounded-xl shadow-lg shadow-primary/30 h-9" asChild>
                       <Link to="/auth">
                         <Sparkles className="h-4 w-4 mr-2" />
                         Follow
@@ -482,16 +482,16 @@ export default function Profile() {
 
               {/* Bio */}
               {profileData.bio && (
-                <p className="mt-5 text-foreground/90 leading-relaxed max-w-2xl text-base">
+                <p className="mt-4 text-foreground/90 leading-relaxed max-w-2xl text-sm">
                   {profileData.bio}
                 </p>
               )}
 
               {/* Meta info */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-muted-foreground">
                 {profileData.location && (
-                  <span className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
-                    <MapPin className="h-4 w-4 text-primary" />
+                  <span className="flex items-center gap-1.5 bg-muted/50 px-2.5 py-1 rounded-lg">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
                     {profileData.location}
                   </span>
                 )}
@@ -500,40 +500,40 @@ export default function Profile() {
                     href={profileData.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                    className="flex items-center gap-1.5 bg-muted/50 px-2.5 py-1 rounded-lg text-primary hover:bg-primary/10 transition-colors"
                   >
-                    <LinkIcon className="h-4 w-4" />
+                    <LinkIcon className="h-3.5 w-3.5" />
                     {profileData.website.replace(/^https?:\/\//, '').split('/')[0]}
                   </a>
                 )}
-                <span className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                  Joined {format(new Date(profileData.created_at), 'MMMM yyyy')}
+                <span className="flex items-center gap-1.5 bg-muted/50 px-2.5 py-1 rounded-lg">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                  Joined {format(new Date(profileData.created_at), 'MMM yyyy')}
                 </span>
               </div>
 
-              {/* Mutual Connections - Only show for other profiles */}
+              {/* Mutual Connections */}
               {!isOwnProfile && user && !mutualsLoading && mutualCount > 0 && (
-                <div className="flex items-center gap-3 mt-5 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-                  <UserCheck className="h-5 w-5 text-primary shrink-0" />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex -space-x-2">
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                  <UserCheck className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex -space-x-1.5">
                       {mutuals.slice(0, 3).map((mutual) => (
-                        <Avatar key={mutual.user_id} className="w-7 h-7 border-2 border-card ring-1 ring-white/10">
+                        <Avatar key={mutual.user_id} className="w-5 h-5 border-2 border-card">
                           <AvatarImage src={mutual.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px] bg-primary/20">
+                          <AvatarFallback className="text-[8px] bg-primary/20">
                             {mutual.display_name?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                       ))}
                     </div>
-                    <span className="text-sm text-muted-foreground truncate ml-1">
+                    <span className="text-xs text-muted-foreground truncate">
                       Followed by{' '}
-                      <span className="text-foreground font-semibold">
+                      <span className="text-foreground font-medium">
                         {mutuals[0]?.display_name}
                       </span>
                       {mutualCount > 1 && (
-                        <> and <span className="text-foreground font-semibold">{mutualCount - 1} others</span> you follow</>
+                        <> and <span className="text-foreground font-medium">{mutualCount - 1} others</span></>
                       )}
                     </span>
                   </div>
@@ -541,53 +541,53 @@ export default function Profile() {
               )}
 
               {/* Stats Row */}
-              <div className="flex items-center gap-2 mt-6 pt-6 border-t border-border/30">
+              <div className="flex items-center gap-1 mt-5 pt-5 border-t border-border/30">
                 <button 
-                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
+                  className="flex-1 group p-3 rounded-xl hover:bg-muted/50 transition-all text-center"
                   onClick={() => {
                     setFollowModalType('followers');
                     setFollowModalOpen(true);
                   }}
                 >
-                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
+                  <span className="block text-xl font-black group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.followers.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground font-medium">followers</span>
+                  <span className="text-xs text-muted-foreground font-medium">followers</span>
                 </button>
-                <div className="w-px h-12 bg-border/30" />
+                <div className="w-px h-10 bg-border/30" />
                 <button 
-                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
+                  className="flex-1 group p-3 rounded-xl hover:bg-muted/50 transition-all text-center"
                   onClick={() => {
                     setFollowModalType('following');
                     setFollowModalOpen(true);
                   }}
                 >
-                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
+                  <span className="block text-xl font-black group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.following.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground font-medium">following</span>
+                  <span className="text-xs text-muted-foreground font-medium">following</span>
                 </button>
-                <div className="w-px h-12 bg-border/30" />
+                <div className="w-px h-10 bg-border/30" />
                 <button 
-                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
+                  className="flex-1 group p-3 rounded-xl hover:bg-muted/50 transition-all text-center"
                   onClick={() => setLibraryModalOpen(true)}
                 >
-                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
+                  <span className="block text-xl font-black group-hover:text-primary transition-colors">
                     {libraryCount.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground font-medium">library</span>
+                  <span className="text-xs text-muted-foreground font-medium">library</span>
                 </button>
               </div>
 
               {/* Mobile Action Buttons */}
-              <div className="flex md:hidden gap-3 mt-6">
+              <div className="flex md:hidden gap-2 mt-5">
                 {isOwnProfile ? (
                   <>
-                    <Button variant="outline" className="flex-1 rounded-xl font-bold border-border/50" asChild>
+                    <Button variant="outline" className="flex-1 rounded-xl font-semibold border-border/50 h-10" asChild>
                       <Link to="/settings">Edit Profile</Link>
                     </Button>
-                    <Button variant="outline" size="icon" className="rounded-xl border-border/50">
-                      <Share2 className="h-5 w-5" />
+                    <Button variant="outline" size="icon" className="rounded-xl border-border/50 h-10 w-10">
+                      <Share2 className="h-4 w-4" />
                     </Button>
                   </>
                 ) : user ? (
@@ -599,7 +599,7 @@ export default function Profile() {
                       onFollowChange={handleFollowChange}
                       className="flex-1 rounded-xl"
                     />
-                    <Button variant="outline" className="flex-1 rounded-xl font-bold border-border/50" asChild>
+                    <Button variant="outline" className="flex-1 rounded-xl font-semibold border-border/50 h-10" asChild>
                       <Link to={`/messages?new=${profileData.user_id}`}>
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
@@ -607,7 +607,7 @@ export default function Profile() {
                     </Button>
                   </>
                 ) : (
-                  <Button className="flex-1 btn-gradient rounded-xl font-bold shadow-lg shadow-primary/30" asChild>
+                  <Button className="flex-1 btn-gradient rounded-xl font-semibold shadow-lg shadow-primary/30 h-10" asChild>
                     <Link to="/auth">
                       <Sparkles className="h-4 w-4 mr-2" />
                       Follow
@@ -628,26 +628,26 @@ export default function Profile() {
           />
 
           {/* Activity & Interests Tabs */}
-          <div className="glass-card mx-4 mt-6 rounded-3xl border border-white/10 shadow-xl">
+          <div className="glass-card mx-4 mt-4 rounded-2xl border border-white/10">
             <Tabs defaultValue="activity" className="w-full">
-              <div className="p-5 border-b border-border/30">
-                <TabsList className="grid w-full grid-cols-2 max-w-xs bg-muted/50 p-1.5 rounded-xl">
-                  <TabsTrigger value="activity" className="flex items-center gap-2 rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    <FileText className="h-4 w-4" />
+              <div className="p-4 border-b border-border/30">
+                <TabsList className="grid w-full grid-cols-2 max-w-[200px] bg-muted/50 p-1 rounded-lg h-9">
+                  <TabsTrigger value="activity" className="flex items-center gap-1.5 rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <FileText className="h-3.5 w-3.5" />
                     Activity
                   </TabsTrigger>
-                  <TabsTrigger value="interests" className="flex items-center gap-2 rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                    <Sparkles className="h-4 w-4" />
+                  <TabsTrigger value="interests" className="flex items-center gap-1.5 rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <Sparkles className="h-3.5 w-3.5" />
                     Interests
                   </TabsTrigger>
                 </TabsList>
               </div>
               
-              <TabsContent value="activity" className="p-5 mt-0">
+              <TabsContent value="activity" className="p-4 mt-0">
                 <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
               </TabsContent>
               
-              <TabsContent value="interests" className="p-5 mt-0">
+              <TabsContent value="interests" className="p-4 mt-0">
                 <InterestsFeed userId={profileData.user_id} isOwnProfile={isOwnProfile} />
               </TabsContent>
             </Tabs>
