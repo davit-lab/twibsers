@@ -295,24 +295,24 @@ export default function ReelCard({
         </div>
       )}
       
-      {/* Gradient overlays */}
+      {/* Gradient overlays - enhanced */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/70 via-black/30 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-black via-black/60 to-transparent" />
       </div>
       
-      {/* Progress bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-white/20">
+      {/* Progress bar - gradient */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
         <div 
-          className="h-full bg-primary transition-all duration-200"
+          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-200"
           style={{ width: `${progress}%` }}
         />
       </div>
       
-      {/* Play/Pause indicator */}
+      {/* Play/Pause indicator - premium */}
       {showPlayIcon && isActive && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center animate-scale-in">
+          <div className="w-20 h-20 rounded-2xl bg-black/60 backdrop-blur-xl flex items-center justify-center animate-scale-in border border-white/10">
             {isPaused ? (
               <Play className="h-10 w-10 text-white ml-1" />
             ) : (
@@ -325,18 +325,18 @@ export default function ReelCard({
       {/* Double-tap star animation - UNIQUE: Star instead of heart */}
       {showLikeAnimation && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <Star className="h-32 w-32 text-amber-400 fill-amber-400 animate-ping-once drop-shadow-2xl" />
+          <Star className="h-36 w-36 text-amber-400 fill-amber-400 animate-ping-once drop-shadow-[0_0_30px_rgba(251,191,36,0.6)]" />
         </div>
       )}
       
       {/* Follow animation overlay */}
       {showFollowAnimation && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <div className="flex flex-col items-center gap-3 animate-scale-in">
-            <div className="w-24 h-24 rounded-full bg-primary/20 backdrop-blur-xl flex items-center justify-center animate-pulse">
+          <div className="flex flex-col items-center gap-4 animate-scale-in">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 backdrop-blur-xl flex items-center justify-center border border-white/20">
               <UserCheck className="h-12 w-12 text-primary" />
             </div>
-            <div className="bg-black/60 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="bg-black/70 backdrop-blur-xl rounded-xl px-5 py-2.5 border border-white/10">
               <span className="text-white font-semibold text-sm">Following @{reel.profile?.username}</span>
             </div>
           </div>
@@ -344,11 +344,11 @@ export default function ReelCard({
       )}
       
       {/* Creator info */}
-      <div className="absolute bottom-0 left-0 right-16 p-4 pb-8">
+      <div className="absolute bottom-0 left-0 right-16 p-4 pb-10">
         {/* User info row */}
         <div className="flex items-center gap-3 mb-3">
           <Link to={`/profile/${reel.profile?.username}`}>
-            <Avatar className="h-11 w-11 ring-2 ring-white/30">
+            <Avatar className="h-12 w-12 ring-2 ring-white/30 shadow-xl">
               <AvatarImage src={reel.profile?.avatar_url || defaultAvatar} className="object-cover" />
               <AvatarFallback className="bg-muted">
                 <img src={defaultAvatar} alt="" className="h-full w-full object-cover" />
@@ -362,7 +362,9 @@ export default function ReelCard({
                 {reel.profile?.display_name}
               </span>
               {reel.profile?.is_verified && (
-                <BadgeCheck className="h-4 w-4 text-primary" />
+                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <BadgeCheck className="h-2.5 w-2.5 text-white" />
+                </div>
               )}
             </Link>
             <p className="text-white/50 text-xs">@{reel.profile?.username}</p>
@@ -376,8 +378,9 @@ export default function ReelCard({
               onClick={handleFollow}
               disabled={followLoading}
               className={cn(
-                "gap-1.5 px-4 h-8 text-xs transition-all duration-300",
-                isFollowing && "border-white/30 text-white/70 hover:border-white hover:text-white",
+                "gap-1.5 px-4 h-9 text-xs transition-all duration-300 rounded-xl font-semibold",
+                isFollowing && "border-white/30 text-white/70 hover:border-white hover:text-white bg-white/10",
+                !isFollowing && "bg-gradient-to-r from-primary to-accent shadow-lg shadow-primary/30",
                 showFollowAnimation && "scale-110"
               )}
             >
@@ -395,7 +398,7 @@ export default function ReelCard({
         
         {/* Caption */}
         {reel.caption && (
-          <p className="text-white/90 text-sm mb-3 line-clamp-2 leading-relaxed">
+          <p className="text-white/90 text-sm mb-3 line-clamp-2 leading-relaxed font-medium">
             {reel.caption}
           </p>
         )}
@@ -403,9 +406,9 @@ export default function ReelCard({
         {/* Audio pill */}
         {reel.audio_name && (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <Music2 className="h-3.5 w-3.5 text-white animate-pulse" />
-              <span className="text-white/80 text-xs font-medium truncate max-w-[160px]">
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl rounded-xl px-4 py-2 border border-white/10">
+              <Music2 className="h-4 w-4 text-white animate-pulse" />
+              <span className="text-white/80 text-xs font-medium truncate max-w-[180px]">
                 {reel.audio_name}
               </span>
             </div>
@@ -413,8 +416,8 @@ export default function ReelCard({
         )}
       </div>
       
-      {/* Action buttons - Right side - UNIQUE design */}
-      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5">
+      {/* Action buttons - Right side - Premium design */}
+      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5">
         {/* Star (like) - UNIQUE: Using star instead of heart */}
         <ActionButton
           icon={Star}
@@ -449,15 +452,15 @@ export default function ReelCard({
           onClick={onSave}
         />
         
-        {/* Audio disc */}
+        {/* Audio disc - enhanced */}
         {reel.audio_name && (
-          <div className="mt-1">
+          <div className="mt-2">
             <div className={cn(
-              "w-10 h-10 rounded-full bg-gradient-to-br from-muted to-muted-foreground/20 p-[2px]",
+              "w-11 h-11 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 p-[2px] border border-white/10",
               isActive && !isPaused && "animate-spin-slow"
             )}>
-              <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                <Avatar className="h-6 w-6">
+              <div className="w-full h-full rounded-[10px] bg-black flex items-center justify-center">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src={reel.profile?.avatar_url || defaultAvatar} className="object-cover" />
                   <AvatarFallback className="bg-muted text-[8px]">♪</AvatarFallback>
                 </Avatar>
@@ -493,12 +496,12 @@ function ActionButton({ icon: Icon, count, isActive, activeColor = 'primary', on
   };
   
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <button 
         onClick={onClick} 
         className={cn(
-          "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200",
-          "bg-white/10 backdrop-blur-sm hover:bg-white/20 active:scale-95",
+          "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200",
+          "bg-white/10 backdrop-blur-xl hover:bg-white/20 active:scale-95 border border-white/10",
           isActive && activeStyles[activeColor]
         )}
       >
@@ -513,7 +516,7 @@ function ActionButton({ icon: Icon, count, isActive, activeColor = 'primary', on
         <button 
           onClick={onCountClick}
           className={cn(
-            "text-xs font-medium transition-colors",
+            "text-xs font-semibold transition-colors",
             isActive && activeColor === 'amber' && "text-amber-400",
             isActive && activeColor === 'primary' && "text-primary",
             !isActive && "text-white/80"

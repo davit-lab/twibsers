@@ -173,13 +173,17 @@ export default function Reels() {
     setShowComments(true);
   };
 
-  // Loading state - clean spinner
+  // Loading state - premium spinner
   if (loading) {
     return (
-      <div className="h-screen w-full bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-white/50 text-sm">Loading...</p>
+      <div className="h-screen w-full bg-black flex items-center justify-center relative overflow-hidden">
+        {/* Ambient effects */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 blur-[100px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/20 blur-[100px] rounded-full" />
+        
+        <div className="flex flex-col items-center gap-4 z-10">
+          <div className="w-14 h-14 rounded-2xl border-2 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-white/50 text-sm font-medium">Loading reels...</p>
         </div>
       </div>
     );
@@ -188,19 +192,25 @@ export default function Reels() {
   // Error state
   if (error) {
     return (
-      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white px-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-4">
-          <span className="text-2xl">⚠️</span>
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white px-6 text-center relative overflow-hidden">
+        {/* Ambient effects */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-destructive/20 blur-[100px] rounded-full" />
+        
+        <div className="glass-card p-8 rounded-2xl border border-white/10 z-10">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/20 flex items-center justify-center mb-5 mx-auto">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-black mb-2">Something went wrong</h2>
+          <p className="text-white/50 mb-6 text-sm">{error}</p>
+          <button 
+            onClick={() => refetch()}
+            disabled={refreshing}
+            className="bg-gradient-to-r from-primary to-accent text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 mx-auto shadow-lg shadow-primary/30"
+          >
+            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+            Try again
+          </button>
         </div>
-        <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
-        <p className="text-white/50 mb-6 text-sm">{error}</p>
-        <button 
-          onClick={() => refetch()}
-          disabled={refreshing}
-          className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-medium flex items-center gap-2"
-        >
-          {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Try again'}
-        </button>
       </div>
     );
   }
@@ -208,7 +218,11 @@ export default function Reels() {
   // Empty state
   if (reels.length === 0) {
     return (
-      <div className="h-screen w-full bg-black relative">
+      <div className="h-screen w-full bg-black relative overflow-hidden">
+        {/* Ambient effects */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 blur-[100px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/20 blur-[100px] rounded-full" />
+        
         <FeedTabs feedType={feedType} onFeedTypeChange={setFeedType} />
         <ReelEmptyState 
           isRefreshing={refreshing} 
