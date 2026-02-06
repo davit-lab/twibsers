@@ -13,7 +13,7 @@ import BookCard from '@/components/library/BookCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, Search, Library as LibraryIcon, PenTool, Heart, Flame, Plus, X, Sparkles, TrendingUp, Clock } from 'lucide-react';
+import { BookOpen, Search, Library as LibraryIcon, PenTool, Heart, Flame, Plus, X, Sparkles, TrendingUp, Clock, BadgeCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type TabValue = 'my-library' | 'browse' | 'streak' | 'my-books';
@@ -83,26 +83,26 @@ export default function Library() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-background pb-24">
-        {/* Background Effects */}
-        <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[150px] rounded-full pointer-events-none -z-10" />
-        <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-accent/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div className="min-h-screen bg-background pb-24 relative overflow-hidden">
+        {/* Ambient Background Effects */}
+        <div className="orb-primary w-[600px] h-[600px] top-[-200px] right-[-100px]" />
+        <div className="orb-accent w-[500px] h-[500px] bottom-[10%] left-[-200px]" />
 
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 space-y-8">
-          {/* Header */}
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 space-y-8 relative">
+          {/* Header - Premium Style */}
           <div className="relative">
-            <div className="absolute -top-20 -left-20 w-80 h-80 bg-primary/10 blur-[120px] rounded-full -z-10 pointer-events-none" />
-            
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/30">
-                  <BookOpen className="h-6 w-6" />
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/30">
+                  <BookOpen className="h-7 w-7" />
                 </div>
                 <div>
                   <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-                    <span className="text-primary">Library</span>
+                    <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                      Library
+                    </span>
                   </h1>
-                  <p className="text-muted-foreground text-sm md:text-base">
+                  <p className="text-muted-foreground text-sm md:text-base font-medium">
                     Discover and read amazing books from our community
                   </p>
                 </div>
@@ -110,8 +110,8 @@ export default function Library() {
 
               {canCreateBooks && (
                 <CreateBookDialog onBookCreated={refetchMyBooks}>
-                  <Button className="btn-gradient shadow-lg shadow-primary/30 font-bold">
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button className="btn-gradient shadow-xl shadow-primary/30 font-bold px-6 rounded-xl">
+                    <Plus className="h-5 w-5 mr-2" />
                     Create Book
                   </Button>
                 </CreateBookDialog>
@@ -119,28 +119,32 @@ export default function Library() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative max-w-xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search books, authors..."
-              className="pl-12 pr-12 h-14 text-base bg-muted/50 border-transparent focus:bg-background focus:border-primary/20 rounded-2xl"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
-                onClick={() => setSearchQuery('')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+          {/* Search Bar - Premium Glass */}
+          <div className="relative max-w-2xl">
+            <div className="glass-card rounded-2xl p-1.5">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search books, authors..."
+                  className="pl-12 pr-12 h-14 text-base bg-muted/50 border-transparent focus:bg-background focus:border-primary/30 rounded-xl font-medium"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Tabs */}
+          {/* Tabs - Pill Style */}
           <div className="flex flex-wrap items-center gap-2">
             {tabs.map((tab) => {
               if (tab.requiresAuth && !user) return null;
@@ -153,17 +157,17 @@ export default function Library() {
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value as TabValue)}
                   className={cn(
-                    "flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all",
+                    "flex items-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold transition-all duration-200",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      ? "bg-gradient-to-r from-primary to-accent text-white shadow-xl shadow-primary/30"
+                      : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
                   <tab.icon className="h-4 w-4" />
                   {tab.label}
                   {tab.count !== undefined && tab.count > 0 && (
                     <span className={cn(
-                      "ml-1 text-xs px-2 py-0.5 rounded-full",
+                      "ml-1.5 text-xs px-2.5 py-1 rounded-lg font-bold",
                       isActive ? "bg-white/20" : "bg-primary/10 text-primary"
                     )}>
                       {tab.count}
@@ -182,36 +186,38 @@ export default function Library() {
                 {loadingLibrary ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex gap-4 p-4 bg-card rounded-2xl border border-border/50">
-                        <Skeleton className="w-24 aspect-[3/4] rounded-xl" />
+                      <div key={i} className="glass-card flex gap-4 p-5 rounded-2xl">
+                        <Skeleton className="w-28 aspect-[3/4] rounded-xl" />
                         <div className="flex-1 space-y-3">
-                          <Skeleton className="h-5 w-3/4" />
+                          <Skeleton className="h-6 w-3/4" />
                           <Skeleton className="h-4 w-1/2" />
-                          <Skeleton className="h-2 w-full" />
+                          <Skeleton className="h-3 w-full" />
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : filteredLibrary.length === 0 ? (
-                  <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
-                      <Heart className="h-10 w-10 text-muted-foreground" />
+                  <div className="glass-card text-center py-20 px-8 rounded-3xl">
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <Heart className="h-12 w-12 text-primary" />
                     </div>
-                    <h3 className="font-bold text-xl mb-2">Your library is empty</h3>
-                    <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                    <h3 className="font-black text-2xl mb-3">Your library is empty</h3>
+                    <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
                       Browse books and add them to your library to track your reading progress.
                     </p>
-                    <Button onClick={() => setActiveTab('browse')} className="btn-gradient">
-                      <Sparkles className="h-4 w-4 mr-2" />
+                    <Button onClick={() => setActiveTab('browse')} className="btn-gradient font-bold px-8 rounded-xl shadow-lg shadow-primary/30">
+                      <Sparkles className="h-5 w-5 mr-2" />
                       Browse Books
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-10">
+                  <div className="space-y-12">
                     {currentlyReading.length > 0 && (
                       <section>
-                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-primary" />
+                        <h2 className="text-xl font-black mb-5 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                          </div>
                           Continue Reading
                         </h2>
                         <div className="grid gap-4 md:grid-cols-2">
@@ -224,7 +230,12 @@ export default function Library() {
 
                     {notStarted.length > 0 && (
                       <section>
-                        <h2 className="text-lg font-bold mb-4 text-muted-foreground">Not Started Yet</h2>
+                        <h2 className="text-xl font-black mb-5 text-muted-foreground flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+                            <Clock className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          Not Started Yet
+                        </h2>
                         <div className="grid gap-4 md:grid-cols-2">
                           {notStarted.map((book) => (
                             <LibraryBookCard key={book.id} book={book} />
@@ -235,7 +246,12 @@ export default function Library() {
 
                     {completedBooks.length > 0 && (
                       <section>
-                        <h2 className="text-lg font-bold mb-4 text-muted-foreground">Completed</h2>
+                        <h2 className="text-xl font-black mb-5 text-muted-foreground flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                            <BadgeCheck className="h-5 w-5 text-accent" />
+                          </div>
+                          Completed
+                        </h2>
                         <div className="grid gap-4 md:grid-cols-2">
                           {completedBooks.map((book) => (
                             <LibraryBookCard key={book.id} book={book} />
@@ -251,7 +267,9 @@ export default function Library() {
             {/* Reading Streak Tab */}
             {activeTab === 'streak' && user && (
               <div className="max-w-md">
-                <ReadingStreakCard />
+                <div className="glass-card rounded-3xl p-1">
+                  <ReadingStreakCard />
+                </div>
               </div>
             )}
 
@@ -259,16 +277,16 @@ export default function Library() {
             {activeTab === 'browse' && (
               <>
                 {/* Sort Options */}
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="flex items-center bg-muted/50 p-1.5 rounded-xl gap-1">
+                <div className="flex items-center gap-2 mb-8">
+                  <div className="glass-card flex items-center p-1.5 rounded-xl gap-1">
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}
                         onClick={() => setSortBy(option.value as SortOption)}
                         className={cn(
-                          "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                          "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all",
                           sortBy === option.value
-                            ? "bg-background text-primary shadow-sm"
+                            ? "bg-gradient-to-r from-primary to-accent text-white shadow-md"
                             : "text-muted-foreground hover:text-foreground"
                         )}
                       >
@@ -280,17 +298,17 @@ export default function Library() {
                 </div>
 
                 {loadingBrowse ? (
-                  <div className="space-y-8">
+                  <div className="space-y-10">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <Skeleton className="h-12 w-12 rounded-full" />
-                          <Skeleton className="h-5 w-40" />
+                      <div key={i} className="space-y-5">
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="h-14 w-14 rounded-full" />
+                          <Skeleton className="h-6 w-48" />
                         </div>
-                        <div className="flex gap-4 overflow-hidden">
+                        <div className="flex gap-5 overflow-hidden">
                           {[1, 2, 3, 4, 5].map((j) => (
-                            <div key={j} className="w-[140px] flex-shrink-0 space-y-2">
-                              <Skeleton className="aspect-[3/4] rounded-xl" />
+                            <div key={j} className="w-[160px] flex-shrink-0 space-y-3">
+                              <Skeleton className="aspect-[3/4] rounded-2xl" />
                               <Skeleton className="h-4 w-3/4" />
                             </div>
                           ))}
@@ -299,17 +317,17 @@ export default function Library() {
                     ))}
                   </div>
                 ) : filteredGroups.length === 0 ? (
-                  <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
-                      <LibraryIcon className="h-10 w-10 text-muted-foreground" />
+                  <div className="glass-card text-center py-20 px-8 rounded-3xl">
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <LibraryIcon className="h-12 w-12 text-primary" />
                     </div>
-                    <h3 className="font-bold text-xl mb-2">No books found</h3>
+                    <h3 className="font-black text-2xl mb-3">No books found</h3>
                     <p className="text-muted-foreground">
                       {searchQuery ? 'Try a different search term' : 'Be the first to publish a book!'}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-10">
+                  <div className="space-y-12">
                     {filteredGroups.map((group) => (
                       <AuthorBooksSection key={group.author.user_id} authorGroup={group} />
                     ))}
@@ -326,20 +344,20 @@ export default function Library() {
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="space-y-3">
                         <Skeleton className="aspect-[3/4] rounded-2xl" />
-                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-5 w-3/4" />
                       </div>
                     ))}
                   </div>
                 ) : filteredMyBooks.length === 0 ? (
-                  <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
-                      <PenTool className="h-10 w-10 text-muted-foreground" />
+                  <div className="glass-card text-center py-20 px-8 rounded-3xl">
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <PenTool className="h-12 w-12 text-primary" />
                     </div>
-                    <h3 className="font-bold text-xl mb-2">No books yet</h3>
-                    <p className="text-muted-foreground mb-6">Start writing your first book today</p>
+                    <h3 className="font-black text-2xl mb-3">No books yet</h3>
+                    <p className="text-muted-foreground mb-8">Start writing your first book today</p>
                     <CreateBookDialog onBookCreated={refetchMyBooks}>
-                      <Button className="btn-gradient">
-                        <Plus className="h-4 w-4 mr-2" />
+                      <Button className="btn-gradient font-bold px-8 rounded-xl shadow-lg shadow-primary/30">
+                        <Plus className="h-5 w-5 mr-2" />
                         Create Book
                       </Button>
                     </CreateBookDialog>
@@ -357,18 +375,21 @@ export default function Library() {
 
           {/* Info for non-verified users */}
           {!canCreateBooks && user && (
-            <div className="p-6 bg-muted/50 rounded-2xl border border-border/50">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <PenTool className="h-6 w-6 text-primary" />
+            <div className="glass-card p-6 rounded-3xl">
+              <div className="flex items-start gap-5">
+                <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <PenTool className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold mb-1">Want to publish your own books?</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-black text-lg mb-2">Want to publish your own books?</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Get verified or upgrade to premium to unlock the ability to create and publish books in the Digital Library.
                   </p>
-                  <Button variant="outline" className="mt-4" asChild>
-                    <Link to="/pricing">View Plans</Link>
+                  <Button variant="outline" className="mt-5 rounded-xl font-bold border-primary/30 hover:bg-primary/10" asChild>
+                    <Link to="/pricing">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      View Plans
+                    </Link>
                   </Button>
                 </div>
               </div>

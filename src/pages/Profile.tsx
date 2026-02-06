@@ -229,14 +229,20 @@ export default function Profile() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="min-h-screen bg-muted/30">
+        <div className="min-h-screen bg-background relative overflow-hidden">
+          {/* Ambient orbs */}
+          <div className="orb-primary w-[500px] h-[500px] top-[-200px] right-[-100px]" />
+          <div className="orb-accent w-[400px] h-[400px] bottom-[10%] left-[-150px]" />
+          
           <div className="max-w-4xl mx-auto">
-            <Skeleton className="h-48 w-full" />
-            <div className="px-6 -mt-16 relative">
-              <Skeleton className="h-32 w-32 rounded-full border-4 border-background" />
-              <div className="mt-4 space-y-2">
-                <Skeleton className="h-8 w-64" />
-                <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-56 w-full" />
+            <div className="glass-card mx-4 -mt-20 p-6 rounded-2xl">
+              <div className="flex gap-4">
+                <Skeleton className="h-32 w-32 rounded-full" />
+                <div className="flex-1 space-y-3 pt-4">
+                  <Skeleton className="h-8 w-64" />
+                  <Skeleton className="h-4 w-48" />
+                </div>
               </div>
             </div>
           </div>
@@ -248,16 +254,21 @@ export default function Profile() {
   if (error || !profileData) {
     return (
       <MainLayout>
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="text-center">
-            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-              <Users className="w-10 h-10 text-muted-foreground" />
+        <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center px-4">
+          {/* Ambient orbs */}
+          <div className="orb-primary w-[500px] h-[500px] top-[10%] right-[-100px]" />
+          <div className="orb-accent w-[400px] h-[400px] bottom-[20%] left-[-150px]" />
+          
+          <div className="glass-card p-12 rounded-3xl text-center max-w-md">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-6">
+              <Users className="w-12 h-12 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Profile not found</h1>
+            <h1 className="text-3xl font-black mb-3">Profile not found</h1>
             <p className="text-muted-foreground mb-8">
               This user doesn't exist or the profile has been removed.
             </p>
-            <Button onClick={() => navigate('/')} className="btn-gradient">
+            <Button onClick={() => navigate('/')} className="btn-gradient font-bold px-8">
+              <Sparkles className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
           </div>
@@ -268,10 +279,14 @@ export default function Profile() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-muted/30 pb-24 lg:pb-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Cover Banner */}
-          <div className="relative h-48 md:h-56 bg-gradient-to-r from-primary/80 via-primary to-accent/80 overflow-hidden">
+      <div className="min-h-screen bg-background pb-24 lg:pb-8 relative overflow-hidden">
+        {/* Ambient Background Effects */}
+        <div className="orb-primary w-[600px] h-[600px] top-[-200px] right-[-150px]" />
+        <div className="orb-accent w-[500px] h-[500px] bottom-[5%] left-[-200px]" />
+        
+        <div className="max-w-4xl mx-auto relative">
+          {/* Cover Banner - Premium Gradient */}
+          <div className="relative h-52 md:h-64 overflow-hidden">
             {profileData.cover_url ? (
               <img 
                 src={profileData.cover_url} 
@@ -279,19 +294,24 @@ export default function Profile() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="absolute inset-0 opacity-30">
-                <div className="absolute top-4 left-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
-                <div className="absolute bottom-4 right-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-white/5 blur-3xl" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/80 to-accent">
+                <div className="absolute inset-0 opacity-40">
+                  <div className="absolute top-6 left-10 w-40 h-40 rounded-full bg-white/10 blur-3xl" />
+                  <div className="absolute bottom-4 right-16 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-white/5 blur-[80px]" />
+                </div>
               </div>
             )}
+            
+            {/* Gradient overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
             
             {/* Back button */}
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => navigate(-1)}
-              className="absolute top-4 left-4 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+              className="absolute top-4 left-4 rounded-xl bg-black/30 hover:bg-black/50 text-white backdrop-blur-md border border-white/10"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -304,7 +324,7 @@ export default function Profile() {
                     variant="ghost" 
                     size="icon"
                     onClick={() => setCoverDialogOpen(true)}
-                    className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                    className="rounded-xl bg-black/30 hover:bg-black/50 text-white backdrop-blur-md border border-white/10"
                   >
                     <ImagePlus className="h-5 w-5" />
                   </Button>
@@ -312,7 +332,7 @@ export default function Profile() {
                     variant="ghost" 
                     size="icon"
                     asChild
-                    className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                    className="rounded-xl bg-black/30 hover:bg-black/50 text-white backdrop-blur-md border border-white/10"
                   >
                     <Link to="/settings">
                       <Settings className="h-5 w-5" />
@@ -323,42 +343,42 @@ export default function Profile() {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm"
+                className="rounded-xl bg-black/30 hover:bg-black/50 text-white backdrop-blur-md border border-white/10"
               >
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
-          {/* Profile Header Card */}
-          <div className="glass-card mx-4 -mt-20 relative rounded-xl border border-border/50">
-            <div className="p-6">
+          {/* Profile Header Card - Glassmorphism */}
+          <div className="glass-card mx-4 -mt-24 relative rounded-3xl border border-white/10 shadow-2xl">
+            <div className="p-6 md:p-8">
               {/* Avatar Section */}
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 {/* Avatar with Story Ring */}
                 <div className="relative -mt-20 md:-mt-24">
                   <div 
                     className={cn(
-                      "rounded-full p-1 cursor-pointer transition-all duration-300",
+                      "rounded-full p-1.5 cursor-pointer transition-all duration-300 shadow-2xl",
                       hasStories 
                         ? hasUnviewed 
-                          ? "bg-gradient-to-br from-primary via-accent to-primary" 
+                          ? "bg-gradient-to-br from-primary via-accent to-primary animate-pulse" 
                           : "bg-muted-foreground/30"
-                        : "bg-background border-4 border-background"
+                        : "bg-card border-4 border-card"
                     )}
                     onClick={hasStories ? openViewer : undefined}
                   >
                     <div className={cn(
                       "rounded-full",
-                      hasStories && "bg-background p-1"
+                      hasStories && "bg-card p-1"
                     )}>
-                      <Avatar className="w-28 h-28 md:w-36 md:h-36 border-4 border-background shadow-xl">
+                      <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-card shadow-2xl ring-2 ring-white/5">
                         <AvatarImage 
                           src={profileData.avatar_url || undefined} 
                           alt={profileData.display_name}
                           className="object-cover"
                         />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-3xl md:text-4xl font-bold">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-4xl md:text-5xl font-black">
                           {getInitials(profileData.display_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -371,23 +391,23 @@ export default function Profile() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                       className={cn(
-                        "absolute bottom-2 right-2 w-9 h-9 rounded-full",
-                        "bg-primary text-primary-foreground",
+                        "absolute bottom-3 right-3 w-10 h-10 rounded-xl",
+                        "bg-gradient-to-br from-primary to-accent text-white",
                         "flex items-center justify-center transition-all duration-200",
-                        "shadow-lg hover:scale-110 border-2 border-background"
+                        "shadow-lg shadow-primary/40 hover:scale-110 border-2 border-card"
                       )}
                     >
                       {uploading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <Camera className="h-4 w-4" />
+                        <Camera className="h-5 w-5" />
                       )}
                     </button>
                   )}
 
                   {/* Story indicator */}
                   {hasStories && (
-                    <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-background">
+                    <div className="absolute -top-1 -right-1 bg-gradient-to-br from-accent to-primary text-white text-xs font-bold rounded-lg w-7 h-7 flex items-center justify-center shadow-lg border-2 border-card">
                       {currentGroup.stories.length}
                     </div>
                   )}
@@ -395,40 +415,42 @@ export default function Profile() {
 
                 {/* Name and quick info */}
                 <div className="flex-1 md:pb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-2xl md:text-3xl font-bold">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight">
                       {profileData.display_name}
                     </h1>
                     {profileData.is_verified && (
-                      <div className="verified-badge">
-                        <BadgeCheck className="h-3 w-3 text-white" />
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-md ring-2 ring-primary/20">
+                        <BadgeCheck className="h-3.5 w-3.5 text-white" />
                       </div>
                     )}
                     {isPremium && (
-                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md" title="Premium Member">
-                        <Crown className="h-3 w-3 text-white" />
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md ring-2 ring-amber-500/20" title="Premium Member">
+                        <Crown className="h-3.5 w-3.5 text-white" />
                       </span>
                     )}
                     {isProfileAdmin && (
-                      <span className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
-                        <Hammer className="h-3 w-3 text-white" />
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center ring-2 ring-amber-500/20">
+                        <Hammer className="h-3.5 w-3.5 text-white" />
                       </span>
                     )}
                     {profileData.privacy === 'private' && (
-                      <Lock className="h-4 w-4 text-muted-foreground" />
+                      <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
                     )}
                   </div>
-                  <p className="text-muted-foreground">@{profileData.username}</p>
+                  <p className="text-muted-foreground font-medium mt-0.5">@{profileData.username}</p>
                 </div>
 
                 {/* Action Buttons - Desktop */}
-                <div className="hidden md:flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-3">
                   {isOwnProfile ? (
                     <>
-                      <Button variant="outline" asChild>
+                      <Button variant="outline" asChild className="rounded-xl font-bold border-border/50 hover:bg-muted/50">
                         <Link to="/settings">Edit Profile</Link>
                       </Button>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-muted/50">
                         <Share2 className="h-5 w-5" />
                       </Button>
                     </>
@@ -440,7 +462,7 @@ export default function Profile() {
                         isPrivateAccount={profileData.privacy === 'private'}
                         onFollowChange={handleFollowChange}
                       />
-                      <Button variant="outline" asChild>
+                      <Button variant="outline" asChild className="rounded-xl font-bold border-border/50 hover:bg-muted/50">
                         <Link to={`/messages?new=${profileData.user_id}`}>
                           <MessageCircle className="h-4 w-4 mr-2" />
                           Message
@@ -448,8 +470,11 @@ export default function Profile() {
                       </Button>
                     </>
                   ) : (
-                    <Button className="btn-gradient" asChild>
-                      <Link to="/auth">Follow</Link>
+                    <Button className="btn-gradient font-bold rounded-xl shadow-lg shadow-primary/30" asChild>
+                      <Link to="/auth">
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Follow
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -457,16 +482,16 @@ export default function Profile() {
 
               {/* Bio */}
               {profileData.bio && (
-                <p className="mt-4 text-foreground/90 leading-relaxed max-w-2xl">
+                <p className="mt-5 text-foreground/90 leading-relaxed max-w-2xl text-base">
                   {profileData.bio}
                 </p>
               )}
 
               {/* Meta info */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5 text-sm text-muted-foreground">
                 {profileData.location && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4" />
+                  <span className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+                    <MapPin className="h-4 w-4 text-primary" />
                     {profileData.location}
                   </span>
                 )}
@@ -475,26 +500,26 @@ export default function Profile() {
                     href={profileData.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-primary hover:underline"
+                    className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
                   >
                     <LinkIcon className="h-4 w-4" />
                     {profileData.website.replace(/^https?:\/\//, '').split('/')[0]}
                   </a>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <CalendarDays className="h-4 w-4" />
+                <span className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+                  <CalendarDays className="h-4 w-4 text-primary" />
                   Joined {format(new Date(profileData.created_at), 'MMMM yyyy')}
                 </span>
               </div>
 
               {/* Mutual Connections - Only show for other profiles */}
               {!isOwnProfile && user && !mutualsLoading && mutualCount > 0 && (
-                <div className="flex items-center gap-2 mt-4 p-3 rounded-lg bg-secondary/30">
-                  <UserCheck className="h-4 w-4 text-primary shrink-0" />
-                  <div className="flex items-center gap-1 min-w-0">
+                <div className="flex items-center gap-3 mt-5 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                  <UserCheck className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex items-center gap-2 min-w-0">
                     <div className="flex -space-x-2">
                       {mutuals.slice(0, 3).map((mutual) => (
-                        <Avatar key={mutual.user_id} className="w-6 h-6 border-2 border-background">
+                        <Avatar key={mutual.user_id} className="w-7 h-7 border-2 border-card ring-1 ring-white/10">
                           <AvatarImage src={mutual.avatar_url || undefined} />
                           <AvatarFallback className="text-[10px] bg-primary/20">
                             {mutual.display_name?.charAt(0)}
@@ -502,13 +527,13 @@ export default function Profile() {
                         </Avatar>
                       ))}
                     </div>
-                    <span className="text-sm text-muted-foreground truncate ml-2">
+                    <span className="text-sm text-muted-foreground truncate ml-1">
                       Followed by{' '}
-                      <span className="text-foreground font-medium">
+                      <span className="text-foreground font-semibold">
                         {mutuals[0]?.display_name}
                       </span>
                       {mutualCount > 1 && (
-                        <> and <span className="text-foreground font-medium">{mutualCount - 1} others</span> you follow</>
+                        <> and <span className="text-foreground font-semibold">{mutualCount - 1} others</span> you follow</>
                       )}
                     </span>
                   </div>
@@ -516,50 +541,52 @@ export default function Profile() {
               )}
 
               {/* Stats Row */}
-              <div className="flex items-center gap-6 mt-5 pt-5 border-t border-border/50">
+              <div className="flex items-center gap-2 mt-6 pt-6 border-t border-border/30">
                 <button 
-                  className="group"
+                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
                   onClick={() => {
                     setFollowModalType('followers');
                     setFollowModalOpen(true);
                   }}
                 >
-                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.followers.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground ml-1.5">followers</span>
+                  <span className="text-sm text-muted-foreground font-medium">followers</span>
                 </button>
+                <div className="w-px h-12 bg-border/30" />
                 <button 
-                  className="group"
+                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
                   onClick={() => {
                     setFollowModalType('following');
                     setFollowModalOpen(true);
                   }}
                 >
-                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
                     {statsLoading ? '–' : stats.following.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground ml-1.5">following</span>
+                  <span className="text-sm text-muted-foreground font-medium">following</span>
                 </button>
+                <div className="w-px h-12 bg-border/30" />
                 <button 
-                  className="group"
+                  className="flex-1 group p-4 rounded-2xl hover:bg-muted/50 transition-all"
                   onClick={() => setLibraryModalOpen(true)}
                 >
-                  <span className="text-xl font-bold group-hover:text-primary transition-colors">
+                  <span className="block text-2xl font-black group-hover:text-primary transition-colors">
                     {libraryCount.toLocaleString()}
                   </span>
-                  <span className="text-sm text-muted-foreground ml-1.5">library</span>
+                  <span className="text-sm text-muted-foreground font-medium">library</span>
                 </button>
               </div>
 
               {/* Mobile Action Buttons */}
-              <div className="flex md:hidden gap-2 mt-5">
+              <div className="flex md:hidden gap-3 mt-6">
                 {isOwnProfile ? (
                   <>
-                    <Button variant="outline" className="flex-1" asChild>
+                    <Button variant="outline" className="flex-1 rounded-xl font-bold border-border/50" asChild>
                       <Link to="/settings">Edit Profile</Link>
                     </Button>
-                    <Button variant="outline" size="icon">
+                    <Button variant="outline" size="icon" className="rounded-xl border-border/50">
                       <Share2 className="h-5 w-5" />
                     </Button>
                   </>
@@ -570,9 +597,9 @@ export default function Profile() {
                       targetUsername={profileData.username}
                       isPrivateAccount={profileData.privacy === 'private'}
                       onFollowChange={handleFollowChange}
-                      className="flex-1"
+                      className="flex-1 rounded-xl"
                     />
-                    <Button variant="outline" className="flex-1" asChild>
+                    <Button variant="outline" className="flex-1 rounded-xl font-bold border-border/50" asChild>
                       <Link to={`/messages?new=${profileData.user_id}`}>
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
@@ -580,8 +607,11 @@ export default function Profile() {
                     </Button>
                   </>
                 ) : (
-                  <Button className="flex-1 btn-gradient" asChild>
-                    <Link to="/auth">Follow</Link>
+                  <Button className="flex-1 btn-gradient rounded-xl font-bold shadow-lg shadow-primary/30" asChild>
+                    <Link to="/auth">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Follow
+                    </Link>
                   </Button>
                 )}
               </div>
@@ -598,26 +628,26 @@ export default function Profile() {
           />
 
           {/* Activity & Interests Tabs */}
-          <div className="glass-card mx-4 mt-4 rounded-xl border border-border/50">
+          <div className="glass-card mx-4 mt-6 rounded-3xl border border-white/10 shadow-xl">
             <Tabs defaultValue="activity" className="w-full">
-              <div className="p-4 border-b border-border/50">
-                <TabsList className="grid w-full grid-cols-2 max-w-xs">
-                  <TabsTrigger value="activity" className="flex items-center gap-2">
+              <div className="p-5 border-b border-border/30">
+                <TabsList className="grid w-full grid-cols-2 max-w-xs bg-muted/50 p-1.5 rounded-xl">
+                  <TabsTrigger value="activity" className="flex items-center gap-2 rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
                     <FileText className="h-4 w-4" />
                     Activity
                   </TabsTrigger>
-                  <TabsTrigger value="interests" className="flex items-center gap-2">
+                  <TabsTrigger value="interests" className="flex items-center gap-2 rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
                     <Sparkles className="h-4 w-4" />
                     Interests
                   </TabsTrigger>
                 </TabsList>
               </div>
               
-              <TabsContent value="activity" className="p-4 mt-0">
+              <TabsContent value="activity" className="p-5 mt-0">
                 <Feed userId={profileData.user_id} refreshTrigger={refreshKey} />
               </TabsContent>
               
-              <TabsContent value="interests" className="p-4 mt-0">
+              <TabsContent value="interests" className="p-5 mt-0">
                 <InterestsFeed userId={profileData.user_id} isOwnProfile={isOwnProfile} />
               </TabsContent>
             </Tabs>
