@@ -188,24 +188,29 @@ export default function Feed({ userId, refreshTrigger, onRefreshComplete }: Feed
 
   if (loading) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-3 p-4">
         {showFeedTabs && (
-          <div className="flex gap-1 p-1 bg-muted/30 rounded-full mb-4 w-fit">
-            <div className="px-4 py-2 rounded-full bg-primary/20 text-sm font-medium">For You</div>
-            <div className="px-4 py-2 rounded-full text-sm font-medium text-muted-foreground">Following</div>
+          <div className="flex gap-1 p-1.5 bg-surface-2 backdrop-blur-xl rounded-2xl w-fit border border-border/30">
+            <div className="px-5 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-semibold shadow-lg">For You</div>
+            <div className="px-5 py-2 rounded-xl text-sm font-medium text-muted-foreground">Following</div>
           </div>
         )}
         {[1, 2, 3].map((i) => (
-          <div key={i} className="p-4 bg-card/50 border-b border-border/30">
+          <div key={i} className="glass-card p-4">
             <div className="flex items-start gap-3">
-              <Skeleton className="h-11 w-11 rounded-full" />
-              <div className="flex-1 space-y-2">
+              <Skeleton className="h-12 w-12 rounded-2xl" />
+              <div className="flex-1 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-28 rounded-lg" />
+                  <Skeleton className="h-3 w-20 rounded-lg" />
                 </div>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4 rounded-lg" />
+                <div className="flex gap-4 pt-2">
+                  <Skeleton className="h-8 w-16 rounded-xl" />
+                  <Skeleton className="h-8 w-16 rounded-xl" />
+                  <Skeleton className="h-8 w-16 rounded-xl" />
+                </div>
               </div>
             </div>
           </div>
@@ -216,32 +221,34 @@ export default function Feed({ userId, refreshTrigger, onRefreshComplete }: Feed
 
   if (error) {
     return (
-      <div className="text-center py-16">
-        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-          <RefreshCw className="h-8 w-8 text-destructive" />
+      <div className="text-center py-16 px-4">
+        <div className="glass-card p-8 max-w-sm mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <RefreshCw className="h-8 w-8 text-destructive" />
+          </div>
+          <p className="text-destructive font-semibold text-lg mb-2">Failed to load posts</p>
+          <p className="text-sm text-muted-foreground mb-6">Something went wrong. Please try again.</p>
+          <Button onClick={() => fetchPosts()} className="btn-gradient rounded-xl gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Try again
+          </Button>
         </div>
-        <p className="text-destructive font-medium mb-2">Failed to load posts</p>
-        <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try again.</p>
-        <Button onClick={() => fetchPosts()} variant="outline" className="gap-2 rounded-full">
-          <RefreshCw className="h-4 w-4" />
-          Try again
-        </Button>
       </div>
     );
   }
 
   return (
-    <div>
-      {/* Feed Type Tabs - Pill Style */}
+    <div className="p-4 space-y-4">
+      {/* Feed Type Tabs - Premium Glassmorphism */}
       {showFeedTabs && (
-        <div className="flex gap-1 p-1 bg-muted/30 rounded-full mb-4 w-fit">
+        <div className="flex gap-1 p-1.5 bg-surface-2 backdrop-blur-xl rounded-2xl w-fit border border-border/30">
           <button
             onClick={() => setFeedType('all')}
             className={cn(
-              "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200",
+              "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
               feedType === 'all'
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                ? "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/30"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface-3"
             )}
           >
             For You
@@ -249,10 +256,10 @@ export default function Feed({ userId, refreshTrigger, onRefreshComplete }: Feed
           <button
             onClick={() => setFeedType('following')}
             className={cn(
-              "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200",
+              "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
               feedType === 'following'
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                ? "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/30"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface-3"
             )}
           >
             Following
@@ -262,21 +269,23 @@ export default function Feed({ userId, refreshTrigger, onRefreshComplete }: Feed
 
       {/* Posts */}
       {posts.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="h-10 w-10 text-primary" />
+        <div className="text-center py-16 px-4">
+          <div className="glass-card p-8 max-w-sm mx-auto">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="h-10 w-10 text-primary" />
+            </div>
+            <p className="font-bold text-xl mb-2">
+              {feedType === 'following' ? 'Your feed is empty' : 'No posts yet'}
+            </p>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              {feedType === 'following'
+                ? 'Follow some people to see their posts here!'
+                : 'Be the first to share something with the community!'}
+            </p>
           </div>
-          <p className="font-semibold text-lg mb-1">
-            {feedType === 'following' ? 'Your feed is empty' : 'No posts yet'}
-          </p>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            {feedType === 'following'
-              ? 'Follow some people to see their posts here!'
-              : 'Be the first to share something with the community!'}
-          </p>
         </div>
       ) : (
-        <div className="divide-y divide-border/30">
+        <div className="space-y-4">
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -292,10 +301,10 @@ export default function Feed({ userId, refreshTrigger, onRefreshComplete }: Feed
       {hasMore && posts.length > 0 && (
         <div className="text-center py-6">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => fetchPosts(true)}
             disabled={loadingMore}
-            className="gap-2 rounded-full text-muted-foreground hover:text-foreground"
+            className="gap-2 rounded-xl border-border/50 hover:bg-surface-2"
           >
             {loadingMore ? (
               <>
