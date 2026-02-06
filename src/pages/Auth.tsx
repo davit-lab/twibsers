@@ -6,15 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft, Phone, Smartphone } from 'lucide-react';
+import { Loader2, Sparkles, Users, BookOpen, MessageCircle, Mail, KeyRound, ArrowLeft, Phone, Smartphone, Eye, EyeOff } from 'lucide-react';
 import { validateEmail } from '@/lib/emailValidation';
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
 import CountryCodeSelector from '@/components/auth/CountryCodeSelector';
 import { countries, type Country } from '@/lib/countryCodes';
+import { cn } from '@/lib/utils';
 
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
@@ -29,6 +28,7 @@ export default function Auth() {
   const [activeTab, setActiveTab] = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'login');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   
   // Form state
@@ -50,7 +50,6 @@ export default function Auth() {
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
     
-    // Use enhanced email validation that blocks disposable emails
     const emailValidation = validateEmail(email);
     if (!emailValidation.valid) {
       newErrors.email = emailValidation.error || 'Please enter a valid email address';
@@ -184,7 +183,6 @@ export default function Auth() {
         description: error.message,
       });
     } else {
-      // Check if user has interests (if not, they're new)
       const { count } = await (supabase as any)
         .from('user_interests')
         .select('*', { count: 'exact', head: true })
@@ -203,10 +201,8 @@ export default function Auth() {
   const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Build full phone number with country code
     const fullPhoneNumber = selectedCountry.dialCode + phoneNumber.replace(/^0+/, '');
     
-    // Validate using libphonenumber-js
     if (!isValidPhoneNumber(fullPhoneNumber)) {
       setErrors({ email: 'Please enter a valid phone number for ' + selectedCountry.name });
       return;
@@ -262,7 +258,6 @@ export default function Auth() {
         description: error.message,
       });
     } else {
-      // Check if user has interests (if not, they're new)
       const { count } = await (supabase as any)
         .from('user_interests')
         .select('*', { count: 'exact', head: true })
@@ -281,484 +276,535 @@ export default function Auth() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="relative">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="absolute inset-0 blur-xl bg-primary/30 animate-pulse" />
+        </div>
       </div>
     );
   }
 
+  const renderOtpFlow = () => (
+    <div className="w-full max-w-md mx-auto">
+      <button
+        onClick={() => setAuthMode('login')}
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to login
+      </button>
+
+      <div className="text-center mb-8">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/30">
+          {authMode === 'otp-request' ? (
+            <Mail className="h-10 w-10 text-white" />
+          ) : (
+            <KeyRound className="h-10 w-10 text-white" />
+          )}
+        </div>
+        <h1 className="text-3xl font-bold mb-2">
+          {authMode === 'otp-request' ? 'Sign in with Email' : 'Enter Code'}
+        </h1>
+        <p className="text-muted-foreground">
+          {authMode === 'otp-request' 
+            ? "We'll send a 6-digit code to your email" 
+            : `Enter the code sent to ${email}`}
+        </p>
+      </div>
+
+      {authMode === 'otp-request' ? (
+        <form onSubmit={handleOtpRequest} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="otp-email" className="text-sm font-medium">Email address</Label>
+            <Input
+              id="otp-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn(
+                "h-14 text-base bg-muted/50 border-border/50 rounded-xl transition-all focus:bg-background focus:border-primary",
+                errors.email && 'border-destructive'
+              )}
+              disabled={loading}
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Sending code...
+              </>
+            ) : (
+              <>
+                <Mail className="mr-2 h-5 w-5" />
+                Send Code
+              </>
+            )}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleOtpVerify} className="space-y-8">
+          <div className="flex justify-center">
+            <InputOTP
+              maxLength={6}
+              value={otpCode}
+              onChange={setOtpCode}
+              disabled={loading}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={1} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={2} className="w-12 h-14 text-xl rounded-xl" />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={4} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={5} className="w-12 h-14 text-xl rounded-xl" />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading || otpCode.length !== 6}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              'Verify & Sign In'
+            )}
+          </Button>
+          
+          <p className="text-center text-sm text-muted-foreground">
+            Didn't receive the code?{' '}
+            <button
+              type="button"
+              onClick={() => setAuthMode('otp-request')}
+              className="text-primary hover:underline font-medium"
+            >
+              Resend
+            </button>
+          </p>
+        </form>
+      )}
+    </div>
+  );
+
+  const renderPhoneFlow = () => (
+    <div className="w-full max-w-md mx-auto">
+      <button
+        onClick={() => setAuthMode('login')}
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to login
+      </button>
+
+      <div className="text-center mb-8">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/30">
+          {authMode === 'phone-request' ? (
+            <Phone className="h-10 w-10 text-white" />
+          ) : (
+            <Smartphone className="h-10 w-10 text-white" />
+          )}
+        </div>
+        <h1 className="text-3xl font-bold mb-2">
+          {authMode === 'phone-request' ? 'Sign in with Phone' : 'Enter Code'}
+        </h1>
+        <p className="text-muted-foreground">
+          {authMode === 'phone-request' 
+            ? "We'll send a 6-digit code via SMS" 
+            : `Enter the code sent to ${phoneNumber}`}
+        </p>
+      </div>
+
+      {authMode === 'phone-request' ? (
+        <form onSubmit={handlePhoneRequest} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="phone-number" className="text-sm font-medium">Phone Number</Label>
+            <div className="flex gap-2">
+              <CountryCodeSelector
+                value={selectedCountry.code}
+                onChange={setSelectedCountry}
+                disabled={loading}
+              />
+              <Input
+                id="phone-number"
+                type="tel"
+                placeholder="Enter your number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d]/g, ''))}
+                className={cn(
+                  "flex-1 h-14 text-base bg-muted/50 border-border/50 rounded-xl transition-all focus:bg-background focus:border-primary",
+                  errors.email && 'border-destructive'
+                )}
+                disabled={loading}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Select your country and enter your phone number
+            </p>
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Sending code...
+              </>
+            ) : (
+              <>
+                <Phone className="mr-2 h-5 w-5" />
+                Send Code
+              </>
+            )}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handlePhoneVerify} className="space-y-8">
+          <div className="flex justify-center">
+            <InputOTP
+              maxLength={6}
+              value={phoneOtpCode}
+              onChange={setPhoneOtpCode}
+              disabled={loading}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={1} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={2} className="w-12 h-14 text-xl rounded-xl" />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={4} className="w-12 h-14 text-xl rounded-xl" />
+                <InputOTPSlot index={5} className="w-12 h-14 text-xl rounded-xl" />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading || phoneOtpCode.length !== 6}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              'Verify & Sign In'
+            )}
+          </Button>
+          
+          <p className="text-center text-sm text-muted-foreground">
+            Didn't receive the code?{' '}
+            <button
+              type="button"
+              onClick={() => setAuthMode('phone-request')}
+              className="text-primary hover:underline font-medium"
+            >
+              Resend
+            </button>
+          </p>
+        </form>
+      )}
+    </div>
+  );
+
+  const renderAuthForm = () => (
+    <div className="w-full max-w-md mx-auto">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/30 lg:hidden">
+          <Sparkles className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-3xl font-bold mb-2">
+          {activeTab === 'login' ? 'Welcome back' : 'Create account'}
+        </h1>
+        <p className="text-muted-foreground">
+          {activeTab === 'login' 
+            ? 'Enter your credentials to continue' 
+            : 'Join Twibsers and start connecting'}
+        </p>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex bg-muted/50 p-1.5 rounded-2xl mb-8">
+        <button
+          onClick={() => setActiveTab('login')}
+          className={cn(
+            "flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all",
+            activeTab === 'login'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Log In
+        </button>
+        <button
+          onClick={() => setActiveTab('signup')}
+          className={cn(
+            "flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all",
+            activeTab === 'signup'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Sign Up
+        </button>
+      </div>
+
+      {/* Login Form */}
+      {activeTab === 'login' && (
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="login-email" className="text-sm font-medium">Email</Label>
+            <Input
+              id="login-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn(
+                "h-14 text-base bg-muted/50 border-border/50 rounded-xl transition-all focus:bg-background focus:border-primary",
+                errors.email && 'border-destructive'
+              )}
+              disabled={loading}
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
+            <div className="relative">
+              <Input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={cn(
+                  "h-14 text-base bg-muted/50 border-border/50 rounded-xl pr-12 transition-all focus:bg-background focus:border-primary",
+                  errors.password && 'border-destructive'
+                )}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Logging in...
+              </>
+            ) : (
+              'Log In'
+            )}
+          </Button>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/50" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-4 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 rounded-xl border-border/50 hover:bg-muted/50"
+              onClick={() => setAuthMode('otp-request')}
+            >
+              <Mail className="h-4 w-4" />
+              Email Code
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 rounded-xl border-border/50 hover:bg-muted/50"
+              onClick={() => setAuthMode('phone-request')}
+            >
+              <Phone className="h-4 w-4" />
+              Phone
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Signup Form */}
+      {activeTab === 'signup' && (
+        <form onSubmit={handleSignUp} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="signup-name" className="text-sm font-medium">Display Name <span className="text-muted-foreground">(optional)</span></Label>
+            <Input
+              id="signup-name"
+              type="text"
+              placeholder="John Doe"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={cn(
+                "h-14 text-base bg-muted/50 border-border/50 rounded-xl transition-all focus:bg-background focus:border-primary",
+                errors.displayName && 'border-destructive'
+              )}
+              disabled={loading}
+            />
+            {errors.displayName && <p className="text-sm text-destructive">{errors.displayName}</p>}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="signup-email" className="text-sm font-medium">Email</Label>
+            <Input
+              id="signup-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn(
+                "h-14 text-base bg-muted/50 border-border/50 rounded-xl transition-all focus:bg-background focus:border-primary",
+                errors.email && 'border-destructive'
+              )}
+              disabled={loading}
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="signup-password" className="text-sm font-medium">Password</Label>
+            <div className="relative">
+              <Input
+                id="signup-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={cn(
+                  "h-14 text-base bg-muted/50 border-border/50 rounded-xl pr-12 transition-all focus:bg-background focus:border-primary",
+                  errors.password && 'border-destructive'
+                )}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+          </div>
+          
+          <Button type="submit" className="w-full h-14 text-base btn-gradient rounded-xl" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </Button>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/50" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-4 text-muted-foreground">Or sign up with</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 gap-2 rounded-xl border-border/50 hover:bg-muted/50"
+            onClick={() => setAuthMode('phone-request')}
+          >
+            <Phone className="h-4 w-4" />
+            Sign up with Phone
+          </Button>
+          
+          <p className="text-xs text-muted-foreground text-center mt-6">
+            By signing up, you agree to our Terms of Service and Privacy Policy.
+          </p>
+        </form>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Branding */}
+      {/* Left side - Branding Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-accent p-12 flex-col justify-between relative overflow-hidden">
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-white blur-3xl" />
-          <div className="absolute bottom-40 right-20 w-96 h-96 rounded-full bg-white blur-3xl" />
+        {/* Ambient Effects */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-20 w-80 h-80 rounded-full bg-white blur-[100px]" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 rounded-full bg-white blur-[120px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-white/5 blur-[150px]" />
         </div>
         
+        {/* Logo */}
         <div className="relative z-10">
-          <h1 className="text-4xl font-display font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            Twibsers
-          </h1>
-          <p className="text-white/80 mt-2 text-lg">Connect. Create. Collaborate.</p>
+            <h1 className="text-3xl font-bold text-white">Twibsers</h1>
+          </div>
+          <p className="text-white/80 mt-3 text-lg max-w-sm">
+            Connect with creators, share your story, and discover amazing content.
+          </p>
         </div>
         
-        <div className="relative z-10 space-y-8">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
-              <Users className="w-6 h-6 text-white" />
+        {/* Features */}
+        <div className="relative z-10 space-y-6">
+          {[
+            { icon: Users, title: 'Build Your Community', desc: 'Connect with like-minded individuals and grow your network' },
+            { icon: MessageCircle, title: 'Real-Time Messaging', desc: 'Stay connected with instant messaging and voice calls' },
+            { icon: BookOpen, title: 'Digital Library', desc: 'Publish and discover amazing content from verified creators' },
+          ].map((feature, i) => (
+            <div key={i} className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                <feature.icon className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-lg">{feature.title}</h3>
+                <p className="text-white/70 text-sm">{feature.desc}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-white font-semibold text-lg">Build Your Community</h3>
-              <p className="text-white/70">Connect with like-minded individuals and grow your network</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-semibold text-lg">Real-Time Messaging</h3>
-              <p className="text-white/70">Stay connected with instant messaging and notifications</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-semibold text-lg">Digital Library</h3>
-              <p className="text-white/70">Publish and discover amazing content from verified creators</p>
-            </div>
-          </div>
+          ))}
         </div>
         
-        <p className="relative z-10 text-white/60 text-sm">
+        <p className="relative z-10 text-white/50 text-sm">
           © 2024 Twibsers. All rights reserved.
         </p>
       </div>
       
       {/* Right side - Auth Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-8 text-center">
-            <h1 className="text-3xl font-display font-bold gradient-text flex items-center justify-center gap-2">
-              <Sparkles className="w-8 h-8 text-primary" />
-              Twibsers
-            </h1>
-          </div>
-          
-          {/* OTP Flow */}
-          {(authMode === 'otp-request' || authMode === 'otp-verify') && (
-            <Card className="border-0 shadow-card">
-              <CardHeader className="text-center pb-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAuthMode('login')}
-                  className="absolute left-4 top-4 gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Button>
-                <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
-                  {authMode === 'otp-request' ? (
-                    <Mail className="h-8 w-8 text-white" />
-                  ) : (
-                    <KeyRound className="h-8 w-8 text-white" />
-                  )}
-                </div>
-                <CardTitle className="text-2xl font-display">
-                  {authMode === 'otp-request' ? 'Sign in with Email' : 'Enter Code'}
-                </CardTitle>
-                <CardDescription>
-                  {authMode === 'otp-request' 
-                    ? "We'll send a 6-digit code to your email" 
-                    : `Enter the code sent to ${email}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {authMode === 'otp-request' ? (
-                  <form onSubmit={handleOtpRequest} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="otp-email">Email</Label>
-                      <Input
-                        id="otp-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={errors.email ? 'border-destructive' : ''}
-                        disabled={loading}
-                      />
-                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                    </div>
-                    
-                    <Button type="submit" className="w-full btn-gradient" disabled={loading}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending code...
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="mr-2 h-4 w-4" />
-                          Send Code
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleOtpVerify} className="space-y-6">
-                    <div className="flex justify-center">
-                      <InputOTP
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={setOtpCode}
-                        disabled={loading}
-                      >
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} />
-                          <InputOTPSlot index={1} />
-                          <InputOTPSlot index={2} />
-                        </InputOTPGroup>
-                        <InputOTPSeparator />
-                        <InputOTPGroup>
-                          <InputOTPSlot index={3} />
-                          <InputOTPSlot index={4} />
-                          <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
-                    
-                    <Button type="submit" className="w-full btn-gradient" disabled={loading || otpCode.length !== 6}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying...
-                        </>
-                      ) : (
-                        'Verify & Sign In'
-                      )}
-                    </Button>
-                    
-                    <p className="text-center text-sm text-muted-foreground">
-                      Didn't receive the code?{' '}
-                      <button
-                        type="button"
-                        onClick={() => setAuthMode('otp-request')}
-                        className="text-primary hover:underline"
-                      >
-                        Resend
-                      </button>
-                    </p>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Phone OTP Flow */}
-          {(authMode === 'phone-request' || authMode === 'phone-verify') && (
-            <Card className="border-0 shadow-card">
-              <CardHeader className="text-center pb-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAuthMode('login')}
-                  className="absolute left-4 top-4 gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Button>
-                <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
-                  {authMode === 'phone-request' ? (
-                    <Phone className="h-8 w-8 text-white" />
-                  ) : (
-                    <Smartphone className="h-8 w-8 text-white" />
-                  )}
-                </div>
-                <CardTitle className="text-2xl font-display">
-                  {authMode === 'phone-request' ? 'Sign in with Phone' : 'Enter Code'}
-                </CardTitle>
-                <CardDescription>
-                  {authMode === 'phone-request' 
-                    ? "We'll send a 6-digit code via SMS" 
-                    : `Enter the code sent to ${phoneNumber}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {authMode === 'phone-request' ? (
-                  <form onSubmit={handlePhoneRequest} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone-number">Phone Number</Label>
-                      <div className="flex gap-2">
-                        <CountryCodeSelector
-                          value={selectedCountry.code}
-                          onChange={setSelectedCountry}
-                          disabled={loading}
-                        />
-                        <Input
-                          id="phone-number"
-                          type="tel"
-                          placeholder="Enter your number"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d]/g, ''))}
-                          className={`flex-1 ${errors.email ? 'border-destructive' : ''}`}
-                          disabled={loading}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Select your country and enter your phone number
-                      </p>
-                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                    </div>
-                    
-                    <Button type="submit" className="w-full btn-gradient" disabled={loading}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending code...
-                        </>
-                      ) : (
-                        <>
-                          <Phone className="mr-2 h-4 w-4" />
-                          Send Code
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <form onSubmit={handlePhoneVerify} className="space-y-6">
-                    <div className="flex justify-center">
-                      <InputOTP
-                        maxLength={6}
-                        value={phoneOtpCode}
-                        onChange={setPhoneOtpCode}
-                        disabled={loading}
-                      >
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} />
-                          <InputOTPSlot index={1} />
-                          <InputOTPSlot index={2} />
-                        </InputOTPGroup>
-                        <InputOTPSeparator />
-                        <InputOTPGroup>
-                          <InputOTPSlot index={3} />
-                          <InputOTPSlot index={4} />
-                          <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
-                    
-                    <Button type="submit" className="w-full btn-gradient" disabled={loading || phoneOtpCode.length !== 6}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying...
-                        </>
-                      ) : (
-                        'Verify & Sign In'
-                      )}
-                    </Button>
-                    
-                    <p className="text-center text-sm text-muted-foreground">
-                      Didn't receive the code?{' '}
-                      <button
-                        type="button"
-                        onClick={() => setAuthMode('phone-request')}
-                        className="text-primary hover:underline"
-                      >
-                        Resend
-                      </button>
-                    </p>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Password Auth Flow */}
-          {authMode === 'login' && (
-            <Card className="border-0 shadow-card">
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-2xl font-display">
-                  {activeTab === 'login' ? 'Welcome back' : 'Create your account'}
-                </CardTitle>
-                <CardDescription>
-                  {activeTab === 'login' 
-                    ? 'Enter your credentials to access your account' 
-                    : 'Join Twibsers and start connecting'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="login">Log In</TabsTrigger>
-                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="login">
-                    <form onSubmit={handleLogin} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="login-email">Email</Label>
-                        <Input
-                          id="login-email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className={errors.email ? 'border-destructive' : ''}
-                          disabled={loading}
-                        />
-                        {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="login-password">Password</Label>
-                        <Input
-                          id="login-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={errors.password ? 'border-destructive' : ''}
-                          disabled={loading}
-                        />
-                        {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                      </div>
-                      
-                      <Button type="submit" className="w-full btn-gradient" disabled={loading}>
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Logging in...
-                          </>
-                        ) : (
-                          'Log In'
-                        )}
-                      </Button>
-
-                      <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-card px-2 text-muted-foreground">Or</span>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => setAuthMode('otp-request')}
-                      >
-                        <Mail className="h-4 w-4" />
-                        Sign in with Email Code
-                      </Button>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => setAuthMode('phone-request')}
-                      >
-                        <Phone className="h-4 w-4" />
-                        Sign in with Phone
-                      </Button>
-                    </form>
-                  </TabsContent>
-                  
-                  <TabsContent value="signup">
-                    <form onSubmit={handleSignUp} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-name">Display Name (optional)</Label>
-                        <Input
-                          id="signup-name"
-                          type="text"
-                          placeholder="John Doe"
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
-                          className={errors.displayName ? 'border-destructive' : ''}
-                          disabled={loading}
-                        />
-                        {errors.displayName && <p className="text-sm text-destructive">{errors.displayName}</p>}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-email">Email</Label>
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className={errors.email ? 'border-destructive' : ''}
-                          disabled={loading}
-                        />
-                        {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-password">Password</Label>
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={errors.password ? 'border-destructive' : ''}
-                          disabled={loading}
-                        />
-                        {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                      </div>
-                      
-                      <Button type="submit" className="w-full btn-gradient" disabled={loading}>
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Creating account...
-                          </>
-                        ) : (
-                          'Create Account'
-                        )}
-                      </Button>
-
-                      <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-card px-2 text-muted-foreground">Or sign up with</span>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => setAuthMode('phone-request')}
-                      >
-                        <Phone className="h-4 w-4" />
-                        Sign up with Phone
-                      </Button>
-                      
-                      <p className="text-xs text-muted-foreground text-center mt-4">
-                        By signing up, you agree to our Terms of Service and Privacy Policy.
-                      </p>
-                    </form>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          )}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 bg-background relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
+        
+        <div className="relative z-10 w-full">
+          {(authMode === 'otp-request' || authMode === 'otp-verify') && renderOtpFlow()}
+          {(authMode === 'phone-request' || authMode === 'phone-verify') && renderPhoneFlow()}
+          {authMode === 'login' && renderAuthForm()}
         </div>
       </div>
     </div>
