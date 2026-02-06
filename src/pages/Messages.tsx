@@ -7,8 +7,6 @@ import MainLayout from '@/components/layout/MainLayout';
 import ConversationList from '@/components/messaging/ConversationList';
 import MessageThread from '@/components/messaging/MessageThread';
 import CallHistory from '@/components/messaging/CallHistory';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +26,7 @@ export default function Messages() {
   const selectedConvId = searchParams.get('conv');
   const newUserId = searchParams.get('new');
   const answerCallId = searchParams.get('answer');
-  const [activeTab, setActiveTab] = useState<string>('messages');
+  const [activeTab, setActiveTab] = useState<'messages' | 'calls'>('messages');
   
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -38,7 +36,6 @@ export default function Messages() {
   // Handle answering call from global provider via URL param
   useEffect(() => {
     if (answerCallId && selectedConvId) {
-      // Fetch the call session to pass to MessageThread
       const fetchCallSession = async () => {
         const { data } = await supabase
           .from('call_sessions')
@@ -50,7 +47,6 @@ export default function Messages() {
           setPendingAnswerCall(data);
         }
         
-        // Clear the answer param from URL
         setSearchParams({ conv: selectedConvId });
       };
       fetchCallSession();
@@ -102,7 +98,6 @@ export default function Messages() {
         setOtherUserId(other.user_id);
       }
       
-      // Get other user's last_read_at to show read receipts
       if (other) {
         setLastReadAt(other.last_read_at);
       }
@@ -110,7 +105,6 @@ export default function Messages() {
 
     fetchOtherUser();
 
-    // Subscribe to read receipt updates
     const channel = supabase
       .channel(`read-receipts-${selectedConvId}`)
       .on(
@@ -135,7 +129,6 @@ export default function Messages() {
     };
   }, [selectedConvId, user]);
 
-  // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -156,42 +149,61 @@ export default function Messages() {
 
   return (
     <MainLayout>
-      <div className="h-[calc(100vh-48px)] lg:h-screen flex">
-        {/* Conversation List */}
+      {/* Ambient orbs */}
+      <div className="orb orb-primary top-[15%] left-[25%]" />
+      <div className="orb orb-accent bottom-[10%] right-[15%]" />
+
+      <div className="h-[calc(100vh-48px)] lg:h-screen flex relative z-10">
+        {/* Conversation List Panel */}
         <div className={cn(
-          'w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-background',
+          'w-full md:w-80 lg:w-96 flex flex-col',
           selectedConvId ? 'hidden md:flex' : 'flex'
         )}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-            <div className="px-4 py-3 border-b border-border">
-              <TabsList className="w-full grid grid-cols-2 h-9">
-                <TabsTrigger value="messages" className="text-sm">
-                  Chats
-                </TabsTrigger>
-                <TabsTrigger value="calls" className="text-sm">
-                  Calls
-                </TabsTrigger>
-              </TabsList>
+          {/* Tab switcher */}
+          <div className="px-5 py-3 border-b border-border/50 bg-card">
+            <div className="flex gap-1 p-1 bg-surface-2 rounded-xl">
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all',
+                  activeTab === 'messages' 
+                    ? 'bg-primary text-white shadow-lg' 
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Chats
+              </button>
+              <button
+                onClick={() => setActiveTab('calls')}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all',
+                  activeTab === 'calls' 
+                    ? 'bg-primary text-white shadow-lg' 
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Phone className="h-4 w-4" />
+                Calls
+              </button>
             </div>
-            
-            <TabsContent value="messages" className="flex-1 overflow-y-auto m-0">
-              <ConversationList
-                conversations={conversations}
-                loading={convsLoading}
-                selectedId={selectedConvId || undefined}
-                onSelect={handleSelectConversation}
-              />
-            </TabsContent>
-            
-            <TabsContent value="calls" className="flex-1 overflow-y-auto m-0">
-              <CallHistory />
-            </TabsContent>
-          </Tabs>
+          </div>
+          
+          {activeTab === 'messages' ? (
+            <ConversationList
+              conversations={conversations}
+              loading={convsLoading}
+              selectedId={selectedConvId || undefined}
+              onSelect={handleSelectConversation}
+            />
+          ) : (
+            <CallHistory />
+          )}
         </div>
 
-        {/* Message Thread */}
+        {/* Message Thread Panel */}
         <div className={cn(
-          'flex-1 flex flex-col bg-background',
+          'flex-1 flex flex-col',
           !selectedConvId ? 'hidden md:flex' : 'flex'
         )}>
           {selectedConvId && otherUser && otherUserId ? (
@@ -205,11 +217,13 @@ export default function Messages() {
               onCallAnswered={() => setPendingAnswerCall(null)}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-              <MessageSquare className="h-12 w-12 mb-4" strokeWidth={1} />
-              <p className="text-lg font-medium">Your messages</p>
-              <p className="text-sm text-center mt-1">
-                Send private messages to a friend
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 glass-card m-4 rounded-2xl">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-6 shadow-lg">
+                <MessageSquare className="h-8 w-8 text-white" strokeWidth={1.5} />
+              </div>
+              <h2 className="text-xl font-bold mb-2 gradient-text">Your messages</h2>
+              <p className="text-sm text-center text-muted-foreground max-w-xs">
+                Send private messages to a friend. Start a conversation by visiting their profile.
               </p>
             </div>
           )}
