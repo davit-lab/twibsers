@@ -166,7 +166,7 @@ export function useWebRTC(conversationId: string | null, otherUserId: string | n
         
         await supabase
           .from('call_sessions')
-          .update({ [candidateField]: updatedCandidates })
+          .update({ [candidateField]: updatedCandidates } as never)
           .eq('id', sessionId);
       }
     } catch (error) {

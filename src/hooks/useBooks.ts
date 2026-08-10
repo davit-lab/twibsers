@@ -417,7 +417,7 @@ export function useBookActions() {
     try {
       const { error } = await supabase
         .from('books')
-        .update(updates)
+        .update(updates as never)
         .eq('id', bookId);
 
       if (error) throw error;
